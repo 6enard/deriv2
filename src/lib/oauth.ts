@@ -46,7 +46,7 @@ export function buildAuthUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
   })
-  return `https://auth.deriv.com/oauth2/auth?${params.toString()}`
+  return `https://oauth.deriv.com/oauth2/authorize?${params.toString()}`
 }
 
 const PKCE_KEY = 'deriv_pkce'
