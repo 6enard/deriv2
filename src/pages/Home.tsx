@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Shield, Zap, DollarSign, ArrowRight, Loader2 } from 'lucide-react'
+import { Shield, Zap, DollarSign, ArrowRight, Loader as Loader2 } from 'lucide-react'
 
 export default function Home() {
   const { isAuthenticated, login, handleCallback, isLoading, error } = useAuth()
@@ -10,23 +10,32 @@ export default function Home() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/trade')
+      navigate('/trade', { replace: true })
       return
     }
 
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')
+    const returnedError = params.get('error_description') || params.get('error')
 
-    if (code && state) {
-      handleCallback(code, state).then(() => {
+    if (returnedError) {
+      setCallbackError(returnedError)
+      window.history.replaceState({}, document.title, window.location.pathname)
+      return
+    }
+
+    if (!code || !state) return
+
+    handleCallback(code, state)
+      .then(() => {
         window.history.replaceState({}, document.title, window.location.pathname)
+        navigate('/trade', { replace: true })
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         setCallbackError(err.message)
         window.history.replaceState({}, document.title, window.location.pathname)
       })
-    }
   }, [isAuthenticated, handleCallback, navigate])
 
   const displayError = error || callbackError
