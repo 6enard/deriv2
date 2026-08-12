@@ -31,7 +31,7 @@ export async function buildAuthUrl(): Promise<string> {
     redirect_uri: DERIV_REDIRECT_URI,
     app_id: DERIV_APP_ID,
     response_type: 'code',
-    scope: 'trade account_manage',
+    scope: 'trade',
     code_challenge: challenge,
     code_challenge_method: 'S256',
     state,

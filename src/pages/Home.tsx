@@ -54,8 +54,8 @@ export default function Home() {
       <div className="mt-16 rounded-2xl bg-bg-secondary border border-border-default p-6 sm:p-8">
         <h2 className="text-xl font-semibold mb-4">How it works</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Step number="1" title="Connect" description="Sign in on Deriv's official authorization page." />
-          <Step number="2" title="Return" description="Deriv sends your approved accounts back to this site." />
+          <Step number="1" title="Sign in" description="Sign in on Deriv's official authorization page." />
+          <Step number="2" title="Approve" description="Review and approve trading access on Deriv." />
           <Step number="3" title="Trade" description="Place trades through this platform using live Deriv markets." />
           <Step number="4" title="Earn" description="The configured 3% markup applies to eligible contracts." />
         </div>
