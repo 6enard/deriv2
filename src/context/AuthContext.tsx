@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { generatePkce, generateState, buildAuthUrl, storePkce, getStoredPkce, clearPkce } from '../lib/oauth'
-import { DERIV_APP_ID, DERIV_REDIRECT_URI, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
+import { DERIV_APP_ID, DERIV_WS_APP_ID, DERIV_REDIRECT_URI, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
 import type { DerivAccount } from '../lib/types'
 
 const TOKEN_KEY = 'deriv_access_token'
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       clearPkce()
 
-      const newWs = new DerivWS(DERIV_APP_ID)
+      const newWs = new DerivWS(DERIV_WS_APP_ID || undefined)
       await newWs.connect()
 
       const authResponse = await newWs.send({ authorize: accessToken })

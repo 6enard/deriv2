@@ -2,6 +2,7 @@ const configuredAppId = import.meta.env.VITE_DERIV_APP_ID
 const configuredRedirectUri = import.meta.env.VITE_DERIV_REDIRECT_URI
 
 export const DERIV_APP_ID = configuredAppId || '345QrTfSovbsufMvbf71l'
+export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || ''
 export const DERIV_REDIRECT_URI = configuredRedirectUri || 'https://deriv1.vercel.app/'
 
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://twegszjxmxzcrlyqcrud.supabase.co'

@@ -11,8 +11,9 @@ export class DerivWS {
   private url: string
   private listeners: ((status: string) => void)[] = []
 
-  constructor(appId: string) {
-    this.url = `wss://ws.derivws.com/websockets/v3?app_id=${appId}`
+  constructor(appId?: string) {
+    const query = appId ? `?app_id=${encodeURIComponent(appId)}` : ''
+    this.url = `wss://ws.derivws.com/websockets/v3${query}`
   }
 
   onStatusChange(cb: (status: string) => void): () => void {
