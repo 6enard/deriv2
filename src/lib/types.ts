@@ -1,10 +1,14 @@
 export interface DerivAccount {
-  loginid: string;
-  currency: string;
-  balance: number;
-  is_virtual: boolean;
-  fullname: string;
-  email: string;
+  loginid: string
+  currency: string
+  balance: number
+  is_virtual: boolean
+  fullname: string
+  email: string
+}
+
+export interface DerivSessionAccount extends DerivAccount {
+  token: string
 }
 
 export interface SymbolInfo {

@@ -1,143 +1,192 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
-import { generatePkce, generateState, buildAuthUrl, storePkce, getStoredPkce, clearPkce } from '../lib/oauth'
-import { DERIV_APP_ID, DERIV_WS_APP_ID, DERIV_REDIRECT_URI, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
-import type { DerivAccount } from '../lib/types'
+import { buildAuthUrl, clearOAuthState, getStoredOAuthState } from '../lib/oauth'
+import { DERIV_WS_APP_ID } from '../lib/config'
+import type { DerivSessionAccount } from '../lib/types'
 
-const TOKEN_KEY = 'deriv_access_token'
-const ACCOUNT_KEY = 'deriv_account'
-const TOKEN_EXPIRY_KEY = 'deriv_token_expiry'
+const ACCOUNTS_KEY = 'deriv_accounts'
+const SELECTED_ACCOUNT_KEY = 'deriv_selected_account'
 
-interface AuthContextType {
-  token: string | null
-  account: DerivAccount | null
+type AuthContextType = {
+  accounts: DerivSessionAccount[]
+  account: DerivSessionAccount | null
   ws: DerivWS | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
   login: () => void
   logout: () => void
-  handleCallback: (code: string, state: string) => Promise<void>
+  handleCallback: (params: URLSearchParams) => Promise<void>
+  selectAccount: (loginid: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY))
-  const [account, setAccount] = useState<DerivAccount | null>(() => {
-    const stored = sessionStorage.getItem(ACCOUNT_KEY)
-    return stored ? JSON.parse(stored) : null
+function readStoredAccounts(): DerivSessionAccount[] {
+  const stored = sessionStorage.getItem(ACCOUNTS_KEY)
+  if (!stored) return []
+
+  try {
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((account): account is DerivSessionAccount => {
+      if (!account || typeof account !== 'object') return false
+      const candidate = account as Partial<DerivSessionAccount>
+      return typeof candidate.loginid === 'string' && typeof candidate.token === 'string'
+    })
+  } catch {
+    return []
+  }
+}
+
+function connectToAccount(account: DerivSessionAccount): Promise<DerivWS> {
+  return new Promise((resolve, reject) => {
+    const nextWs = new DerivWS(DERIV_WS_APP_ID || undefined)
+    nextWs.connect()
+      .then(() => nextWs.send({ authorize: account.token }))
+      .then((response) => {
+        if (!response.authorize) throw new Error('Deriv did not authorize this account.')
+        resolve(nextWs)
+      })
+      .catch((error: unknown) => {
+        nextWs.disconnect()
+        reject(error instanceof Error ? error : new Error('Unable to connect to Deriv.'))
+      })
   })
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [accounts, setAccounts] = useState<DerivSessionAccount[]>(readStoredAccounts)
+  const [selectedLoginid, setSelectedLoginid] = useState<string | null>(() => sessionStorage.getItem(SELECTED_ACCOUNT_KEY))
   const [ws, setWs] = useState<DerivWS | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const account = accounts.find((candidate) => candidate.loginid === selectedLoginid) || accounts[0] || null
+
   const login = useCallback(() => {
     setError(null)
-    generatePkce().then(({ verifier, challenge }) => {
-      const state = generateState()
-      storePkce(verifier, state)
-      const authUrl = buildAuthUrl(DERIV_APP_ID, DERIV_REDIRECT_URI, challenge, state)
-      window.location.href = authUrl
-    })
+    window.location.assign(buildAuthUrl())
   }, [])
 
   const logout = useCallback(() => {
     ws?.disconnect()
     setWs(null)
-    setToken(null)
-    setAccount(null)
-    sessionStorage.removeItem(TOKEN_KEY)
-    sessionStorage.removeItem(ACCOUNT_KEY)
-    sessionStorage.removeItem(TOKEN_EXPIRY_KEY)
+    setAccounts([])
+    setSelectedLoginid(null)
+    sessionStorage.removeItem(ACCOUNTS_KEY)
+    sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+    clearOAuthState()
   }, [ws])
 
-  const handleCallback = useCallback(async (code: string, state: string) => {
+  const handleCallback = useCallback(async (params: URLSearchParams) => {
     setIsLoading(true)
     setError(null)
 
-    const stored = getStoredPkce()
-    if (!stored || stored.state !== state) {
-      setError('State verification failed. Please try connecting again.')
-      clearPkce()
-      setIsLoading(false)
-      return
-    }
-
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/deriv-oauth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          code,
-          code_verifier: stored.verifier,
-          client_id: DERIV_APP_ID,
-          redirect_uri: DERIV_REDIRECT_URI,
-        }),
-      })
+      const callbackError = params.get('error_description') || params.get('error')
+      if (callbackError) throw new Error(callbackError)
 
-      if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.error || 'Token exchange failed')
+      const returnedState = params.get('state')
+      const storedState = getStoredOAuthState()
+      if (returnedState && storedState && returnedState !== storedState) {
+        throw new Error('The Deriv sign-in session could not be verified. Please try again.')
       }
 
-      const data = await response.json()
-      const accessToken = data.access_token
-
-      clearPkce()
-
-      const newWs = new DerivWS(DERIV_WS_APP_ID || undefined)
-      await newWs.connect()
-
-      const authResponse = await newWs.send({ authorize: accessToken })
-      const accountInfo = authResponse.authorize
-
-      const accountData: DerivAccount = {
-        loginid: accountInfo.loginid,
-        currency: accountInfo.currency,
-        balance: parseFloat(accountInfo.balance),
-        is_virtual: accountInfo.is_virtual === 1,
-        fullname: accountInfo.fullname || '',
-        email: accountInfo.email || '',
+      const nextAccounts: DerivSessionAccount[] = []
+      for (let index = 1; index <= 10; index += 1) {
+        const token = params.get(`token${index}`)
+        const loginid = params.get(`acct${index}`)
+        if (!token || !loginid) continue
+        nextAccounts.push({
+          loginid,
+          token,
+          currency: params.get(`cur${index}`) || 'USD',
+          balance: 0,
+          is_virtual: loginid.startsWith('VRTC'),
+          fullname: '',
+          email: '',
+        })
       }
 
-      sessionStorage.setItem(TOKEN_KEY, accessToken)
-      sessionStorage.setItem(ACCOUNT_KEY, JSON.stringify(accountData))
-      const expiry = Date.now() + (data.expires_in || 3600) * 1000 - 60000
-      sessionStorage.setItem(TOKEN_EXPIRY_KEY, String(expiry))
+      if (nextAccounts.length === 0) {
+        throw new Error('Deriv did not return an account token. Please approve access and try again.')
+      }
 
-      setToken(accessToken)
-      setAccount(accountData)
-      setWs(newWs)
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect to Deriv. Please try again.')
-      clearPkce()
+      const nextWs = await connectToAccount(nextAccounts[0])
+      const accountResponse = await nextWs.send({ account_status: 1 })
+      const accountStatus = accountResponse.account_status
+      if (accountStatus) {
+        nextAccounts[0] = {
+          ...nextAccounts[0],
+          balance: Number(accountStatus.balance || 0),
+          currency: accountStatus.currency || nextAccounts[0].currency,
+          fullname: accountStatus.fullname || '',
+          email: accountStatus.email || '',
+        }
+      }
+
+      ws?.disconnect()
+      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextAccounts))
+      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccounts[0].loginid)
+      clearOAuthState()
+      setAccounts(nextAccounts)
+      setSelectedLoginid(nextAccounts[0].loginid)
+      setWs(nextWs)
+    } catch (callbackError) {
+      const message = callbackError instanceof Error ? callbackError.message : 'Unable to complete Deriv sign-in.'
+      setError(message)
+      clearOAuthState()
+      throw new Error(message)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [ws])
+
+  const selectAccount = useCallback(async (loginid: string) => {
+    const nextAccount = accounts.find((candidate) => candidate.loginid === loginid)
+    if (!nextAccount || nextAccount.loginid === account?.loginid) return
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const nextWs = await connectToAccount(nextAccount)
+      ws?.disconnect()
+      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccount.loginid)
+      setSelectedLoginid(nextAccount.loginid)
+      setWs(nextWs)
+    } catch (selectionError) {
+      setError(selectionError instanceof Error ? selectionError.message : 'Unable to switch Deriv accounts.')
+      throw selectionError
+    } finally {
+      setIsLoading(false)
+    }
+  }, [account?.loginid, accounts, ws])
 
   useEffect(() => {
-    const expiryStr = sessionStorage.getItem(TOKEN_EXPIRY_KEY)
-    if (expiryStr && Date.now() > parseInt(expiryStr)) {
-      logout()
-    }
-  }, [logout])
+    if (!account || ws) return
+    connectToAccount(account)
+      .then(setWs)
+      .catch(() => {
+        sessionStorage.removeItem(ACCOUNTS_KEY)
+        sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+        setAccounts([])
+        setSelectedLoginid(null)
+      })
+  }, [account, ws])
 
   return (
     <AuthContext.Provider value={{
-      token,
+      accounts,
       account,
       ws,
-      isAuthenticated: !!token,
+      isAuthenticated: accounts.length > 0,
       isLoading,
       error,
       login,
       logout,
       handleCallback,
+      selectAccount,
     }}>
       {children}
     </AuthContext.Provider>
@@ -145,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
 }

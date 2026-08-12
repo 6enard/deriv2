@@ -1,44 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Shield, Zap, DollarSign, ArrowRight, Loader as Loader2 } from 'lucide-react'
+import ConnectButton from '../components/ConnectButton'
+import { Shield, Zap, DollarSign, Loader as Loader2, type LucideIcon } from 'lucide-react'
 
 export default function Home() {
-  const { isAuthenticated, login, handleCallback, isLoading, error } = useAuth()
+  const { isAuthenticated, isLoading, error } = useAuth()
   const navigate = useNavigate()
-  const [callbackError, setCallbackError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/trade', { replace: true })
-      return
-    }
-
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    const state = params.get('state')
-    const returnedError = params.get('error_description') || params.get('error')
-
-    if (returnedError) {
-      setCallbackError(returnedError)
-      window.history.replaceState({}, document.title, window.location.pathname)
-      return
-    }
-
-    if (!code || !state) return
-
-    handleCallback(code, state)
-      .then(() => {
-        window.history.replaceState({}, document.title, window.location.pathname)
-        navigate('/trade', { replace: true })
-      })
-      .catch((err: Error) => {
-        setCallbackError(err.message)
-        window.history.replaceState({}, document.title, window.location.pathname)
-      })
-  }, [isAuthenticated, handleCallback, navigate])
-
-  const displayError = error || callbackError
+    if (isAuthenticated) navigate('/trade', { replace: true })
+  }, [isAuthenticated, navigate])
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
@@ -61,62 +33,38 @@ export default function Home() {
             <Loader2 className="w-5 h-5 animate-spin" />
             <span>Connecting to Deriv...</span>
           </div>
-        ) : displayError ? (
-          <div className="max-w-md mx-auto">
-            <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 mb-4 text-sm text-brand-red">
-              {displayError}
+        ) : error ? (
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red">
+              {error}
             </div>
-            <button
-              onClick={login}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-green text-bg-primary font-semibold hover:bg-brand-green-dim transition-colors"
-            >
-              Try Again
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <ConnectButton />
           </div>
         ) : (
-          <button
-            onClick={login}
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-brand-green text-bg-primary font-semibold text-lg hover:bg-brand-green-dim transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Connect Deriv Account
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <ConnectButton />
         )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-12">
-        <FeatureCard
-          icon={Shield}
-          title="Secure OAuth Login"
-          description="Your Deriv credentials stay with Deriv. We use OAuth 2.0 with PKCE — we never see your password."
-        />
-        <FeatureCard
-          icon={Zap}
-          title="Real-Time Trading"
-          description="Live price feeds via WebSocket. Execute trades in milliseconds with up/down contracts."
-        />
-        <FeatureCard
-          icon={DollarSign}
-          title="3% Markup Revenue"
-          description="Every trade through our platform carries a 3% markup on the contract payout, generating revenue automatically."
-        />
+        <FeatureCard icon={Shield} title="Secure Deriv Login" description="Your Deriv credentials stay with Deriv. Approve access on Deriv's official sign-in page." />
+        <FeatureCard icon={Zap} title="Real-Time Trading" description="Open the official Deriv trading interface with your connected account and live markets." />
+        <FeatureCard icon={DollarSign} title="3% Markup Revenue" description="Every trade through our platform carries the configured 3% markup." />
       </div>
 
       <div className="mt-16 rounded-2xl bg-bg-secondary border border-border-default p-6 sm:p-8">
         <h2 className="text-xl font-semibold mb-4">How it works</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Step number="1" title="Connect" description="Click Connect Deriv Account and log in on Deriv's secure page." />
-          <Step number="2" title="Choose a market" description="Select from volatility indices, forex, and commodities." />
-          <Step number="3" title="Trade" description="Pick up or down, set your stake and duration, and execute." />
-          <Step number="4" title="Earn" description="Deriv executes the trade. Your 3% markup applies automatically." />
+          <Step number="1" title="Connect" description="Sign in on Deriv's official authorization page." />
+          <Step number="2" title="Return" description="Deriv sends your approved accounts back to this site." />
+          <Step number="3" title="Trade" description="Use the official Deriv trading interface inside the site." />
+          <Step number="4" title="Earn" description="The configured 3% markup applies to eligible contracts." />
         </div>
       </div>
     </div>
   )
 }
 
-function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+function FeatureCard({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
   return (
     <div className="rounded-xl bg-bg-secondary border border-border-default p-6 hover:border-border-light transition-colors">
       <div className="w-10 h-10 rounded-lg bg-bg-tertiary flex items-center justify-center mb-4">

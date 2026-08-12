@@ -7,9 +7,9 @@ export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || ''
 function buildRedirectUri(): string {
   if (configuredRedirectUri) return configuredRedirectUri
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/`
+    return `${window.location.origin}/callback`
   }
-  return 'https://deriv1.vercel.app/'
+  return 'https://deriv1.vercel.app/callback'
 }
 
 export const DERIV_REDIRECT_URI = buildRedirectUri()
