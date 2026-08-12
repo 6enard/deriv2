@@ -2,10 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
-import {
-  TrendingUp, TrendingDown, Loader2, ChevronDown, ArrowUp, ArrowDown,
-  Wallet, Clock, Activity, DollarSign,
-} from 'lucide-react'
+import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
   const { ws, account } = useAuth()
@@ -164,6 +161,7 @@ export default function Trade() {
         duration: parseInt(duration),
         duration_unit: durationUnit,
         symbol: selectedSymbol,
+        markup_percentage: 3,
       })
 
       const proposal = proposalRes.proposal

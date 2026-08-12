@@ -47,7 +47,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-12">
         <FeatureCard icon={Shield} title="Secure Deriv Login" description="Your Deriv credentials stay with Deriv. Approve access on Deriv's official sign-in page." />
-        <FeatureCard icon={Zap} title="Real-Time Trading" description="Open the official Deriv trading interface with your connected account and live markets." />
+        <FeatureCard icon={Zap} title="Real-Time Trading" description="Place trades on live Deriv markets through this platform using your connected account." />
         <FeatureCard icon={DollarSign} title="3% Markup Revenue" description="Every trade through our platform carries the configured 3% markup." />
       </div>
 
@@ -56,7 +56,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Step number="1" title="Connect" description="Sign in on Deriv's official authorization page." />
           <Step number="2" title="Return" description="Deriv sends your approved accounts back to this site." />
-          <Step number="3" title="Trade" description="Use the official Deriv trading interface inside the site." />
+          <Step number="3" title="Trade" description="Place trades through this platform using live Deriv markets." />
           <Step number="4" title="Earn" description="The configured 3% markup applies to eligible contracts." />
         </div>
       </div>

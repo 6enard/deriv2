@@ -4,7 +4,7 @@ import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import CallbackPage from './pages/CallbackPage'
-import TradingPage from './pages/TradingPage'
+import Trade from './pages/Trade'
 import Portfolio from './pages/Portfolio'
 import Admin from './pages/Admin'
 
@@ -17,7 +17,7 @@ export default function App() {
           <Route path="/callback" element={<Layout><CallbackPage /></Layout>} />
           <Route path="/trade" element={
             <ProtectedRoute>
-              <Layout><TradingPage /></Layout>
+              <Layout><Trade /></Layout>
             </ProtectedRoute>
           } />
           <Route path="/portfolio" element={
