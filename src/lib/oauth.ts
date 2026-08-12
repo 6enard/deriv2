@@ -1,4 +1,4 @@
-import { DERIV_APP_ID, DERIV_REDIRECT_URI } from './config'
+import { DERIV_APP_ID, DERIV_CLIENT_ID, DERIV_REDIRECT_URI } from './config'
 
 const STATE_KEY = 'deriv_oauth_state'
 const VERIFIER_KEY = 'deriv_oauth_code_verifier'
@@ -27,8 +27,9 @@ export async function buildAuthUrl(): Promise<string> {
   sessionStorage.setItem(VERIFIER_KEY, verifier)
 
   const params = new URLSearchParams({
-    client_id: DERIV_APP_ID,
+    client_id: DERIV_CLIENT_ID,
     redirect_uri: DERIV_REDIRECT_URI,
+    app_id: DERIV_APP_ID,
     response_type: 'code',
     scope: 'trade account_manage',
     code_challenge: challenge,

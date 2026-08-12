@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
-import { DERIV_APP_ID, DERIV_REDIRECT_URI, DERIV_WS_APP_ID } from '../lib/config'
+import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, DERIV_WS_APP_ID } from '../lib/config'
 import { supabase } from '../lib/supabase'
 import type { DerivSessionAccount } from '../lib/types'
 
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: {
           code,
           code_verifier: codeVerifier,
-          client_id: DERIV_APP_ID,
+          client_id: DERIV_CLIENT_ID,
           redirect_uri: DERIV_REDIRECT_URI,
         },
       })

@@ -1,6 +1,8 @@
+const configuredClientId = import.meta.env.VITE_DERIV_CLIENT_ID
 const configuredAppId = import.meta.env.VITE_DERIV_APP_ID
 const configuredRedirectUri = import.meta.env.VITE_DERIV_REDIRECT_URI
 
+export const DERIV_CLIENT_ID = configuredClientId || configuredAppId || '345QrTfSovbsufMvbf71l'
 export const DERIV_APP_ID = configuredAppId || '345QrTfSovbsufMvbf71l'
 export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || ''
 
