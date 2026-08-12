@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { generatePkce, generateState, buildAuthUrl, storePkce, getStoredPkce, clearPkce } from '../lib/oauth'
+import { DERIV_APP_ID, DERIV_REDIRECT_URI, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
 import type { DerivAccount } from '../lib/types'
 
 const TOKEN_KEY = 'deriv_access_token'
@@ -21,9 +22,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const APP_ID = import.meta.env.VITE_DERIV_APP_ID
-const REDIRECT_URI = import.meta.env.VITE_DERIV_REDIRECT_URI
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY))
   const [account, setAccount] = useState<DerivAccount | null>(() => {
@@ -39,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     generatePkce().then(({ verifier, challenge }) => {
       const state = generateState()
       storePkce(verifier, state)
-      const authUrl = buildAuthUrl(APP_ID, REDIRECT_URI, challenge, state)
+      const authUrl = buildAuthUrl(DERIV_APP_ID, DERIV_REDIRECT_URI, challenge, state)
       window.location.href = authUrl
     })
   }, [])
@@ -67,19 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-      const response = await fetch(`${supabaseUrl}/functions/v1/deriv-oauth`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/deriv-oauth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${anonKey}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           code,
           code_verifier: stored.verifier,
-          client_id: APP_ID,
-          redirect_uri: REDIRECT_URI,
+          client_id: DERIV_APP_ID,
+          redirect_uri: DERIV_REDIRECT_URI,
         }),
       })
 
@@ -93,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       clearPkce()
 
-      const newWs = new DerivWS(APP_ID)
+      const newWs = new DerivWS(DERIV_APP_ID)
       await newWs.connect()
 
       const authResponse = await newWs.send({ authorize: accessToken })
