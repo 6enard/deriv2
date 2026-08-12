@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
-import { buildAuthUrl, clearOAuthState, getStoredOAuthState } from '../lib/oauth'
-import { DERIV_WS_APP_ID } from '../lib/config'
+import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
+import { DERIV_APP_ID, DERIV_REDIRECT_URI, DERIV_WS_APP_ID } from '../lib/config'
+import { supabase } from '../lib/supabase'
 import type { DerivSessionAccount } from '../lib/types'
 
 const ACCOUNTS_KEY = 'deriv_accounts'
@@ -14,10 +15,16 @@ type AuthContextType = {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-  login: () => void
+  login: () => Promise<void>
   logout: () => void
   handleCallback: (params: URLSearchParams) => Promise<void>
   selectAccount: (loginid: string) => Promise<void>
+}
+
+type OAuthTokenResponse = {
+  access_token?: string
+  token_type?: string
+  expires_in?: number
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -55,6 +62,13 @@ function connectToAccount(account: DerivSessionAccount): Promise<DerivWS> {
   })
 }
 
+function getOAuthToken(data: unknown): string {
+  if (!data || typeof data !== 'object') throw new Error('Deriv returned an invalid token response.')
+  const token = (data as OAuthTokenResponse).access_token
+  if (!token) throw new Error('Deriv did not return an access token.')
+  return token
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<DerivSessionAccount[]>(readStoredAccounts)
   const [selectedLoginid, setSelectedLoginid] = useState<string | null>(() => sessionStorage.getItem(SELECTED_ACCOUNT_KEY))
@@ -64,9 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const account = accounts.find((candidate) => candidate.loginid === selectedLoginid) || accounts[0] || null
 
-  const login = useCallback(() => {
+  const login = useCallback(async () => {
     setError(null)
-    window.location.assign(buildAuthUrl())
+    const authUrl = await buildAuthUrl()
+    window.location.assign(authUrl)
   }, [])
 
   const logout = useCallback(() => {
@@ -87,51 +102,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const callbackError = params.get('error_description') || params.get('error')
       if (callbackError) throw new Error(callbackError)
 
+      const code = params.get('code')
       const returnedState = params.get('state')
       const storedState = getStoredOAuthState()
-      if (returnedState && storedState && returnedState !== storedState) {
+      const codeVerifier = getStoredCodeVerifier()
+
+      if (!code || !returnedState || !storedState || returnedState !== storedState) {
         throw new Error('The Deriv sign-in session could not be verified. Please try again.')
       }
+      if (!codeVerifier) throw new Error('The Deriv sign-in session has expired. Please try again.')
 
-      const nextAccounts: DerivSessionAccount[] = []
-      for (let index = 1; index <= 10; index += 1) {
-        const token = params.get(`token${index}`)
-        const loginid = params.get(`acct${index}`)
-        if (!token || !loginid) continue
-        nextAccounts.push({
-          loginid,
-          token,
-          currency: params.get(`cur${index}`) || 'USD',
-          balance: 0,
-          is_virtual: loginid.startsWith('VRTC'),
-          fullname: '',
-          email: '',
-        })
+      const { data, error: exchangeError } = await supabase.functions.invoke('deriv-oauth', {
+        body: {
+          code,
+          code_verifier: codeVerifier,
+          client_id: DERIV_APP_ID,
+          redirect_uri: DERIV_REDIRECT_URI,
+        },
+      })
+
+      if (exchangeError) throw new Error(exchangeError.message || 'Deriv token exchange failed.')
+      const token = getOAuthToken(data)
+      const nextAccount: DerivSessionAccount = {
+        loginid: '',
+        token,
+        currency: 'USD',
+        balance: 0,
+        is_virtual: false,
+        fullname: '',
+        email: '',
       }
+      const nextWs = await connectToAccount(nextAccount)
+      const authorization = await nextWs.send({ authorize: token })
+      const authorizedAccount = authorization.authorize
+      if (!authorizedAccount?.loginid) throw new Error('Deriv did not return account information.')
 
-      if (nextAccounts.length === 0) {
-        throw new Error('Deriv did not return an account token. Please approve access and try again.')
-      }
-
-      const nextWs = await connectToAccount(nextAccounts[0])
-      const accountResponse = await nextWs.send({ account_status: 1 })
-      const accountStatus = accountResponse.account_status
-      if (accountStatus) {
-        nextAccounts[0] = {
-          ...nextAccounts[0],
-          balance: Number(accountStatus.balance || 0),
-          currency: accountStatus.currency || nextAccounts[0].currency,
-          fullname: accountStatus.fullname || '',
-          email: accountStatus.email || '',
-        }
+      const authenticatedAccount: DerivSessionAccount = {
+        ...nextAccount,
+        loginid: authorizedAccount.loginid,
+        currency: authorizedAccount.currency || 'USD',
+        balance: Number(authorizedAccount.balance || 0),
+        is_virtual: Boolean(authorizedAccount.is_virtual),
+        fullname: authorizedAccount.fullname || '',
+        email: authorizedAccount.email || '',
       }
 
       ws?.disconnect()
-      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(nextAccounts))
-      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccounts[0].loginid)
+      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify([authenticatedAccount]))
+      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, authenticatedAccount.loginid)
       clearOAuthState()
-      setAccounts(nextAccounts)
-      setSelectedLoginid(nextAccounts[0].loginid)
+      setAccounts([authenticatedAccount])
+      setSelectedLoginid(authenticatedAccount.loginid)
       setWs(nextWs)
     } catch (callbackError) {
       const message = callbackError instanceof Error ? callbackError.message : 'Unable to complete Deriv sign-in.'
