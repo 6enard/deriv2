@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2 } from 'lucide-react'
@@ -579,6 +581,8 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
 
 function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy[]; onChanged: () => void }) {
   const { account, ws } = useAuth()
+  const navigate = useNavigate()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [symbols, setSymbols] = useState<{ symbol: string; display_name: string }[]>([])
   const [loadingSymbols, setLoadingSymbols] = useState(false)
@@ -673,9 +677,16 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
         markup_percentage: 3,
       })
       const proposal = proposalRes.proposal
-      await ws.send({ buy: proposal.id, price: proposal.ask_price })
-    } catch { /* user sees error in trade page */ }
-    setRunning(null)
+      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
+      const buyData = buyRes.buy
+      showToast('success', `${strat.contract_type === 'CALL' ? 'Up' : 'Down'} trade placed for ${buyData.buy_price} ${account.currency}`)
+      navigate('/trade')
+    } catch (err: any) {
+      const message = err?.error?.message || err?.message || 'Trade failed. Please try again.'
+      showToast('error', message)
+    } finally {
+      setRunning(null)
+    }
   }
 
   const filteredSymbols = symbols.filter((s) =>

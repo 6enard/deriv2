@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
   const { ws, account } = useAuth()
+  const { showToast } = useToast()
 
   const [symbols, setSymbols] = useState<SymbolInfo[]>([])
   const [selectedSymbol, setSelectedSymbol] = useState('')
@@ -16,7 +18,6 @@ export default function Trade() {
   const [durationUnit, setDurationUnit] = useState('m')
   const [isTrading, setIsTrading] = useState(false)
   const [openContracts, setOpenContracts] = useState<Record<number, OpenContract>>({})
-  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const [loadingSymbols, setLoadingSymbols] = useState(true)
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
   const [symbolSearch, setSymbolSearch] = useState('')
@@ -24,10 +25,9 @@ export default function Trade() {
   const [flashClass, setFlashClass] = useState('')
   const tickSubIdRef = useRef<string | null>(null)
 
-  const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
-    setToast({ type, message })
-    setTimeout(() => setToast(null), 5000)
-  }, [])
+  const showToastCallback = useCallback((type: 'success' | 'error' | 'info', message: string) => {
+    showToast(type, message)
+  }, [showToast])
 
   const formatPrice = useCallback((price: number) => {
     return price.toFixed(pipSize)
@@ -46,10 +46,10 @@ export default function Trade() {
         setLoadingSymbols(false)
       })
       .catch(() => {
-        showToast('error', 'Failed to load markets')
+        showToastCallback('error', 'Failed to load markets')
         setLoadingSymbols(false)
       })
-  }, [ws, showToast])
+  }, [ws, showToastCallback])
 
   // Subscribe to ticks — use forget(subscription_id) to stop old stream before starting new one
   useEffect(() => {
@@ -94,14 +94,14 @@ export default function Trade() {
         }
         tickSubIdRef.current = res.subscription?.id || null
       }).catch(() => {
-        showToast('error', 'Failed to subscribe to price feed')
+        showToastCallback('error', 'Failed to subscribe to price feed')
       })
     })
 
     return () => {
       cancelled = true
     }
-  }, [ws, selectedSymbol, showToast])
+  }, [ws, selectedSymbol, showToastCallback])
 
   // Cleanup tick subscription on unmount
   useEffect(() => {
@@ -163,18 +163,18 @@ export default function Trade() {
         }
         // Toast
         if (contract.status === 'won') {
-          showToast('success', `Trade won! Profit: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
+          showToastCallback('success', `Trade won! Profit: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
         } else if (contract.status === 'lost') {
-          showToast('error', `Trade lost. Loss: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
+          showToastCallback('error', `Trade lost. Loss: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
         } else if (contract.status === 'sold') {
-          showToast('info', `Contract sold. P/L: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
+          showToastCallback('info', `Contract sold. P/L: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
         }
       } else {
         next[contract.contract_id] = contract
       }
       return next
     })
-  }, [account, showToast])
+  }, [account, showToastCallback])
 
   const executeTrade = async (contractType: 'CALL' | 'PUT') => {
     if (!ws || !account || !selectedSymbol) return
@@ -201,7 +201,7 @@ export default function Trade() {
       })
 
       const buyData = buyRes.buy
-      showToast('info', `${contractType === 'CALL' ? 'Up' : 'Down'} contract purchased for ${buyData.buy_price} ${account.currency}`)
+      showToastCallback('info', `${contractType === 'CALL' ? 'Up' : 'Down'} contract purchased for ${buyData.buy_price} ${account.currency}`)
 
       // Subscribe to contract updates
       ws.subscribe(
@@ -213,7 +213,7 @@ export default function Trade() {
         },
       ).catch(() => {})
     } catch (err: any) {
-      showToast('error', err.message || 'Trade failed. Please try again.')
+      showToastCallback('error', err.message || 'Trade failed. Please try again.')
     } finally {
       setIsTrading(false)
     }
@@ -223,9 +223,9 @@ export default function Trade() {
     if (!ws) return
     try {
       await ws.send({ sell: contractId, price: 0 })
-      showToast('info', 'Selling contract...')
+      showToastCallback('info', 'Selling contract...')
     } catch (err: any) {
-      showToast('error', err.message || 'Failed to sell contract')
+      showToastCallback('error', err.message || 'Failed to sell contract')
     }
   }
 
@@ -254,16 +254,6 @@ export default function Trade() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {toast && (
-        <div className={`fixed top-20 right-4 z-50 max-w-sm slide-in rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
-          toast.type === 'success' ? 'bg-brand-green/15 border border-brand-green/30 text-brand-green' :
-          toast.type === 'error' ? 'bg-brand-red/15 border border-brand-red/30 text-brand-red' :
-          'bg-brand-blue/15 border border-brand-blue/30 text-brand-blue'
-        }`}>
-          {toast.message}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Chart + Trade Form */}
         <div className="lg:col-span-2 space-y-4">
