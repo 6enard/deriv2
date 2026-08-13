@@ -190,8 +190,7 @@ export default function Trade() {
         currency: account.currency,
         duration: parseInt(duration),
         duration_unit: durationUnit,
-        symbol: selectedSymbol,
-        markup_percentage: 3,
+        underlying_symbol: selectedSymbol,
       })
 
       const proposal = proposalRes.proposal

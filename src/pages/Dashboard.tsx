@@ -676,8 +676,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
         currency: account.currency,
         duration: strat.duration,
         duration_unit: strat.duration_unit,
-        symbol: strat.symbol,
-        markup_percentage: 3,
+        underlying_symbol: strat.symbol,
       })
       const proposal = proposalRes.proposal
       const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
