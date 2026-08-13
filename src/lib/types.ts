@@ -17,9 +17,23 @@ export interface SymbolInfo {
   market: string;
   market_display_name: string;
   submarket: string;
-  submarket_display_name: string;
-  pip: number;
+  pip_size: number;
   exchange_is_open: number;
+}
+
+export function mapActiveSymbol(s: any): SymbolInfo {
+  return {
+    symbol: s.underlying_symbol ?? s.symbol,
+    display_name: s.underlying_symbol_name ?? s.display_name,
+    market: s.market,
+    market_display_name: s.market_display_name ?? s.market
+      .split('_')
+      .map((w: string) => w[0].toUpperCase() + w.slice(1))
+      .join(' '),
+    submarket: s.submarket,
+    pip_size: s.pip_size ?? s.pip ?? 2,
+    exchange_is_open: s.exchange_is_open,
+  }
 }
 
 export interface Tick {

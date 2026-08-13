@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
+import { mapActiveSymbol } from '../lib/types'
+import type { SymbolInfo } from '../lib/types'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2 } from 'lucide-react'
 
 type Tab = 'my-bots' | 'free-bots' | 'editor' | 'strategy'
@@ -584,7 +586,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
-  const [symbols, setSymbols] = useState<{ symbol: string; display_name: string }[]>([])
+  const [symbols, setSymbols] = useState<{ symbol: string; display_name: string }[]>([])  
   const [loadingSymbols, setLoadingSymbols] = useState(false)
   const [symbolSearch, setSymbolSearch] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -608,10 +610,11 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
     try {
       const res = await ws.send({ active_symbols: 'brief' })
       if (res.active_symbols) {
-        setSymbols(res.active_symbols.map((s: { symbol: string; display_name: string }) => ({ symbol: s.symbol, display_name: s.display_name })))
+        const mapped: SymbolInfo[] = res.active_symbols.map((s: any) => mapActiveSymbol(s))
+        setSymbols(mapped.map((s: SymbolInfo) => ({ symbol: s.symbol, display_name: s.display_name })))
         if (!symbol) {
-          const firstVol = res.active_symbols.find((s: { market: string }) => s.market === 'synthetic_index')
-          setSymbol(firstVol?.symbol || res.active_symbols[0]?.symbol || '')
+          const firstVol = mapped.find((s: SymbolInfo) => s.market === 'synthetic_index')
+          setSymbol(firstVol?.symbol || mapped[0]?.symbol || '')
         }
       }
     } catch { /* ignore */ }

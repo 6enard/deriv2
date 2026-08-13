@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
+import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
@@ -39,7 +40,7 @@ export default function Trade() {
     setLoadingSymbols(true)
     ws.send({ active_symbols: 'brief' })
       .then((res) => {
-        const syms = res.active_symbols as SymbolInfo[]
+        const syms: SymbolInfo[] = res.active_symbols.map((s: any) => mapActiveSymbol(s))
         setSymbols(syms)
         const firstVol = syms.find((s) => s.market === 'synthetic_index')
         setSelectedSymbol(firstVol?.symbol || syms[0]?.symbol || '')
