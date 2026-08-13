@@ -2,6 +2,7 @@ type PendingRequest = {
   resolve: (data: any) => void
   reject: (error: any) => void
   subscribe?: (data: any) => void
+  resolved?: boolean
 }
 
 export class DerivWS {
@@ -70,6 +71,10 @@ export class DerivWS {
 
       if (data.subscription && req.subscribe) {
         req.subscribe(data)
+        if (!req.resolved) {
+          req.resolved = true
+          req.resolve(data)
+        }
         return
       }
 
