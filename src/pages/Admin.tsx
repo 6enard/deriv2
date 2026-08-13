@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { DerivWS } from '../lib/deriv-ws'
-import { Settings, Loader2, CheckCircle, AlertCircle, Key } from 'lucide-react'
-
-const APP_ID = import.meta.env.VITE_DERIV_APP_ID
+import { DERIV_WS_APP_ID } from '../lib/config'
+import { Settings, Loader as Loader2, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Key } from 'lucide-react'
 
 export default function Admin() {
   const { isAuthenticated, account } = useAuth()
@@ -16,14 +15,14 @@ export default function Admin() {
     setStatus('loading')
     setMessage('')
     try {
-      const ws = new DerivWS(APP_ID)
+      const ws = new DerivWS(DERIV_WS_APP_ID)
       await ws.connect()
 
       const authRes = await ws.send({ authorize: pat })
       if (authRes.error) throw new Error(authRes.error.message)
 
       const updateRes = await ws.send({
-        app_update: APP_ID,
+        app_update: DERIV_WS_APP_ID,
         app_markup_percentage: parseFloat(markup),
       })
 
