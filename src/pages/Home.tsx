@@ -9,7 +9,7 @@ export default function Home() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/trade', { replace: true })
+    if (isAuthenticated) navigate('/dashboard', { replace: true })
   }, [isAuthenticated, navigate])
 
   return (

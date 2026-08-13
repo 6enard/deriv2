@@ -14,7 +14,7 @@ export default function CallbackPage() {
     hasProcessed.current = true
 
     handleCallback(new URLSearchParams(window.location.search))
-      .then(() => navigate('/trade', { replace: true }))
+      .then(() => navigate('/dashboard', { replace: true }))
       .catch((callbackError: unknown) => {
         setError(callbackError instanceof Error ? callbackError.message : 'Unable to complete Deriv sign-in.')
       })

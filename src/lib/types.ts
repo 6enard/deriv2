@@ -71,3 +71,32 @@ export interface TradeRecord {
   sell_time?: string;
   created_at?: string;
 }
+
+export type StrategyType = 'martingale' | 'grid' | 'trend_follow' | 'mean_reversion' | 'custom';
+
+export interface Bot {
+  id: string;
+  deriv_account_id: string;
+  name: string;
+  description: string;
+  strategy_type: StrategyType;
+  config: Record<string, unknown>;
+  is_free: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuickStrategy {
+  id?: string;
+  deriv_account_id: string;
+  name: string;
+  symbol: string;
+  contract_type: 'CALL' | 'PUT';
+  stake: number;
+  duration: number;
+  duration_unit: string;
+  martingale_steps: number;
+  martingale_multiplier: number;
+  created_at?: string;
+}

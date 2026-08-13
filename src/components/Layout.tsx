@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { TrendingUp, LineChart, Wallet, Settings, LogOut, Menu, X } from 'lucide-react'
+import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -10,6 +10,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/trade', label: 'Trade', icon: TrendingUp },
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
   ]

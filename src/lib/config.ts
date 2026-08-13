@@ -4,7 +4,7 @@ const configuredRedirectUri = import.meta.env.VITE_DERIV_REDIRECT_URI
 
 export const DERIV_CLIENT_ID = configuredClientId || configuredAppId || '345QrTfSovbsufMvbf71l'
 export const DERIV_APP_ID = configuredAppId || '345QrTfSovbsufMvbf71l'
-export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || ''
+export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || DERIV_APP_ID
 
 function buildRedirectUri(): string {
   if (configuredRedirectUri) return configuredRedirectUri
