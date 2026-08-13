@@ -4,7 +4,13 @@ const configuredRedirectUri = import.meta.env.VITE_DERIV_REDIRECT_URI
 
 export const DERIV_CLIENT_ID = configuredClientId || configuredAppId || '345QrTfSovbsufMvbf71l'
 export const DERIV_APP_ID = configuredAppId || '345QrTfSovbsufMvbf71l'
-export const DERIV_WS_APP_ID = import.meta.env.VITE_DERIV_WS_APP_ID || DERIV_APP_ID
+
+// WebSocket requires a numeric app_id. The OAuth client_id is alphanumeric and
+// will not work. Fall back to Deriv's public app_id (1089) when no numeric
+// app_id is configured.
+const DEFAULT_WS_APP_ID = '1089'
+const wsAppId = import.meta.env.VITE_DERIV_WS_APP_ID || configuredAppId || DEFAULT_WS_APP_ID
+export const DERIV_WS_APP_ID = /^\d+$/.test(wsAppId) ? wsAppId : DEFAULT_WS_APP_ID
 
 function buildRedirectUri(): string {
   if (configuredRedirectUri) return configuredRedirectUri
