@@ -25,7 +25,6 @@ type OAuthTokenResponse = {
   access_token?: string
   token_type?: string
   expires_in?: number
-  refresh_token?: string
 }
 
 type OptionsAccount = {
@@ -71,35 +70,11 @@ function isTokenExpired(expiry: number): boolean {
   return Date.now() >= expiry
 }
 
-async function refreshAccessToken(account: DerivSessionAccount): Promise<DerivSessionAccount> {
-  if (!account.refresh_token) {
-    throw new Error('Session expired. Please sign in again.')
-  }
+const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 
-  const { data, error: refreshError } = await supabase.functions.invoke('deriv-oauth', {
-    body: {
-      grant_type: 'refresh_token',
-      refresh_token: account.refresh_token,
-      client_id: DERIV_CLIENT_ID,
-      redirect_uri: DERIV_REDIRECT_URI,
-    },
-  })
-
-  if (refreshError) throw new Error(refreshError.message || 'Unable to refresh session.')
-  const tokens = getOAuthToken(data)
-  if (!tokens.access_token) throw new Error('Unable to refresh session.')
-
-  return {
-    ...account,
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token || account.refresh_token,
-    token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
-  }
-}
-
-async function ensureValidToken(account: DerivSessionAccount): Promise<DerivSessionAccount> {
+function ensureValidToken(account: DerivSessionAccount): DerivSessionAccount {
   if (isTokenExpired(account.token_expiry)) {
-    return refreshAccessToken(account)
+    throw new Error(SESSION_EXPIRED_MESSAGE)
   }
   return account
 }
@@ -152,7 +127,6 @@ function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): Der
     balance: Number(acct.balance || 0),
     account_type: acct.account_type || 'demo',
     access_token: tokens.access_token!,
-    refresh_token: tokens.refresh_token,
     token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
   }
 }
@@ -279,26 +253,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!account || ws) return
 
     let cancelled = false
-    ensureValidToken(account)
-      .then(async (refreshed) => {
-        if (cancelled) return
-        const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
-        if (cancelled) return
-        const nextWs = await connectViaOtp(otpUrl)
-        if (cancelled) {
-          nextWs.disconnect()
-          return
-        }
-        refreshed.ws_url = otpUrl
-        setAccounts((prev) => prev.map((a) => a.account_id === refreshed.account_id ? refreshed : a))
-        setWs(nextWs)
-      })
-      .catch(() => {
-        sessionStorage.removeItem(ACCOUNTS_KEY)
-        sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
-        setAccounts([])
-        setSelectedAccountId(null)
-      })
+    try {
+      const validated = ensureValidToken(account)
+      fetchOtpUrl(validated.access_token, validated.account_id)
+        .then(async (otpUrl) => {
+          if (cancelled) return
+          const nextWs = await connectViaOtp(otpUrl)
+          if (cancelled) {
+            nextWs.disconnect()
+            return
+          }
+          validated.ws_url = otpUrl
+          setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
+          setWs(nextWs)
+        })
+        .catch(() => {
+          if (cancelled) return
+          sessionStorage.removeItem(ACCOUNTS_KEY)
+          sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+          setAccounts([])
+          setSelectedAccountId(null)
+          setError(SESSION_EXPIRED_MESSAGE)
+        })
+    } catch {
+      sessionStorage.removeItem(ACCOUNTS_KEY)
+      sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      setAccounts([])
+      setSelectedAccountId(null)
+      setError(SESSION_EXPIRED_MESSAGE)
+    }
 
     return () => { cancelled = true }
   }, [account, ws])

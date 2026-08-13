@@ -7,7 +7,6 @@ export interface DerivAccount {
 
 export interface DerivSessionAccount extends DerivAccount {
   access_token: string
-  refresh_token?: string
   token_expiry: number
   ws_url?: string
 }
