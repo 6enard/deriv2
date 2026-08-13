@@ -137,7 +137,14 @@ export default function Trade() {
       .catch(() => {})
   }, [ws])
 
-  const handleContractUpdate = useCallback((contract: OpenContract) => {
+  const handleContractUpdate = useCallback((raw: OpenContract) => {
+    const contract: OpenContract = {
+      ...raw,
+      buy_price: parseFloat(raw.buy_price as any),
+      payout: parseFloat(raw.payout as any),
+      profit: parseFloat(raw.profit as any),
+      sell_price: raw.sell_price != null ? parseFloat(raw.sell_price as any) : null,
+    }
     setOpenContracts((prev) => {
       const next = { ...prev }
       if (contract.is_sold || contract.is_expired) {

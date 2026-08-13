@@ -57,7 +57,7 @@ export interface OpenContract {
   contract_type: string;
   status: string;
   buy_price: number;
-  sell_price?: number;
+  sell_price: number | null;
   payout: number;
   profit: number;
   purchase_time: number;
