@@ -5,8 +5,8 @@ const configuredRedirectUri = import.meta.env.VITE_DERIV_REDIRECT_URI
 export const DERIV_CLIENT_ID = configuredClientId || configuredAppId || '345QrTfSovbsufMvbf71l'
 export const DERIV_APP_ID = configuredAppId || '345QrTfSovbsufMvbf71l'
 
-const wsAppId = import.meta.env.VITE_DERIV_WS_APP_ID || (configuredAppId && /^\d+$/.test(configuredAppId) ? configuredAppId : '')
-export const DERIV_WS_APP_ID = wsAppId || '1089'
+export const OPTIONS_API_BASE = 'https://api.derivws.com/trading/v1/options'
+export const PUBLIC_WS_URL = 'wss://api.derivws.com/trading/v1/options/ws/public'
 
 function buildRedirectUri(): string {
   if (configuredRedirectUri) return configuredRedirectUri

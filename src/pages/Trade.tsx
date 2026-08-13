@@ -115,7 +115,7 @@ export default function Trade() {
         // Save to Supabase
         if (account) {
           supabase.from('trades').insert({
-            deriv_account_id: account.loginid,
+            deriv_account_id: account.account_id,
             contract_id: contract.contract_id,
             symbol: contract.symbol,
             display_name: contract.display_name,
@@ -423,7 +423,7 @@ export default function Trade() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Login ID</span>
-                  <span className="font-medium">{account.loginid}</span>
+                  <span className="font-medium">{account.account_id}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Balance</span>
@@ -431,7 +431,7 @@ export default function Trade() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Type</span>
-                  <span className="font-medium">{account.is_virtual ? 'Demo' : 'Real'}</span>
+                  <span className="font-medium">{account.account_type === 'demo' ? 'Demo' : 'Real'}</span>
                 </div>
               </div>
             </div>

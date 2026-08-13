@@ -74,7 +74,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                       {account.balance.toFixed(2)} {account.currency}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {account.loginid} {account.is_virtual ? '(Demo)' : ''}
+                      {account.account_id} {account.account_type === 'demo' ? '(Demo)' : ''}
                     </span>
                   </div>
                   <button
@@ -135,7 +135,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {account && (
               <div className="px-3 py-2 text-sm">
                 <span className="font-semibold tabular">{account.balance.toFixed(2)} {account.currency}</span>
-                <span className="text-text-muted ml-2">{account.loginid}</span>
+                <span className="text-text-muted ml-2">{account.account_id}</span>
               </div>
             )}
             <button

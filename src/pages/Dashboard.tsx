@@ -35,9 +35,9 @@ export default function Dashboard() {
     setLoading(true)
     try {
       const [mineRes, freeRes, stratRes] = await Promise.all([
-        supabase.from('bots').select('*').eq('deriv_account_id', account.loginid).order('created_at', { ascending: false }),
+        supabase.from('bots').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false }),
         supabase.from('bots').select('*').eq('is_free', true).order('created_at', { ascending: false }),
-        supabase.from('quick_strategies').select('*').eq('deriv_account_id', account.loginid).order('created_at', { ascending: false }),
+        supabase.from('quick_strategies').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false }),
       ])
       if (mineRes.data) setMyBots(mineRes.data)
       if (freeRes.data) setFreeBots(freeRes.data)
@@ -151,7 +151,7 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
       )}
 
       {showUpload && account && (
-        <UploadBotModal account={account.loginid} onClose={() => setShowUpload(false)} onUploaded={() => { setShowUpload(false); onChanged() }} />
+        <UploadBotModal account={account.account_id} onClose={() => setShowUpload(false)} onUploaded={() => { setShowUpload(false); onChanged() }} />
       )}
     </div>
   )
@@ -275,7 +275,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
     if (!account) return
     setCopying(bot.id)
     const { error } = await supabase.from('bots').insert({
-      deriv_account_id: account.loginid,
+      deriv_account_id: account.account_id,
       name: `${bot.name} (Copy)`,
       description: bot.description,
       strategy_type: bot.strategy_type,
@@ -355,7 +355,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
 
   useEffect(() => {
     if (!account) return
-    supabase.from('bots').select('*').eq('deriv_account_id', account.loginid).order('created_at', { ascending: false })
+    supabase.from('bots').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false })
       .then(({ data }) => { if (data) setMyBots(data) })
   }, [account])
 
@@ -402,7 +402,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
       if (updateError) { setError(updateError.message); return }
     } else {
       const { error: insertError } = await supabase.from('bots').insert({
-        deriv_account_id: account.loginid,
+        deriv_account_id: account.account_id,
         name: name.trim(),
         description: description.trim(),
         strategy_type: strategyType,
@@ -416,14 +416,14 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
     setEditingBot(null)
     onChanged()
     // refresh local list
-    supabase.from('bots').select('*').eq('deriv_account_id', account.loginid).order('created_at', { ascending: false })
+    supabase.from('bots').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false })
       .then(({ data }) => { if (data) setMyBots(data) })
   }
 
   const deleteBot = async (id: string) => {
     await supabase.from('bots').delete().eq('id', id)
     onChanged()
-    supabase.from('bots').select('*').eq('deriv_account_id', account!.loginid).order('created_at', { ascending: false })
+    supabase.from('bots').select('*').eq('deriv_account_id', account!.account_id).order('created_at', { ascending: false })
       .then(({ data }) => { if (data) setMyBots(data) })
   }
 
@@ -635,7 +635,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
     setSaving(true)
     setError(null)
     const { error: insertError } = await supabase.from('quick_strategies').insert({
-      deriv_account_id: account.loginid,
+      deriv_account_id: account.account_id,
       name: name.trim(),
       symbol,
       contract_type: contractType,

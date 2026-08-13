@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { TrendingUp, TrendingDown, Wallet, Award, BarChart3, RefreshCw, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2 } from 'lucide-react'
 
 interface PortfolioPosition {
   contract_id: number
@@ -87,7 +87,7 @@ export default function Portfolio() {
     supabase
       .from('trades')
       .select('*')
-      .eq('deriv_account_id', account.loginid)
+      .eq('deriv_account_id', account.account_id)
       .order('created_at', { ascending: false })
       .limit(50)
       .then(({ data }) => {

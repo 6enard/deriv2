@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { DerivWS } from '../lib/deriv-ws'
-import { DERIV_WS_APP_ID } from '../lib/config'
+import { DERIV_CLIENT_ID, OPTIONS_API_BASE } from '../lib/config'
 import { Settings, Loader as Loader2, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Key } from 'lucide-react'
 
 export default function Admin() {
@@ -15,14 +15,39 @@ export default function Admin() {
     setStatus('loading')
     setMessage('')
     try {
-      const ws = new DerivWS(DERIV_WS_APP_ID)
+      const headers: Record<string, string> = {
+        'Deriv-App-ID': DERIV_CLIENT_ID,
+        'Authorization': `Bearer ${pat}`,
+        'Content-Type': 'application/json',
+      }
+
+      const accountsRes = await fetch(`${OPTIONS_API_BASE}/accounts`, { headers })
+      if (!accountsRes.ok) {
+        const err = await accountsRes.json().catch(() => ({}))
+        throw new Error(err.error || `Accounts request failed (${accountsRes.status})`)
+      }
+      const accountsBody = await accountsRes.json()
+      const accountList = accountsBody.data || []
+      if (accountList.length === 0) throw new Error('No accounts found for this token.')
+      const accountId = accountList[0].account_id
+
+      const otpRes = await fetch(`${OPTIONS_API_BASE}/accounts/${accountId}/otp`, {
+        method: 'POST',
+        headers,
+      })
+      if (!otpRes.ok) {
+        const err = await otpRes.json().catch(() => ({}))
+        throw new Error(err.error || `OTP request failed (${otpRes.status})`)
+      }
+      const otpBody = await otpRes.json()
+      const wsUrl: string | undefined = otpBody.data?.url
+      if (!wsUrl) throw new Error('Deriv did not return a connection URL.')
+
+      const ws = new DerivWS(wsUrl)
       await ws.connect()
 
-      const authRes = await ws.send({ authorize: pat })
-      if (authRes.error) throw new Error(authRes.error.message)
-
       const updateRes = await ws.send({
-        app_update: DERIV_WS_APP_ID,
+        app_update: DERIV_CLIENT_ID,
         app_markup_percentage: parseFloat(markup),
       })
 
@@ -32,9 +57,9 @@ export default function Admin() {
       setMessage(`Markup set to ${markup}% successfully. Your app now earns ${markup}% on every trade.`)
       ws.disconnect()
       setPat('')
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error')
-      setMessage(err.message || 'Failed to set markup. Make sure your PAT has admin scope.')
+      setMessage(err instanceof Error ? err.message : 'Failed to set markup. Make sure your PAT has admin scope.')
     }
   }
 
@@ -50,7 +75,7 @@ export default function Admin() {
           <h2 className="text-sm font-semibold text-text-secondary mb-3">Connected Account</h2>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold">{account.loginid} {account.is_virtual && '(Demo)'}</p>
+              <p className="font-semibold">{account.account_id} {account.account_type === 'demo' && '(Demo)'}</p>
               <p className="text-sm text-text-muted">{account.currency} {account.balance.toFixed(2)}</p>
             </div>
             <span className="px-3 py-1 rounded-full bg-brand-green/15 text-brand-green text-xs font-medium">
