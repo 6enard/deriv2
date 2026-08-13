@@ -22,6 +22,7 @@ export default function Trade() {
   const [symbolSearch, setSymbolSearch] = useState('')
   const prevPriceRef = useRef<number | null>(null)
   const [flashClass, setFlashClass] = useState('')
+  const tickSubIdRef = useRef<string | null>(null)
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     setToast({ type, message })
@@ -50,39 +51,67 @@ export default function Trade() {
       })
   }, [ws, showToast])
 
-  // Subscribe to ticks
+  // Subscribe to ticks — use forget(subscription_id) to stop old stream before starting new one
   useEffect(() => {
     if (!ws || !selectedSymbol) return
+    let cancelled = false
 
-    ws.forgetAll('ticks').catch(() => {})
-    setTicks([])
-    prevPriceRef.current = null
-
-    ws.subscribe({ ticks: selectedSymbol }, (data) => {
-      const tick = data.tick
-      const quote = parseFloat(tick.quote)
-      const ps = tick.pip_size || 2
-      setPipSize(ps)
-
-      setTicks((prev) => [...prev.slice(-49), { symbol: tick.symbol, quote, epoch: tick.epoch, pip_size: ps }])
-
-      if (prevPriceRef.current !== null) {
-        if (quote > prevPriceRef.current) {
-          setFlashClass('flash-green')
-        } else if (quote < prevPriceRef.current) {
-          setFlashClass('flash-red')
-        }
-        setTimeout(() => setFlashClass(''), 600)
+    // Stop the previous tick subscription by its subscription id
+    const stopPrevious = async () => {
+      if (tickSubIdRef.current) {
+        const oldId = tickSubIdRef.current
+        tickSubIdRef.current = null
+        try { await ws.forget(oldId) } catch { /* ignore */ }
       }
-      prevPriceRef.current = quote
-    }).catch(() => {
-      showToast('error', 'Failed to subscribe to price feed')
+    }
+
+    stopPrevious().then(() => {
+      if (cancelled || !ws.isConnected) return
+      setTicks([])
+      prevPriceRef.current = null
+
+      ws.subscribe({ ticks: selectedSymbol }, (data) => {
+        const tick = data.tick
+        const quote = parseFloat(tick.quote)
+        const ps = tick.pip_size || 2
+        setPipSize(ps)
+
+        setTicks((prev) => [...prev.slice(-49), { symbol: tick.symbol, quote, epoch: tick.epoch, pip_size: ps }])
+
+        if (prevPriceRef.current !== null) {
+          if (quote > prevPriceRef.current) {
+            setFlashClass('flash-green')
+          } else if (quote < prevPriceRef.current) {
+            setFlashClass('flash-red')
+          }
+          setTimeout(() => setFlashClass(''), 600)
+        }
+        prevPriceRef.current = quote
+      }).then((res: any) => {
+        if (cancelled) {
+          if (res.subscription?.id) ws.forget(res.subscription.id).catch(() => {})
+          return
+        }
+        tickSubIdRef.current = res.subscription?.id || null
+      }).catch(() => {
+        showToast('error', 'Failed to subscribe to price feed')
+      })
     })
 
     return () => {
-      ws?.forgetAll('ticks').catch(() => {})
+      cancelled = true
     }
   }, [ws, selectedSymbol, showToast])
+
+  // Cleanup tick subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (tickSubIdRef.current && ws?.isConnected) {
+        ws.forget(tickSubIdRef.current).catch(() => {})
+        tickSubIdRef.current = null
+      }
+    }
+  }, [ws])
 
   // Load open positions on mount
   useEffect(() => {

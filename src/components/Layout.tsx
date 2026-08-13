@@ -1,24 +1,39 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard } from 'lucide-react'
+import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, account, logout } = useAuth()
+  const { isAuthenticated, account, accountType, switchAccountType, isAdmin, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [switching, setSwitching] = useState(false)
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/trade', label: 'Trade', icon: TrendingUp },
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
+    { to: '/history', label: 'History', icon: HistoryIcon },
   ]
 
   const handleLogout = () => {
     logout()
     navigate('/')
   }
+
+  const handleToggleAccountType = async () => {
+    setSwitching(true)
+    try {
+      await switchAccountType(accountType === 'demo' ? 'real' : 'demo')
+    } catch {
+      // error already set in context
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  const hasRealAccount = useAuth().accounts.some((a) => a.account_type === 'real')
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
@@ -52,30 +67,57 @@ export default function Layout({ children }: { children: ReactNode }) {
                     </Link>
                   )
                 })}
-                <Link
-                  to="/admin"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    location.pathname === '/admin'
-                      ? 'bg-bg-tertiary text-text-primary'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  Admin
-                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      location.pathname === '/admin'
+                        ? 'bg-bg-tertiary text-text-primary'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Admin
+                  </Link>
+                )}
               </nav>
             )}
 
             <div className="hidden md:flex items-center gap-3">
               {isAuthenticated && account ? (
                 <>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm font-semibold tabular">
-                      {account.balance.toFixed(2)} {account.currency}
-                    </span>
-                    <span className="text-xs text-text-muted">
-                      {account.account_id} {account.account_type === 'demo' ? '(Demo)' : ''}
-                    </span>
+                  {/* Account Type Toggle */}
+                  <div className="flex items-center gap-2">
+                    {hasRealAccount && (
+                      <div className="flex items-center rounded-lg bg-bg-tertiary border border-border-light p-0.5">
+                        <button
+                          onClick={handleToggleAccountType}
+                          disabled={switching}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                            accountType === 'demo' ? 'bg-brand-blue text-white' : 'text-text-secondary hover:text-text-primary'
+                          }`}
+                        >
+                          Demo
+                        </button>
+                        <button
+                          onClick={handleToggleAccountType}
+                          disabled={switching}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                            accountType === 'real' ? 'bg-brand-green text-bg-primary' : 'text-text-secondary hover:text-text-primary'
+                          }`}
+                        >
+                          Real
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-semibold tabular">
+                        {account.balance.toFixed(2)} {account.currency}
+                      </span>
+                      <span className="text-xs text-text-muted">
+                        {account.account_id} {account.account_type === 'demo' ? '(Demo)' : '(Real)'}
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={handleLogout}
@@ -124,18 +166,32 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </Link>
               )
             })}
-            <Link
-              to="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary"
-            >
-              <Settings className="w-4 h-4" />
-              Admin
-            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary"
+              >
+                <Settings className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
+            {hasRealAccount && (
+              <div className="flex items-center gap-2 px-3 py-2">
+                <span className="text-xs text-text-muted">Account:</span>
+                <button
+                  onClick={handleToggleAccountType}
+                  disabled={switching}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold ${accountType === 'demo' ? 'bg-brand-blue text-white' : 'bg-brand-green text-bg-primary'}`}
+                >
+                  {accountType === 'demo' ? 'Demo' : 'Real'}
+                </button>
+              </div>
+            )}
             {account && (
               <div className="px-3 py-2 text-sm">
                 <span className="font-semibold tabular">{account.balance.toFixed(2)} {account.currency}</span>
-                <span className="text-text-muted ml-2">{account.account_id}</span>
+                <span className="text-text-muted ml-2">{account.account_id} ({account.account_type})</span>
               </div>
             )}
             <button

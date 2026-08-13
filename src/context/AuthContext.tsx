@@ -1,24 +1,32 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
-import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE } from '../lib/config'
+import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE, ADMIN_ACCOUNT_IDS } from '../lib/config'
 import { supabase } from '../lib/supabase'
 import type { DerivSessionAccount } from '../lib/types'
 
 const ACCOUNTS_KEY = 'deriv_accounts'
 const SELECTED_ACCOUNT_KEY = 'deriv_selected_account'
+const ACCOUNT_TYPE_KEY = 'deriv_account_type'
+
+type AccountType = 'demo' | 'real'
 
 type AuthContextType = {
   accounts: DerivSessionAccount[]
   account: DerivSessionAccount | null
+  accountType: AccountType
   ws: DerivWS | null
   isAuthenticated: boolean
+  isAdmin: boolean
   isLoading: boolean
   error: string | null
   login: () => Promise<void>
   logout: () => void
   handleCallback: (params: URLSearchParams) => Promise<void>
   selectAccount: (accountId: string) => Promise<void>
+  switchAccount: (accountId: string) => Promise<void>
+  switchAccountType: (type: AccountType) => Promise<void>
+  enableRealTrading: () => Promise<void>
 }
 
 type OAuthTokenResponse = {
@@ -91,11 +99,11 @@ async function fetchAccounts(accessToken: string): Promise<OptionsAccount[]> {
   return (body.data || []) as OptionsAccount[]
 }
 
-async function createAccount(accessToken: string): Promise<OptionsAccount> {
+async function createAccount(accessToken: string, accountType: 'demo' | 'real'): Promise<OptionsAccount> {
   const res = await fetch(`${OPTIONS_API_BASE}/accounts`, {
     method: 'POST',
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ currency: 'USD', group: 'row', account_type: 'demo' }),
+    body: JSON.stringify({ currency: 'USD', group: 'row', account_type: accountType }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -140,11 +148,14 @@ async function connectViaOtp(url: string): Promise<DerivWS> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<DerivSessionAccount[]>(readStoredAccounts)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => sessionStorage.getItem(SELECTED_ACCOUNT_KEY))
+  const [accountType, setAccountType] = useState<AccountType>(() => (sessionStorage.getItem(ACCOUNT_TYPE_KEY) as AccountType) || 'demo')
   const [ws, setWs] = useState<DerivWS | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const account = accounts.find((candidate) => candidate.account_id === selectedAccountId) || accounts[0] || null
+
+  const isAdmin = account ? ADMIN_ACCOUNT_IDS.includes(account.account_id) : false
 
   const login = useCallback(async () => {
     setError(null)
@@ -157,10 +168,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setWs(null)
     setAccounts([])
     setSelectedAccountId(null)
+    setAccountType('demo')
     sessionStorage.removeItem(ACCOUNTS_KEY)
     sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+    sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
     clearOAuthState()
   }, [ws])
+
+  const switchAccount = useCallback(async (accountId: string) => {
+    const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
+    if (!nextAccount) throw new Error('Account not found.')
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const refreshed = ensureValidToken(nextAccount)
+      const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
+      const nextWs = await connectViaOtp(otpUrl)
+
+      refreshed.ws_url = otpUrl
+      ws?.disconnect()
+      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
+      setSelectedAccountId(nextAccount.account_id)
+      setAccounts((prev) => prev.map((a) => a.account_id === refreshed.account_id ? refreshed : a))
+      setWs(nextWs)
+    } catch (switchError) {
+      setError(switchError instanceof Error ? switchError.message : 'Unable to switch Deriv accounts.')
+      throw switchError
+    } finally {
+      setIsLoading(false)
+    }
+  }, [accounts, ws])
 
   const handleCallback = useCallback(async (params: URLSearchParams) => {
     setIsLoading(true)
@@ -194,14 +232,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!tokens.access_token) throw new Error('Deriv did not return an access token.')
 
       let accountList = await fetchAccounts(tokens.access_token)
-      if (accountList.length === 0) {
-        const created = await createAccount(tokens.access_token)
-        accountList = [created]
+
+      const hasDemo = accountList.some((a) => a.account_type === 'demo')
+      if (!hasDemo) {
+        const demoAcct = await createAccount(tokens.access_token, 'demo')
+        accountList = [...accountList, demoAcct]
       }
 
       const sessionAccounts: DerivSessionAccount[] = accountList.map((a) => toSessionAccount(a, tokens))
 
-      const firstAccount = sessionAccounts[0]
+      const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
+      const firstAccount = demoAccount || sessionAccounts[0]
       const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
       const nextWs = await connectViaOtp(otpUrl)
 
@@ -210,9 +251,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ws?.disconnect()
       sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(sessionAccounts))
       sessionStorage.setItem(SELECTED_ACCOUNT_KEY, firstAccount.account_id)
+      sessionStorage.setItem(ACCOUNT_TYPE_KEY, 'demo')
       clearOAuthState()
       setAccounts(sessionAccounts)
       setSelectedAccountId(firstAccount.account_id)
+      setAccountType('demo')
       setWs(nextWs)
     } catch (callbackError) {
       const message = callbackError instanceof Error ? callbackError.message : 'Unable to complete Deriv sign-in.'
@@ -225,29 +268,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [ws])
 
   const selectAccount = useCallback(async (accountId: string) => {
-    const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
-    if (!nextAccount || nextAccount.account_id === account?.account_id) return
+    return switchAccount(accountId)
+  }, [switchAccount])
 
+  const switchAccountType = useCallback(async (type: AccountType) => {
+    const targetAccount = accounts.find((a) => a.account_type === type)
+    if (!targetAccount) {
+      setError(`No ${type} account found. ${type === 'real' ? 'Enable real trading first.' : ''}`)
+      return
+    }
+    if (targetAccount.account_id === account?.account_id) return
+
+    setAccountType(type)
+    sessionStorage.setItem(ACCOUNT_TYPE_KEY, type)
+    await switchAccount(targetAccount.account_id)
+  }, [accounts, account?.account_id, switchAccount])
+
+  const enableRealTrading = useCallback(async () => {
+    if (!account) return
     setIsLoading(true)
     setError(null)
     try {
-      const refreshed = await ensureValidToken(nextAccount)
-      const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
-      const nextWs = await connectViaOtp(otpUrl)
+      let accountList = await fetchAccounts(account.access_token)
+      const hasReal = accountList.some((a) => a.account_type === 'real')
+      if (!hasReal) {
+        const realAcct = await createAccount(account.access_token, 'real')
+        accountList = [...accountList, realAcct]
+      }
 
-      refreshed.ws_url = otpUrl
-      ws?.disconnect()
-      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
-      setSelectedAccountId(nextAccount.account_id)
-      setAccounts((prev) => prev.map((a) => a.account_id === refreshed.account_id ? refreshed : a))
-      setWs(nextWs)
-    } catch (selectionError) {
-      setError(selectionError instanceof Error ? selectionError.message : 'Unable to switch Deriv accounts.')
-      throw selectionError
+      const tokens: OAuthTokenResponse = {
+        access_token: account.access_token,
+        expires_in: Math.floor((account.token_expiry - Date.now()) / 1000),
+      }
+      const newSession = accountList
+        .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
+        .map((a) => toSessionAccount(a, tokens))
+
+      setAccounts((prev) => [...prev, ...newSession])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enable real trading.')
     } finally {
       setIsLoading(false)
     }
-  }, [account?.account_id, accounts, ws])
+  }, [account, accounts])
 
   useEffect(() => {
     if (!account || ws) return
@@ -271,6 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cancelled) return
           sessionStorage.removeItem(ACCOUNTS_KEY)
           sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+          sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
           setAccounts([])
           setSelectedAccountId(null)
           setError(SESSION_EXPIRED_MESSAGE)
@@ -278,6 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       sessionStorage.removeItem(ACCOUNTS_KEY)
       sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
       setAccounts([])
       setSelectedAccountId(null)
       setError(SESSION_EXPIRED_MESSAGE)
@@ -290,14 +355,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       accounts,
       account,
+      accountType,
       ws,
       isAuthenticated: accounts.length > 0,
+      isAdmin,
       isLoading,
       error,
       login,
       logout,
       handleCallback,
       selectAccount,
+      switchAccount,
+      switchAccountType,
+      enableRealTrading,
     }}>
       {children}
     </AuthContext.Provider>
