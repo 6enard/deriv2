@@ -1,8 +1,24 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import ConnectButton from '../components/ConnectButton'
-import { Shield, Zap, DollarSign, Loader as Loader2, type LucideIcon } from 'lucide-react'
+import { Shield, Zap, DollarSign, Loader as Loader2, ArrowRight, type LucideIcon } from 'lucide-react'
+import { useDerivAuth } from '../hooks/useDerivAuth'
+
+function StartTradingButton() {
+  const { login, isLoading } = useDerivAuth()
+
+  return (
+    <button
+      type="button"
+      onClick={() => { void login() }}
+      disabled={isLoading}
+      className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-brand-green text-bg-primary font-semibold text-lg hover:bg-brand-green-dim transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      Start Trading
+      <ArrowRight className="w-5 h-5" />
+    </button>
+  )
+}
 
 export default function Home() {
   const { isAuthenticated, isLoading, error } = useAuth()
@@ -20,12 +36,11 @@ export default function Home() {
           Powered by Deriv API
         </div>
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5 leading-tight">
-          Trade the markets with
-          <span className="block text-brand-green">3% markup revenue</span>
+          Your Markets. Your Moment.
+          <span className="block text-brand-green">Trade Anytime. Anywhere.</span>
         </h1>
         <p className="text-lg text-text-secondary max-w-2xl mx-auto mb-8">
-          Connect your Deriv account and trade directly through our platform.
-          Every contract you execute carries a 3% markup that generates revenue.
+          Explore a wide range of products and global markets on powerful platforms, with 24/7 support whenever you need it.
         </p>
 
         {isLoading ? (
@@ -38,10 +53,10 @@ export default function Home() {
             <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red">
               {error}
             </div>
-            <ConnectButton />
+            <StartTradingButton />
           </div>
         ) : (
-          <ConnectButton />
+          <StartTradingButton />
         )}
       </div>
 

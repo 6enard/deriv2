@@ -1,11 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon } from 'lucide-react'
+import { TrendingUp, ChartLine as LineChart, Wallet, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, account, accountType, switchAccountType, isAdmin, logout } = useAuth()
+  const { isAuthenticated, account, accountType, switchAccountType, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
@@ -69,19 +69,6 @@ export default function Layout({ children }: { children: ReactNode }) {
                     </Link>
                   )
                 })}
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      location.pathname === '/admin'
-                        ? 'bg-bg-tertiary text-text-primary'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Admin
-                  </Link>
-                )}
               </nav>
             )}
 
@@ -136,15 +123,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     Disconnect
                   </button>
                 </>
-              ) : (
-                <Link
-                  to="/admin"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  Admin
-                </Link>
-              )}
+              ) : null}
             </div>
 
             <button
@@ -182,16 +161,6 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </Link>
               )
             })}
-            {isAdmin && (
-              <Link
-                to="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary"
-              >
-                <Settings className="w-4 h-4" />
-                Admin
-              </Link>
-            )}
             {hasRealAccount && (
               <div className="flex items-center gap-2 px-3 py-2">
                 <span className="text-xs text-text-muted">Account:</span>
