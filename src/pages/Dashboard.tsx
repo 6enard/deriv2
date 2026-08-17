@@ -583,7 +583,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
 /* ===================== QUICK STRATEGY TAB ===================== */
 
 function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy[]; onChanged: () => void }) {
-  const { account, ws } = useAuth()
+  const { account, ws, refreshBalance } = useAuth()
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
@@ -683,6 +683,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
       const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
       const buyData = buyRes.buy
       showToast('success', `${strat.contract_type === 'CALL' ? 'Up' : 'Down'} trade placed for ${buyData.buy_price} ${account.currency}`)
+      refreshBalance()
       navigate('/trade')
     } catch (err: unknown) {
       const message = errorMessage(err, 'Trade failed. Please try again.')

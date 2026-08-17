@@ -27,6 +27,7 @@ type AuthContextType = {
   switchAccount: (accountId: string) => Promise<void>
   switchAccountType: (type: AccountType) => Promise<void>
   enableRealTrading: () => Promise<void>
+  refreshBalance: () => Promise<void>
 }
 
 type OAuthTokenResponse = {
@@ -344,6 +345,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [account, accounts, ensureValidToken])
 
+  const refreshBalance = useCallback(async () => {
+    if (!ws || !account) return
+    try {
+      const res = await ws.send({ balance: 1 })
+      if (res.balance?.balance !== undefined) {
+        const newBalance = parseFloat(res.balance.balance)
+        const currency = res.balance.currency || account.currency
+        setAccounts((prev) => {
+          const next = prev.map((a) =>
+            a.account_id === account.account_id
+              ? { ...a, balance: newBalance, currency }
+              : a
+          )
+          sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
+          return next
+        })
+      }
+    } catch {
+      // ignore balance refresh errors
+    }
+  }, [ws, account])
+
   useEffect(() => {
     if (!account || ws) return
 
@@ -394,6 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       switchAccount,
       switchAccountType,
       enableRealTrading,
+      refreshBalance,
     }}>
       {children}
     </AuthContext.Provider>

@@ -8,7 +8,7 @@ import { mapActiveSymbol, mapOpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
-  const { ws, account } = useAuth()
+  const { ws, account, refreshBalance } = useAuth()
   const { showToast } = useToast()
 
   const [symbols, setSymbols] = useState<SymbolInfo[]>([])
@@ -172,12 +172,13 @@ export default function Trade() {
         } else if (contract.status === 'sold') {
           showToastCallback('info', `Contract sold. P/L: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
         }
+        refreshBalance()
       } else {
         next[contract.contract_id] = contract
       }
       return next
     })
-  }, [account, showToastCallback])
+  }, [account, showToastCallback, refreshBalance])
 
   const executeTrade = async (contractType: 'CALL' | 'PUT') => {
     if (!ws || !account || !selectedSymbol) return
@@ -204,6 +205,7 @@ export default function Trade() {
 
       const buyData = buyRes.buy
       showToastCallback('info', `${contractType === 'CALL' ? 'Up' : 'Down'} contract purchased for ${buyData.buy_price} ${account.currency}`)
+      refreshBalance()
 
       // Subscribe to contract updates
       ws.subscribe(
@@ -226,6 +228,7 @@ export default function Trade() {
     try {
       await ws.send({ sell: contractId, price: 0 })
       showToastCallback('info', 'Selling contract...')
+      refreshBalance()
     } catch (err: unknown) {
       showToastCallback('error', errorMessage(err, 'Failed to sell contract'))
     }
