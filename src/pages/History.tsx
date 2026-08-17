@@ -63,8 +63,8 @@ export default function History() {
     try {
       const res = await ws.send({ portfolio: 1 })
       if (res.error) throw new Error(res.error.message)
-      if (res.portfolio) {
-        setOpenPositions(res.portfolio.map((p: any) => ({
+      if (res.portfolio?.contracts) {
+        setOpenPositions(res.portfolio.contracts.map((p: any) => ({
           contract_id: p.contract_id,
           symbol: p.underlying_symbol ?? p.symbol ?? '',
           display_name: p.underlying_symbol ?? p.display_name ?? p.symbol ?? '',

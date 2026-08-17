@@ -120,8 +120,8 @@ export default function Trade() {
 
     ws.send({ portfolio: 1 })
       .then((res) => {
-        if (res.portfolio) {
-          res.portfolio.forEach((position: any) => {
+        if (res.portfolio?.contracts) {
+          res.portfolio.contracts.forEach((position: any) => {
             const contractId = position.contract_id
             ws.subscribe(
               { proposal_open_contract: 1, contract_id: contractId },

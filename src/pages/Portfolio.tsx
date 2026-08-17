@@ -42,8 +42,8 @@ export default function Portfolio() {
         ws.send({ profit_table: 1, description: 1, limit: 50, sort: 'DESC' }),
       ])
 
-      if (portfolioRes.portfolio) {
-        setOpenPositions(portfolioRes.portfolio.map((p: any) => ({
+      if (portfolioRes.portfolio?.contracts) {
+        setOpenPositions(portfolioRes.portfolio.contracts.map((p: any) => ({
           contract_id: p.contract_id,
           symbol: p.underlying_symbol ?? p.symbol ?? '',
           display_name: p.underlying_symbol ?? p.display_name ?? p.symbol ?? '',
