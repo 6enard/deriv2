@@ -76,7 +76,7 @@ export default function Home() {
           <Step number="1" title="Sign in" description="Sign in on Deriv's official authorization page." />
           <Step number="2" title="Approve" description="Review and approve trading access on Deriv." />
           <Step number="3" title="Trade" description="Place trades through this platform using live Deriv markets." />
-          
+          <Step number="4" title="Earn" description="The configured 3% markup applies to eligible contracts." />
         </div>
       </div>
     </div>
