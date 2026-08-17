@@ -30,7 +30,7 @@ export async function buildAuthUrl(): Promise<string> {
     client_id: DERIV_CLIENT_ID,
     redirect_uri: DERIV_REDIRECT_URI,
     response_type: 'code',
-    scope: 'trade account_manage offline_access',
+    scope: 'trade account_manage',
     code_challenge: challenge,
     code_challenge_method: 'S256',
     state,
