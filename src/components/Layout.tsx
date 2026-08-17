@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, ChartLine as LineChart, Wallet, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -43,10 +43,12 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-green to-brand-green-dim flex items-center justify-center">
-                <LineChart className="w-5 h-5 text-bg-primary" strokeWidth={2.5} />
-              </div>
-              <span className="text-lg font-bold tracking-tight">DerivMarkets</span>
+              <img
+                src={theme === 'dark' ? '/black.jpeg' : '/white.jpeg'}
+                alt="DeriTraders"
+                className="w-9 h-9 rounded-lg object-cover"
+              />
+              <span className="text-lg font-bold tracking-tight">DeriTraders</span>
             </Link>
 
             {isAuthenticated && (
@@ -194,7 +196,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <footer className="border-t border-border-default bg-bg-secondary py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-text-muted">
-          Trading involves risk. DerivMarkets is a third-party platform powered by the Deriv API.
+          Trading involves risk. DeriTraders is a third-party platform powered by the Deriv API.
           Your 3% markup is applied to every trade.
         </div>
       </footer>

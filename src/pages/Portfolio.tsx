@@ -259,7 +259,7 @@ export default function Portfolio() {
         <div className="rounded-xl bg-bg-secondary border border-border-default p-5 mt-6">
           <h2 className="font-semibold mb-4 flex items-center gap-2">
             <TrendingDown className="w-4 h-4 text-brand-amber" />
-            Trades via DerivMarkets
+            Trades via DeriTraders
             <span className="ml-auto text-sm text-text-muted">{appTrades.length}</span>
           </h2>
           <div className="overflow-x-auto">
