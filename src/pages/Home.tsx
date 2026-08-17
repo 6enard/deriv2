@@ -37,7 +37,7 @@ export default function Home() {
             alt="Deriv"
             className="w-4 h-4 rounded-full object-cover"
           />
-          Powered by Deriv API
+          Powered by Deriv
         </div>
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5 leading-tight">
           Your Markets. Your Moment.
