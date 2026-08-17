@@ -242,7 +242,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <footer className="border-t border-border-default bg-bg-secondary py-4">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-text-muted">
           Trading involves risk. DeriTraders is a third-party platform powered by the Deriv API.
-          Your 3% markup is applied to every trade.
+           3% markup is applied to every trade.
         </div>
       </footer>
     </div>
