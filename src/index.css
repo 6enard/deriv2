@@ -19,12 +19,31 @@
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
+:root.light {
+  --color-bg-primary: #f7f9fc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #eef2f7;
+  --color-bg-hover: #e2e8f0;
+  --color-border-default: #d8dee8;
+  --color-border-light: #c4cdd9;
+  --color-text-primary: #1a202c;
+  --color-text-secondary: #5a6a7e;
+  --color-text-muted: #94a3b8;
+  --color-brand-green: #00b37e;
+  --color-brand-green-dim: #00946a;
+  --color-brand-red: #e53e3e;
+  --color-brand-red-dim: #c53030;
+  --color-brand-blue: #3b6fd9;
+  --color-brand-amber: #e8861a;
+}
+
 body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   margin: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .tabular {
@@ -42,8 +61,14 @@ body {
   background: #2a3142;
   border-radius: 3px;
 }
+:root.light ::-webkit-scrollbar-thumb {
+  background: #c4cdd9;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: #3a4152;
+}
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 @keyframes flash-green {

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { errorMessage } from '../lib/error'
 import { supabase } from '../lib/supabase'
 import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2 } from 'lucide-react'
 
@@ -32,10 +33,12 @@ export default function Portfolio() {
   const [tradeHistory, setTradeHistory] = useState<ProfitTableEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     if (!ws) return
     setRefreshing(true)
+    setError(null)
     try {
       const [portfolioRes, profitRes] = await Promise.all([
         ws.send({ portfolio: 1 }),
@@ -69,7 +72,7 @@ export default function Portfolio() {
         })))
       }
     } catch (err) {
-      console.error('Failed to load portfolio data:', err)
+      setError(errorMessage(err, 'Failed to load portfolio data'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -120,6 +123,12 @@ export default function Portfolio() {
           Refresh
         </button>
       </div>
+
+      {error && (
+        <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red mb-6">
+          {error}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

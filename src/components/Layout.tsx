@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
+import { TrendingUp, ChartLine as LineChart, Wallet, Settings, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { isAuthenticated, account, accountType, switchAccountType, isAdmin, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -84,6 +86,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             )}
 
             <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
               {isAuthenticated && account ? (
                 <>
                   {/* Account Type Toggle */}
@@ -138,6 +147,13 @@ export default function Layout({ children }: { children: ReactNode }) {
               )}
             </div>
 
+            <button
+              onClick={toggleTheme}
+              className="md:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <button
               className="md:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

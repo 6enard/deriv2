@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { errorMessage } from '../lib/error'
 import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2, ChevronDown, Calendar, ListFilter as Filter } from 'lucide-react'
 
 interface OpenPosition {
@@ -77,7 +78,7 @@ export default function History() {
         setOpenPositions([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load open positions')
+      setError(errorMessage(err, 'Failed to load open positions'))
     }
   }, [ws])
 
@@ -120,7 +121,7 @@ export default function History() {
         setHasMore(false)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load closed trades')
+      setError(errorMessage(err, 'Failed to load closed trades'))
     }
   }, [ws, dateFrom, dateTo, closedTrades])
 
@@ -158,7 +159,7 @@ export default function History() {
         setHasMore(false)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load statement')
+      setError(errorMessage(err, 'Failed to load statement'))
     }
   }, [ws, dateFrom, dateTo, statement])
 
@@ -170,7 +171,7 @@ export default function History() {
       await loadOpenPositions()
       await loadClosedTrades(0, false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load history')
+      setError(errorMessage(err, 'Failed to load history'))
     } finally {
       setLoading(false)
       setRefreshing(false)

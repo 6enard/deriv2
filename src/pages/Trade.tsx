@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { errorMessage } from '../lib/error'
 import { supabase } from '../lib/supabase'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol, mapOpenContract } from '../lib/types'
@@ -213,8 +214,8 @@ export default function Trade() {
           }
         },
       ).catch(() => {})
-    } catch (err: any) {
-      showToastCallback('error', err.message || 'Trade failed. Please try again.')
+    } catch (err: unknown) {
+      showToastCallback('error', errorMessage(err, 'Trade failed. Please try again.'))
     } finally {
       setIsTrading(false)
     }
@@ -225,8 +226,8 @@ export default function Trade() {
     try {
       await ws.send({ sell: contractId, price: 0 })
       showToastCallback('info', 'Selling contract...')
-    } catch (err: any) {
-      showToastCallback('error', err.message || 'Failed to sell contract')
+    } catch (err: unknown) {
+      showToastCallback('error', errorMessage(err, 'Failed to sell contract'))
     }
   }
 

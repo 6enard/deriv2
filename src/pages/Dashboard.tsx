@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { errorMessage } from '../lib/error'
 import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
@@ -683,8 +684,8 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
       const buyData = buyRes.buy
       showToast('success', `${strat.contract_type === 'CALL' ? 'Up' : 'Down'} trade placed for ${buyData.buy_price} ${account.currency}`)
       navigate('/trade')
-    } catch (err: any) {
-      const message = err?.error?.message || err?.message || 'Trade failed. Please try again.'
+    } catch (err: unknown) {
+      const message = errorMessage(err, 'Trade failed. Please try again.')
       showToast('error', message)
     } finally {
       setRunning(null)
