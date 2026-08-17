@@ -9,6 +9,8 @@ export interface DerivSessionAccount extends DerivAccount {
   access_token: string
   token_expiry: number
   ws_url?: string
+  refresh_token?: string
+  refresh_token?: string
 }
 
 export interface SymbolInfo {
@@ -66,6 +68,46 @@ export interface OpenContract {
   is_expired: boolean;
   longcode: string;
   current_spot: number;
+}
+export function mapOpenContract(raw: any): OpenContract {
+  return {
+    contract_id: raw.contract_id,
+    symbol: raw.underlying_symbol ?? raw.symbol ?? '',
+    display_name: raw.underlying_symbol ?? raw.display_name ?? raw.symbol ?? '',
+    contract_type: raw.contract_type ?? '',
+    status: raw.status ?? '',
+    buy_price: parseFloat(raw.buy_price ?? '0'),
+    sell_price: raw.sell_price != null ? parseFloat(raw.sell_price) : null,
+    payout: parseFloat(raw.payout ?? '0'),
+    profit: parseFloat(raw.profit ?? '0'),
+    purchase_time: raw.purchase_time ?? 0,
+    sell_time: raw.sell_time,
+    is_sold: Boolean(raw.is_sold),
+    is_expired: Boolean(raw.is_expired),
+    longcode: raw.longcode ?? '',
+    current_spot: parseFloat(raw.current_spot ?? '0'),
+  };
+}
+
+
+export function mapOpenContract(raw: any): OpenContract {
+  return {
+    contract_id: raw.contract_id,
+    symbol: raw.underlying_symbol ?? raw.symbol ?? '',
+    display_name: raw.underlying_symbol ?? raw.display_name ?? raw.symbol ?? '',
+    contract_type: raw.contract_type ?? '',
+    status: raw.status ?? '',
+    buy_price: parseFloat(raw.buy_price ?? '0'),
+    sell_price: raw.sell_price != null ? parseFloat(raw.sell_price) : null,
+    payout: parseFloat(raw.payout ?? '0'),
+    profit: parseFloat(raw.profit ?? '0'),
+    purchase_time: raw.purchase_time ?? 0,
+    sell_time: raw.sell_time,
+    is_sold: Boolean(raw.is_sold),
+    is_expired: Boolean(raw.is_expired),
+    longcode: raw.longcode ?? '',
+    current_spot: parseFloat(raw.current_spot ?? '0'),
+  };
 }
 
 export interface TradeRecord {

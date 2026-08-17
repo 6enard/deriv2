@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
-import { mapActiveSymbol } from '../lib/types'
+import { mapActiveSymbol, mapOpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
@@ -137,14 +137,8 @@ export default function Trade() {
       .catch(() => {})
   }, [ws])
 
-  const handleContractUpdate = useCallback((raw: OpenContract) => {
-    const contract: OpenContract = {
-      ...raw,
-      buy_price: parseFloat(raw.buy_price as any),
-      payout: parseFloat(raw.payout as any),
-      profit: parseFloat(raw.profit as any),
-      sell_price: raw.sell_price != null ? parseFloat(raw.sell_price as any) : null,
-    }
+  const handleContractUpdate = useCallback((raw: any) => {
+    const contract = mapOpenContract(raw)
     setOpenContracts((prev) => {
       const next = { ...prev }
       if (contract.is_sold || contract.is_expired) {

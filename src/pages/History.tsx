@@ -66,8 +66,8 @@ export default function History() {
       if (res.portfolio) {
         setOpenPositions(res.portfolio.map((p: any) => ({
           contract_id: p.contract_id,
-          symbol: p.symbol,
-          display_name: p.display_name || p.symbol,
+          symbol: p.underlying_symbol ?? p.symbol ?? '',
+          display_name: p.underlying_symbol ?? p.display_name ?? p.symbol ?? '',
           contract_type: p.contract_type || '',
           buy_price: parseFloat(p.buy_price || '0'),
           purchase_time: p.purchase_time,
@@ -103,8 +103,8 @@ export default function History() {
       if (res.profit_table?.transactions) {
         const mapped: ClosedTrade[] = res.profit_table.transactions.map((t: any) => ({
           contract_id: t.contract_id,
-          symbol: t.symbol,
-          display_name: t.longcode || t.shortcode || t.symbol,
+          symbol: t.underlying_symbol ?? t.symbol ?? '',
+          display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
           contract_type: t.contract_type || '',
           buy_price: parseFloat(t.buy_price || '0'),
           sell_price: parseFloat(t.sell_price || '0'),

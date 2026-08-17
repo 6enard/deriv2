@@ -33,6 +33,7 @@ type OAuthTokenResponse = {
   access_token?: string
   token_type?: string
   expires_in?: number
+  refresh_token?: string
 }
 
 type OptionsAccount = {
@@ -79,12 +80,24 @@ function isTokenExpired(expiry: number): boolean {
 }
 
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
+const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-function ensureValidToken(account: DerivSessionAccount): DerivSessionAccount {
-  if (isTokenExpired(account.token_expiry)) {
-    throw new Error(SESSION_EXPIRED_MESSAGE)
-  }
-  return account
+function isTokenExpired(expiry: number): boolean {
+  return Date.now() >= expiry - REFRESH_THRESHOLD_MS
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<OAuthTokenResponse> {
+  const { data, error } = await supabase.functions.invoke('deriv-oauth', {
+    body: {
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: DERIV_CLIENT_ID,
+    },
+  })
+  if (error) throw new Error(error.message || 'Token refresh failed.')
+  const tokens = getOAuthToken(data)
+  if (!tokens.access_token) throw new Error('Deriv did not return a refreshed access token.')
+  return tokens
 }
 
 async function fetchAccounts(accessToken: string): Promise<OptionsAccount[]> {

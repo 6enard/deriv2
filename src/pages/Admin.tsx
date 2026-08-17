@@ -1,67 +1,10 @@
-import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { DerivWS } from '../lib/deriv-ws'
-import { DERIV_CLIENT_ID, OPTIONS_API_BASE } from '../lib/config'
-import { Settings, Loader as Loader2, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Key } from 'lucide-react'
+import { Settings, ExternalLink, Info } from 'lucide-react'
+
+const DERIV_DEV_DASHBOARD_URL = 'https://api.deriv.com/dashboard/settings'
 
 export default function Admin() {
   const { isAuthenticated, account } = useAuth()
-  const [pat, setPat] = useState('')
-  const [markup, setMarkup] = useState('3')
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [message, setMessage] = useState('')
-
-  const setMarkupViaWs = async () => {
-    setStatus('loading')
-    setMessage('')
-    try {
-      const headers: Record<string, string> = {
-        'Deriv-App-ID': DERIV_CLIENT_ID,
-        'Authorization': `Bearer ${pat}`,
-        'Content-Type': 'application/json',
-      }
-
-      const accountsRes = await fetch(`${OPTIONS_API_BASE}/accounts`, { headers })
-      if (!accountsRes.ok) {
-        const err = await accountsRes.json().catch(() => ({}))
-        throw new Error(err.error || `Accounts request failed (${accountsRes.status})`)
-      }
-      const accountsBody = await accountsRes.json()
-      const accountList = accountsBody.data || []
-      if (accountList.length === 0) throw new Error('No accounts found for this token.')
-      const accountId = accountList[0].account_id
-
-      const otpRes = await fetch(`${OPTIONS_API_BASE}/accounts/${accountId}/otp`, {
-        method: 'POST',
-        headers,
-      })
-      if (!otpRes.ok) {
-        const err = await otpRes.json().catch(() => ({}))
-        throw new Error(err.error || `OTP request failed (${otpRes.status})`)
-      }
-      const otpBody = await otpRes.json()
-      const wsUrl: string | undefined = otpBody.data?.url
-      if (!wsUrl) throw new Error('Deriv did not return a connection URL.')
-
-      const ws = new DerivWS(wsUrl)
-      await ws.connect()
-
-      const updateRes = await ws.send({
-        app_update: DERIV_CLIENT_ID,
-        app_markup_percentage: parseFloat(markup),
-      })
-
-      if (updateRes.error) throw new Error(updateRes.error.message)
-
-      setStatus('success')
-      setMessage(`Markup set to ${markup}% successfully. Your app now earns ${markup}% on every trade.`)
-      ws.disconnect()
-      setPat('')
-    } catch (err: unknown) {
-      setStatus('error')
-      setMessage(err instanceof Error ? err.message : 'Failed to set markup. Make sure your PAT has admin scope.')
-    }
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -91,79 +34,26 @@ export default function Admin() {
           <h2 className="font-semibold">Markup Configuration</h2>
         </div>
 
-        <p className="text-sm text-text-secondary mb-5">
-          Set the markup percentage that your app earns on every trade. Deriv allows a maximum of 3%.
-          This requires a Personal Access Token (PAT) with admin scope from your Deriv account settings.
-        </p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1.5">
-              Personal Access Token (Admin Scope)
-            </label>
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <input
-                type="password"
-                value={pat}
-                onChange={(e) => setPat(e.target.value)}
-                placeholder="Enter your Deriv PAT with admin scope"
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1.5">
-              Markup Percentage (max 3%)
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                value={markup}
-                onChange={(e) => setMarkup(e.target.value)}
-                min="0"
-                max="3"
-                step="0.1"
-                className="w-24 px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors tabular"
-              />
-              <span className="text-text-secondary text-sm">%</span>
-            </div>
-          </div>
-
-          <button
-            onClick={setMarkupViaWs}
-            disabled={!pat || status === 'loading'}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand-green text-bg-primary font-semibold hover:bg-brand-green-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {status === 'loading' ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Setting markup...
-              </>
-            ) : (
-              'Set Markup'
-            )}
-          </button>
-
-          {status === 'success' && (
-            <div className="flex items-start gap-2 bg-brand-green/10 border border-brand-green/30 rounded-lg px-4 py-3 text-sm text-brand-green slide-in">
-              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{message}</span>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="flex items-start gap-2 bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red slide-in">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{message}</span>
-            </div>
-          )}
+        <div className="flex items-start gap-3 bg-brand-blue/10 border border-brand-blue/30 rounded-lg px-4 py-3 text-sm text-brand-blue mb-5">
+          <Info className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            Markup is now managed directly in the Deriv developer dashboard. Use the link below to open your app settings and adjust the markup percentage there.
+          </span>
         </div>
 
+        <a
+          href={DERIV_DEV_DASHBOARD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand-green text-bg-primary font-semibold hover:bg-brand-green-dim transition-colors"
+        >
+          Open Deriv Developer Dashboard
+          <ExternalLink className="w-4 h-4" />
+        </a>
+
         <div className="mt-6 pt-5 border-t border-border-default text-xs text-text-muted space-y-1">
-          <p>To get a PAT: Log in to your Deriv account → Settings → API Token → Create token with Admin scope.</p>
-          <p>Your PAT is used only for this one-time setup and is never stored.</p>
+          <p>In the dashboard, navigate to your app's settings page to change the markup percentage (max 3%).</p>
+          <p>Changes take effect immediately for all trades placed through this platform.</p>
         </div>
       </div>
     </div>
