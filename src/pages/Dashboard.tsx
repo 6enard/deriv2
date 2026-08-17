@@ -95,7 +95,7 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
         active
           ? 'bg-bg-tertiary text-text-primary border border-border-light'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
@@ -134,7 +134,7 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
         <h2 className="font-semibold">Your Uploaded Bots</h2>
         <button
           onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
         >
           <Upload className="w-4 h-4" />
           Upload Bot
@@ -206,7 +206,7 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. My Scalper Bot"
-            className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
           />
         </div>
 
@@ -217,7 +217,7 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What does this bot do?"
             rows={2}
-            className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors resize-none"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors resize-none"
           />
         </div>
 
@@ -226,7 +226,7 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
           <select
             value={strategyType}
             onChange={(e) => setStrategyType(e.target.value as StrategyType)}
-            className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
           >
             <option value="martingale">Martingale</option>
             <option value="grid">Grid</option>
@@ -242,25 +242,25 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
             value={configText}
             onChange={(e) => setConfigText(e.target.value)}
             rows={6}
-            className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-blue transition-colors resize-none"
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-blue transition-colors resize-none"
             placeholder='{"initial_stake": 1, "max_steps": 5}'
           />
         </div>
 
         {error && (
-          <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-3 py-2 text-sm text-brand-red">{error}</div>
+          <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-3 py-2 text-sm text-brand-red">{error}</div>
         )}
 
         <div className="flex items-center gap-3 pt-1">
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             Upload Bot
           </button>
-          <button onClick={onClose} className="px-4 py-2.5 rounded-lg bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
+          <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
             Cancel
           </button>
         </div>
@@ -315,7 +315,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
           {bots.map((bot) => (
             <div key={bot.id} className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-amber/15 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-brand-amber/15 flex items-center justify-center">
                   {(() => {
                     const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
                     return <Icon className="w-5 h-5 text-brand-amber" />
@@ -331,7 +331,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
                 <button
                   onClick={() => copyBot(bot)}
                   disabled={copying === bot.id}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
                 >
                   {copied === bot.id ? <Check className="w-4 h-4 text-brand-green" /> : copying === bot.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                   {copied === bot.id ? 'Copied!' : 'Copy to My Bots'}
@@ -453,7 +453,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
               />
             </div>
             <div>
@@ -461,7 +461,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
               <select
                 value={strategyType}
                 onChange={(e) => setStrategyType(e.target.value as StrategyType)}
-                className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
               >
                 <option value="martingale">Martingale</option>
                 <option value="grid">Grid</option>
@@ -478,7 +478,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors resize-none"
+              className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors resize-none"
             />
           </div>
 
@@ -488,24 +488,24 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
               value={configText}
               onChange={(e) => setConfigText(e.target.value)}
               rows={10}
-              className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-blue transition-colors resize-y"
+              className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-blue transition-colors resize-y"
             />
           </div>
 
           {error && (
-            <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-3 py-2 text-sm text-brand-red">{error}</div>
+            <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-3 py-2 text-sm text-brand-red">{error}</div>
           )}
 
           <div className="flex items-center gap-3">
             <button
               onClick={save}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {editingBot.id ? 'Save Changes' : 'Create Bot'}
             </button>
-            <button onClick={cancel} className="px-4 py-2.5 rounded-lg bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
+            <button onClick={cancel} className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
               Cancel
             </button>
           </div>
@@ -523,7 +523,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
         </h2>
         <button
           onClick={startNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-blue text-white font-medium text-sm hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-blue text-white font-medium text-sm hover:opacity-90 transition-opacity"
         >
           <Plus className="w-4 h-4" />
           New Bot
@@ -540,7 +540,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
           <p className="text-sm text-text-muted mb-4">Create a new bot or copy one from Free Bots.</p>
           <button
             onClick={startNew}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-blue text-white font-medium text-sm hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-blue text-white font-medium text-sm hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
             Create Your First Bot
@@ -550,7 +550,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
         <div className="space-y-2">
           {myBots.map((bot) => (
             <div key={bot.id} className="rounded-xl bg-bg-secondary border border-border-default p-4 flex items-center gap-4 hover:border-border-light transition-colors">
-              <div className="w-10 h-10 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center shrink-0">
                 {(() => { const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon; return <Icon className="w-5 h-5 text-brand-blue" /> })()}
               </div>
               <div className="flex-1 min-w-0">
@@ -560,14 +560,14 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => startEdit(bot)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-tertiary text-sm font-medium hover:bg-bg-hover transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-tertiary text-sm font-medium hover:bg-bg-hover transition-colors"
                 >
                   <SettingsIcon className="w-3.5 h-3.5" />
                   Edit
                 </button>
                 <button
                   onClick={() => deleteBot(bot.id)}
-                  className="p-1.5 rounded-lg text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
+                  className="p-1.5 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -705,7 +705,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
         </h2>
         <button
           onClick={() => { resetForm(); setShowForm(true) }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
         >
           <Plus className="w-4 h-4" />
           New Strategy
@@ -722,7 +722,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
           <p className="text-sm text-text-muted mb-4">Create a strategy to trade with one click.</p>
           <button
             onClick={() => { resetForm(); setShowForm(true) }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
           >
             <Plus className="w-4 h-4" />
             Create Strategy
@@ -734,7 +734,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
             <div key={strat.id} className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${strat.contract_type === 'CALL' ? 'bg-brand-green/15' : 'bg-brand-red/15'}`}>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${strat.contract_type === 'CALL' ? 'bg-brand-green/15' : 'bg-brand-red/15'}`}>
                     {strat.contract_type === 'CALL' ? <TrendingUp className="w-4 h-4 text-brand-green" /> : <TrendingUp className="w-4 h-4 text-brand-red rotate-180" />}
                   </div>
                   <div>
@@ -744,7 +744,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                 </div>
                 <button
                   onClick={() => deleteStrategy(strat.id!)}
-                  className="p-1.5 rounded-lg text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
+                  className="p-1.5 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -758,7 +758,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
               <button
                 onClick={() => runStrategy(strat)}
                 disabled={running === strat.id}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
               >
                 {running === strat.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 Run Now
@@ -778,7 +778,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Volatility 10 Up 5min"
-                className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
               />
             </div>
 
@@ -787,20 +787,20 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm hover:border-brand-blue transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm hover:border-brand-blue transition-colors"
                 >
                   <span>{symbols.find((s) => s.symbol === symbol)?.display_name || 'Select market'}</span>
                   <ChevronDown className="w-4 h-4 text-text-secondary" />
                 </button>
                 {dropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-lg bg-bg-secondary border border-border-light shadow-xl z-50">
+                  <div className="absolute top-full left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
                     <div className="p-2 sticky top-0 bg-bg-secondary border-b border-border-default">
                       <input
                         type="text"
                         value={symbolSearch}
                         onChange={(e) => setSymbolSearch(e.target.value)}
                         placeholder="Search markets..."
-                        className="w-full px-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue"
+                        className="w-full px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue"
                         autoFocus
                       />
                     </div>
@@ -828,13 +828,13 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setContractType('CALL')}
-                    className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${contractType === 'CALL' ? 'bg-brand-green/15 border-brand-green text-brand-green' : 'bg-bg-tertiary border-border-light text-text-secondary'}`}
+                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors ${contractType === 'CALL' ? 'bg-brand-green/15 border-brand-green text-brand-green' : 'bg-bg-tertiary border-border-light text-text-secondary'}`}
                   >
                     UP
                   </button>
                   <button
                     onClick={() => setContractType('PUT')}
-                    className={`py-2.5 rounded-lg text-sm font-medium border transition-colors ${contractType === 'PUT' ? 'bg-brand-red/15 border-brand-red text-brand-red' : 'bg-bg-tertiary border-border-light text-text-secondary'}`}
+                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors ${contractType === 'PUT' ? 'bg-brand-red/15 border-brand-red text-brand-red' : 'bg-bg-tertiary border-border-light text-text-secondary'}`}
                   >
                     DOWN
                   </button>
@@ -848,7 +848,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                   onChange={(e) => setStake(e.target.value)}
                   min="0.35"
                   step="0.01"
-                  className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                 />
               </div>
             </div>
@@ -862,12 +862,12 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     min="1"
-                    className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    className="px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                    className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
                   >
                     <option value="t">Ticks</option>
                     <option value="s">sec</option>
@@ -884,7 +884,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                   onChange={(e) => setMartingaleSteps(e.target.value)}
                   min="0"
                   max="10"
-                  className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                 />
               </div>
             </div>
@@ -898,25 +898,25 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
                   onChange={(e) => setMartingaleMultiplier(e.target.value)}
                   min="1"
                   step="0.1"
-                  className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                 />
               </div>
             )}
 
             {error && (
-              <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-3 py-2 text-sm text-brand-red">{error}</div>
+              <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-3 py-2 text-sm text-brand-red">{error}</div>
             )}
 
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={saveStrategy}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 Save Strategy
               </button>
-              <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-lg bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
+              <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
                 Cancel
               </button>
             </div>
@@ -934,7 +934,7 @@ function BotCard({ bot, onToggle, onDelete, showControls }: { bot: Bot; onToggle
   return (
     <div className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-lg bg-bg-tertiary flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center">
           <Icon className="w-5 h-5 text-brand-green" />
         </div>
         <div className="flex items-center gap-2">
@@ -950,13 +950,13 @@ function BotCard({ bot, onToggle, onDelete, showControls }: { bot: Bot; onToggle
         <div className="flex items-center gap-2">
           <button
             onClick={onToggle}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors"
           >
             {bot.is_active ? <><Pause className="w-3.5 h-3.5" /> Pause</> : <><Play className="w-3.5 h-3.5" /> Activate</>}
           </button>
           <button
             onClick={onDelete}
-            className="p-2 rounded-lg text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
+            className="p-2 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>

@@ -117,7 +117,7 @@ export default function Portfolio() {
         <button
           onClick={loadData}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors disabled:opacity-50"
         >
           {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           Refresh
@@ -125,7 +125,7 @@ export default function Portfolio() {
       </div>
 
       {error && (
-        <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red mb-6">
+        <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-4 py-3 text-sm text-brand-red mb-6">
           {error}
         </div>
       )}

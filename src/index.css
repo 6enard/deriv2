@@ -1,39 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #0a0e17;
-  --color-bg-secondary: #111722;
-  --color-bg-tertiary: #1a2333;
-  --color-bg-hover: #243044;
-  --color-border-default: #1f2937;
-  --color-border-light: #2a3142;
-  --color-text-primary: #e8eaed;
-  --color-text-secondary: #8b95a7;
-  --color-text-muted: #5c6573;
-  --color-brand-green: #00d4a0;
-  --color-brand-green-dim: #00a37e;
-  --color-brand-red: #ff4757;
-  --color-brand-red-dim: #cc3645;
-  --color-brand-blue: #4d8af0;
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #141414;
+  --color-bg-tertiary: #1f1f1f;
+  --color-bg-hover: #2a2a2a;
+  --color-border-default: #262626;
+  --color-border-light: #333333;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #6b6b6b;
+  --color-brand-red: #e53935;
+  --color-brand-red-dim: #c62828;
+  --color-brand-green: #e53935;
+  --color-brand-green-dim: #c62828;
+  --color-brand-blue: #e53935;
   --color-brand-amber: #ffa940;
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
 :root.light {
-  --color-bg-primary: #f7f9fc;
-  --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #eef2f7;
-  --color-bg-hover: #e2e8f0;
-  --color-border-default: #d8dee8;
-  --color-border-light: #c4cdd9;
-  --color-text-primary: #1a202c;
-  --color-text-secondary: #5a6a7e;
-  --color-text-muted: #94a3b8;
-  --color-brand-green: #00b37e;
-  --color-brand-green-dim: #00946a;
-  --color-brand-red: #e53e3e;
-  --color-brand-red-dim: #c53030;
-  --color-brand-blue: #3b6fd9;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f8f8;
+  --color-bg-tertiary: #f0f0f0;
+  --color-bg-hover: #e4e4e4;
+  --color-border-default: #e0e0e0;
+  --color-border-light: #cccccc;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #555555;
+  --color-text-muted: #999999;
+  --color-brand-red: #d32f2f;
+  --color-brand-red-dim: #b71c1c;
+  --color-brand-green: #d32f2f;
+  --color-brand-green-dim: #b71c1c;
+  --color-brand-blue: #d32f2f;
   --color-brand-amber: #e8861a;
 }
 
@@ -58,25 +58,25 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3142;
+  background: #333333;
   border-radius: 3px;
 }
 :root.light ::-webkit-scrollbar-thumb {
-  background: #c4cdd9;
+  background: #cccccc;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4152;
+  background: #4a4a4a;
 }
 :root.light ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #999999;
 }
 
 @keyframes flash-green {
-  0% { background-color: rgba(0, 212, 160, 0.15); }
+  0% { background-color: rgba(229, 57, 53, 0.15); }
   100% { background-color: transparent; }
 }
 @keyframes flash-red {
-  0% { background-color: rgba(255, 71, 87, 0.15); }
+  0% { background-color: rgba(229, 57, 53, 0.15); }
   100% { background-color: transparent; }
 }
 .flash-green {

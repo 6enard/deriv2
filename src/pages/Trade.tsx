@@ -265,21 +265,21 @@ export default function Trade() {
               <div className="relative">
                 <button
                   onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors"
                 >
                   <span className="font-semibold">{currentSymbol?.display_name || 'Select market'}</span>
                   <ChevronDown className="w-4 h-4 text-text-secondary" />
                 </button>
 
                 {symbolDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg bg-bg-secondary border border-border-light shadow-xl z-50">
+                  <div className="absolute top-full left-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
                     <div className="p-2 sticky top-0 bg-bg-secondary border-b border-border-default">
                       <input
                         type="text"
                         value={symbolSearch}
                         onChange={(e) => setSymbolSearch(e.target.value)}
                         placeholder="Search markets..."
-                        className="w-full px-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue"
+                        className="w-full px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue"
                         autoFocus
                       />
                     </div>
@@ -352,7 +352,7 @@ export default function Trade() {
                     onChange={(e) => setStake(e.target.value)}
                     min="0.35"
                     step="0.01"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
                 </div>
               </div>
@@ -364,12 +364,12 @@ export default function Trade() {
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     min="1"
-                    className="w-full px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    className="px-3 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                    className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
                   >
                     <option value="t">Ticks</option>
                     <option value="s">sec</option>
@@ -489,7 +489,7 @@ function TickChart({ ticks }: { ticks: Tick[]; pipSize: number }) {
   const areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${height} L ${points[0].x.toFixed(1)} ${height} Z`
 
   const isUp = quotes[quotes.length - 1] >= quotes[0]
-  const color = isUp ? '#00d4a0' : '#ff4757'
+  const color = isUp ? '#e53935' : '#e53935'
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[200px]" preserveAspectRatio="none">
@@ -521,7 +521,7 @@ function ContractCard({
   const isProfit = profit >= 0
 
   return (
-    <div className="rounded-lg bg-bg-tertiary border border-border-light p-3 slide-in">
+    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={`w-6 h-6 rounded flex items-center justify-center ${isCall ? 'bg-brand-green/15' : 'bg-brand-red/15'}`}>
@@ -554,7 +554,7 @@ function ContractCard({
         </div>
         <button
           onClick={onSell}
-          className="px-3 py-1.5 rounded-lg bg-bg-hover text-xs font-medium hover:bg-border-light transition-colors"
+          className="px-3 py-1.5 rounded-xl bg-bg-hover text-xs font-medium hover:bg-border-light transition-colors"
         >
           Sell
         </button>

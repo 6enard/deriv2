@@ -30,7 +30,7 @@ export default function CallbackPage() {
           <button
             type="button"
             onClick={() => navigate('/', { replace: true })}
-            className="px-5 py-2.5 rounded-lg bg-brand-green text-bg-primary font-semibold hover:bg-brand-green-dim transition-colors"
+            className="px-5 py-2.5 rounded-xl bg-brand-red text-white font-semibold hover:bg-brand-red-dim transition-colors"
           >
             Return to sign in
           </button>
@@ -42,10 +42,10 @@ export default function CallbackPage() {
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
       <div className="text-center">
-        <Loader2 className="w-10 h-10 text-brand-green animate-spin mx-auto mb-4" />
+        <Loader2 className="w-10 h-10 text-brand-red animate-spin mx-auto mb-4" />
         <h1 className="text-xl font-semibold mb-2">Connecting your Deriv account</h1>
         <p className="text-sm text-text-secondary">Please wait while we prepare your trading session.</p>
-        <div className="flex items-center justify-center gap-2 mt-5 text-xs text-brand-green">
+        <div className="flex items-center justify-center gap-2 mt-5 text-xs text-brand-red">
           <CheckCircle2 className="w-4 h-4" />
           Secure redirect received
         </div>

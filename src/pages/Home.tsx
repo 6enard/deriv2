@@ -12,7 +12,7 @@ function StartTradingButton() {
       type="button"
       onClick={() => { void login() }}
       disabled={isLoading}
-      className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-brand-green text-bg-primary font-semibold text-lg hover:bg-brand-green-dim transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+      className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-brand-red text-white font-semibold text-lg hover:bg-brand-red-dim transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
     >
       Start Trading
       <ArrowRight className="w-5 h-5" />
@@ -41,7 +41,7 @@ export default function Home() {
         </div>
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-5 leading-tight">
           Your Markets. Your Moment.
-          <span className="block text-brand-green">Trade Anytime. Anywhere.</span>
+          <span className="block text-brand-red">Trade Anytime. Anywhere.</span>
         </h1>
         <p className="text-lg text-text-secondary max-w-2xl mx-auto mb-8">
           Explore a wide range of products and global markets on powerful platforms, with 24/7 support whenever you need it.
@@ -54,7 +54,7 @@ export default function Home() {
           </div>
         ) : error ? (
           <div className="max-w-md mx-auto space-y-4">
-            <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red">
+            <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-4 py-3 text-sm text-brand-red">
               {error}
             </div>
             <StartTradingButton />
@@ -86,8 +86,8 @@ export default function Home() {
 function FeatureCard({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
   return (
     <div className="rounded-xl bg-bg-secondary border border-border-default p-6 hover:border-border-light transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-bg-tertiary flex items-center justify-center mb-4">
-        <Icon className="w-5 h-5 text-brand-green" />
+      <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-brand-red" />
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
       <p className="text-sm text-text-secondary leading-relaxed">{description}</p>
@@ -98,7 +98,7 @@ function FeatureCard({ icon: Icon, title, description }: { icon: LucideIcon; tit
 function Step({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full bg-brand-green/15 border border-brand-green/30 flex items-center justify-center text-sm font-bold text-brand-green shrink-0">
+      <div className="w-8 h-8 rounded-full bg-brand-red/15 border border-brand-red/30 flex items-center justify-center text-sm font-bold text-brand-red shrink-0">
         {number}
       </div>
       <div>

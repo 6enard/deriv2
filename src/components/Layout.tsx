@@ -62,7 +62,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <img
                   src={theme === 'dark' ? '/black.jpeg' : '/white.jpeg'}
                   alt="DeriTraders"
-                  className="w-9 h-9 rounded-lg object-cover"
+                  className="w-9 h-9 rounded-xl object-cover"
                 />
                 <span className="text-lg font-bold tracking-tight">DeriTraders</span>
               </Link>
@@ -77,9 +77,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                           active
-                            ? 'text-brand-green'
+                            ? 'text-brand-red'
                             : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
                         }`}
                       >
@@ -109,7 +109,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                           onClick={handleToggleAccountType}
                           disabled={switching}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                            accountType === 'demo' ? 'bg-brand-blue text-white' : 'text-text-secondary hover:text-text-primary'
+                            accountType === 'demo' ? 'bg-brand-red text-white' : 'text-text-secondary hover:text-text-primary'
                           }`}
                         >
                           Demo
@@ -118,7 +118,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                           onClick={handleToggleAccountType}
                           disabled={switching}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                            accountType === 'real' ? 'bg-brand-green text-bg-primary' : 'text-text-secondary hover:text-text-primary'
+                            accountType === 'real' ? 'bg-brand-red text-white' : 'text-text-secondary hover:text-text-primary'
                           }`}
                         >
                           Real
@@ -130,9 +130,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className="relative" ref={accountMenuRef}>
                       <button
                         onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-border-light bg-bg-tertiary hover:border-brand-green transition-colors"
+                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-border-light bg-bg-tertiary hover:border-brand-red transition-colors"
                       >
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-green to-brand-green-dim flex items-center justify-center text-bg-primary text-xs font-bold">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-red to-brand-red-dim flex items-center justify-center text-white text-xs font-bold">
                           {account.account_id.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex flex-col items-start leading-tight">
@@ -170,25 +170,10 @@ export default function Layout({ children }: { children: ReactNode }) {
                       )}
                     </div>
                   </div>
-                ) : (
-                  <div className="hidden md:flex items-center gap-2">
-                    <Link
-                      to="/"
-                      className="px-5 py-2 rounded-full text-sm font-semibold text-text-primary hover:bg-bg-tertiary transition-colors"
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      to="/"
-                      className="px-5 py-2 rounded-full text-sm font-semibold bg-brand-green text-bg-primary hover:bg-brand-green-dim transition-colors"
-                    >
-                      Sign up
-                    </Link>
-                  </div>
-                )}
+                ) : null}
 
                 <button
-                  className="lg:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary"
+                  className="lg:hidden p-2 rounded-xl text-text-secondary hover:text-text-primary"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   aria-label="Menu"
                 >
@@ -212,8 +197,8 @@ export default function Layout({ children }: { children: ReactNode }) {
                       key={item.to}
                       to={item.to}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium ${
-                        active ? 'bg-bg-tertiary text-brand-green' : 'text-text-secondary'
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium ${
+                        active ? 'bg-bg-tertiary text-brand-red' : 'text-text-secondary'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -227,7 +212,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <button
                       onClick={handleToggleAccountType}
                       disabled={switching}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${accountType === 'demo' ? 'bg-brand-blue text-white' : 'bg-brand-green text-bg-primary'}`}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${accountType === 'demo' ? 'bg-brand-red text-white' : 'bg-brand-red text-white'}`}
                     >
                       {accountType === 'demo' ? 'Demo' : 'Real'}
                     </button>
@@ -241,30 +226,13 @@ export default function Layout({ children }: { children: ReactNode }) {
                 )}
                 <button
                   onClick={() => { handleLogout(); setMobileMenuOpen(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-brand-red w-full"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-brand-red w-full"
                 >
                   <LogOut className="w-4 h-4" />
                   Disconnect
                 </button>
               </>
-            ) : (
-              <div className="flex flex-col gap-2 px-3 py-2">
-                <Link
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-full text-sm font-semibold text-text-primary bg-bg-tertiary text-center"
-                >
-                  Log in
-                </Link>
-                <Link
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="px-4 py-2.5 rounded-full text-sm font-semibold bg-brand-green text-bg-primary text-center"
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
+            ) : null}
           </div>
         )}
       </header>

@@ -238,7 +238,7 @@ export default function History() {
           {(subView === 'closed' || subView === 'statement') && (
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors"
             >
               <Filter className="w-4 h-4" />
               Filters
@@ -248,7 +248,7 @@ export default function History() {
           <button
             onClick={loadAll}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-secondary border border-border-light text-sm hover:bg-bg-tertiary transition-colors disabled:opacity-50"
           >
             {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Refresh
@@ -275,7 +275,7 @@ export default function History() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="pl-10 pr-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                  className="pl-10 pr-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
                 />
               </div>
             </div>
@@ -287,13 +287,13 @@ export default function History() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="pl-10 pr-3 py-2 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                  className="pl-10 pr-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
                 />
               </div>
             </div>
             <button
               onClick={handleApplyFilters}
-              className="px-4 py-2 rounded-lg bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
+              className="px-4 py-2 rounded-xl bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
             >
               Apply
             </button>
@@ -302,7 +302,7 @@ export default function History() {
       )}
 
       {error && (
-        <div className="bg-brand-red/10 border border-brand-red/30 rounded-lg px-4 py-3 text-sm text-brand-red mb-6">
+        <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-4 py-3 text-sm text-brand-red mb-6">
           {error}
         </div>
       )}
@@ -411,7 +411,7 @@ export default function History() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
                   >
                     {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
                     Load More
@@ -470,7 +470,7 @@ export default function History() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
                   >
                     {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
                     Load More
@@ -489,7 +489,7 @@ function SubTabButton({ active, onClick, label, count }: { active: boolean; onCl
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
         active
           ? 'bg-bg-tertiary text-text-primary border border-border-light'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'

@@ -21,7 +21,7 @@ export default function Admin() {
               <p className="font-semibold">{account.account_id} {account.account_type === 'demo' && '(Demo)'}</p>
               <p className="text-sm text-text-muted">{account.currency} {account.balance.toFixed(2)}</p>
             </div>
-            <span className="px-3 py-1 rounded-full bg-brand-green/15 text-brand-green text-xs font-medium">
+            <span className="px-3 py-1 rounded-full bg-brand-red/15 text-brand-red text-xs font-medium">
               Connected
             </span>
           </div>
@@ -30,11 +30,11 @@ export default function Admin() {
 
       <div className="rounded-xl bg-bg-secondary border border-border-default p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Settings className="w-5 h-5 text-brand-blue" />
+          <Settings className="w-5 h-5 text-brand-red" />
           <h2 className="font-semibold">Markup Configuration</h2>
         </div>
 
-        <div className="flex items-start gap-3 bg-brand-blue/10 border border-brand-blue/30 rounded-lg px-4 py-3 text-sm text-brand-blue mb-5">
+        <div className="flex items-start gap-3 bg-brand-red/10 border border-brand-red/30 rounded-xl px-4 py-3 text-sm text-brand-red mb-5">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
           <span>
             Markup is now managed directly in the Deriv developer dashboard. Use the link below to open your app settings and adjust the markup percentage there.
@@ -45,7 +45,7 @@ export default function Admin() {
           href={DERIV_DEV_DASHBOARD_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand-green text-bg-primary font-semibold hover:bg-brand-green-dim transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-red text-white font-semibold hover:bg-brand-red-dim transition-colors"
         >
           Open Deriv Developer Dashboard
           <ExternalLink className="w-4 h-4" />
