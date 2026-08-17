@@ -75,10 +75,6 @@ function authHeaders(accessToken: string): Record<string, string> {
   }
 }
 
-function isTokenExpired(expiry: number): boolean {
-  return Date.now() >= expiry
-}
-
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
@@ -149,6 +145,7 @@ function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): Der
     account_type: acct.account_type || 'demo',
     access_token: tokens.access_token!,
     token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
+    refresh_token: tokens.refresh_token,
   }
 }
 
@@ -188,6 +185,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearOAuthState()
   }, [ws])
 
+  const ensureValidToken = useCallback(async (acct: DerivSessionAccount): Promise<DerivSessionAccount> => {
+    if (!isTokenExpired(acct.token_expiry)) return acct
+    if (!acct.refresh_token) throw new Error(SESSION_EXPIRED_MESSAGE)
+
+    const tokens = await refreshAccessToken(acct.refresh_token)
+    const updated: DerivSessionAccount = {
+      ...acct,
+      access_token: tokens.access_token!,
+      token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
+      refresh_token: tokens.refresh_token || acct.refresh_token,
+    }
+
+    setAccounts((prev) => {
+      const next = prev.map((a) => a.account_id === updated.account_id ? updated : a)
+      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
+      return next
+    })
+    return updated
+  }, [])
+
   const switchAccount = useCallback(async (accountId: string) => {
     const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
     if (!nextAccount) throw new Error('Account not found.')
@@ -195,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     setError(null)
     try {
-      const refreshed = ensureValidToken(nextAccount)
+      const refreshed = await ensureValidToken(nextAccount)
       const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
       const nextWs = await connectViaOtp(otpUrl)
 
@@ -211,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [accounts, ws])
+  }, [accounts, ws, ensureValidToken])
 
   const handleCallback = useCallback(async (params: URLSearchParams) => {
     setIsLoading(true)
@@ -302,7 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     setError(null)
     try {
-      let accountList = await fetchAccounts(account.access_token)
+      const validated = await ensureValidToken(account)
+      let accountList = await fetchAccounts(validated.access_token)
       const hasReal = accountList.some((a) => a.account_type === 'real')
       if (!hasReal) {
         const realAcct = await createAccount(account.access_token, 'real')
@@ -310,8 +328,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const tokens: OAuthTokenResponse = {
-        access_token: account.access_token,
-        expires_in: Math.floor((account.token_expiry - Date.now()) / 1000),
+        access_token: validated.access_token,
+        expires_in: Math.floor((validated.token_expiry - Date.now()) / 1000),
+        refresh_token: validated.refresh_token,
       }
       const newSession = accountList
         .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
@@ -323,15 +342,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [account, accounts])
+  }, [account, accounts, ensureValidToken])
 
   useEffect(() => {
     if (!account || ws) return
 
     let cancelled = false
-    try {
-      const validated = ensureValidToken(account)
-      fetchOtpUrl(validated.access_token, validated.account_id)
+    ensureValidToken(account)
+      .then((validated) => {
+        if (cancelled) return
+        return fetchOtpUrl(validated.access_token, validated.account_id)
         .then(async (otpUrl) => {
           if (cancelled) return
           const nextWs = await connectViaOtp(otpUrl)
@@ -343,26 +363,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
           setWs(nextWs)
         })
-        .catch(() => {
-          if (cancelled) return
-          sessionStorage.removeItem(ACCOUNTS_KEY)
-          sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
-          sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
-          setAccounts([])
-          setSelectedAccountId(null)
-          setError(SESSION_EXPIRED_MESSAGE)
-        })
-    } catch {
-      sessionStorage.removeItem(ACCOUNTS_KEY)
-      sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
-      sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
-      setAccounts([])
-      setSelectedAccountId(null)
-      setError(SESSION_EXPIRED_MESSAGE)
-    }
+      })
+      .catch(() => {
+        if (cancelled) return
+        sessionStorage.removeItem(ACCOUNTS_KEY)
+        sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+        sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
+        setAccounts([])
+        setSelectedAccountId(null)
+        setError(SESSION_EXPIRED_MESSAGE)
+      })
 
     return () => { cancelled = true }
-  }, [account, ws])
+  }, [account, ws, ensureValidToken])
 
   return (
     <AuthContext.Provider value={{
