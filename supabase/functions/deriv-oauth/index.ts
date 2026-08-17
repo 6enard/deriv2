@@ -49,42 +49,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { grant_type } = body;
-
-    if (grant_type === "refresh_token") {
-      const { refresh_token, client_id } = body;
-      if (!refresh_token || !client_id) {
-        return new Response(
-          JSON.stringify({ error: "Missing refresh_token or client_id" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const params = new URLSearchParams();
-      params.set("grant_type", "refresh_token");
-      params.set("client_id", client_id);
-      params.set("refresh_token", refresh_token);
-
-      const response = await fetch("https://auth.deriv.com/oauth2/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        return new Response(
-          JSON.stringify({ error: data.error_description || data.error || "Token refresh failed" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { code, code_verifier, client_id, redirect_uri } = body;
 
     if (!code || !code_verifier || !client_id || !redirect_uri) {
