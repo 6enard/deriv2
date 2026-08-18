@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, Wallet, LogOut, Menu, X, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -9,7 +9,6 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [switching, setSwitching] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
@@ -102,7 +101,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </button>
 
                 {isAuthenticated && account ? (
-                  <div className="hidden md:flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     {hasRealAccount && (
                       <div className="flex items-center rounded-full bg-bg-tertiary border border-border-light p-0.5">
                         <button
@@ -172,79 +171,46 @@ export default function Layout({ children }: { children: ReactNode }) {
                   </div>
                 ) : null}
 
-                <button
-                  className="lg:hidden p-2 rounded-xl text-text-secondary hover:text-text-primary"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  aria-label="Menu"
-                >
-                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-border-default bg-bg-secondary px-4 py-3 space-y-1 slide-in">
-            {isAuthenticated ? (
-              <>
-                {navItems.map((item) => {
-                  const Icon = item.icon
-                  const active = location.pathname === item.to
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium ${
-                        active ? 'bg-bg-tertiary text-brand-red' : 'text-text-secondary'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-                {hasRealAccount && (
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <span className="text-xs text-text-muted">Account:</span>
-                    <button
-                      onClick={handleToggleAccountType}
-                      disabled={switching}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${accountType === 'demo' ? 'bg-brand-red text-white' : 'bg-brand-red text-white'}`}
-                    >
-                      {accountType === 'demo' ? 'Demo' : 'Real'}
-                    </button>
-                  </div>
-                )}
-                {account && (
-                  <div className="px-3 py-2 text-sm">
-                    <span className="font-semibold tabular">{account.balance.toFixed(2)} {account.currency}</span>
-                    <span className="text-text-muted ml-2">{account.account_id} ({account.account_type})</span>
-                  </div>
-                )}
-                <button
-                  onClick={() => { handleLogout(); setMobileMenuOpen(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-brand-red w-full"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Disconnect
-                </button>
-              </>
-            ) : null}
-          </div>
-        )}
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-20 lg:pb-0">{children}</main>
 
-      <footer className="border-t border-border-default bg-bg-secondary py-4">
+      <footer className="hidden lg:block border-t border-border-default bg-bg-secondary py-4">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-text-muted">
           Trading involves risk. DeriTraders is a third-party platform powered by the Deriv API.
            3% markup is applied to every trade.
         </div>
       </footer>
+
+      {/* Mobile bottom navigation */}
+      {isAuthenticated && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-secondary border-t border-border-default">
+          <div className="flex items-center justify-around h-16 px-2">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active = location.pathname === item.to
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex flex-col items-center justify-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
+                    active
+                      ? 'text-brand-red'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${active ? 'scale-110' : ''} transition-transform`} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }
