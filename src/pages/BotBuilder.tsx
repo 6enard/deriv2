@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
+import { useOpenContracts } from '../hooks/useOpenContracts'
 import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2 } from 'lucide-react'
 
 export default function BotBuilder() {
@@ -39,6 +40,7 @@ export default function BotBuilder() {
   }, [])
 
   const { ws, account } = useAuth()
+  const { subscribeToContract } = useOpenContracts()
 
   const handleRun = useCallback(async () => {
     // TODO(phase3): replace this single-shot fire with an interpreter that
@@ -72,6 +74,7 @@ export default function BotBuilder() {
       const proposal = proposalRes.proposal
       const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
       const buyData = buyRes.buy
+      subscribeToContract(buyData.contract_id)
       showToast('success', `Contract placed (ID: ${buyData.contract_id}) for ${buyData.buy_price} ${params.currency}`)
     } catch (err: unknown) {
       showToast('error', errorMessage(err, 'Trade failed. Please try again.'))

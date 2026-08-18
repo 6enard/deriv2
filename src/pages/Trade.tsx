@@ -2,14 +2,15 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
-import { supabase } from '../lib/supabase'
+import { useOpenContracts } from '../hooks/useOpenContracts'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
-import { mapActiveSymbol, mapOpenContract } from '../lib/types'
+import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
 
 export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
   const { showToast } = useToast()
+  const { openContractList, subscribeToContract, sellContract } = useOpenContracts()
 
   const [symbols, setSymbols] = useState<SymbolInfo[]>([])
   const [selectedSymbol, setSelectedSymbol] = useState('')
@@ -19,7 +20,6 @@ export default function Trade() {
   const [duration, setDuration] = useState('5')
   const [durationUnit, setDurationUnit] = useState('m')
   const [isTrading, setIsTrading] = useState(false)
-  const [openContracts, setOpenContracts] = useState<Record<number, OpenContract>>({})
   const [loadingSymbols, setLoadingSymbols] = useState(true)
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
   const [symbolSearch, setSymbolSearch] = useState('')
@@ -115,71 +115,6 @@ export default function Trade() {
     }
   }, [ws])
 
-  // Load open positions on mount
-  useEffect(() => {
-    if (!ws) return
-
-    ws.send({ portfolio: 1 })
-      .then((res) => {
-        if (res.portfolio?.contracts) {
-          res.portfolio.contracts.forEach((position: any) => {
-            const contractId = position.contract_id
-            ws.subscribe(
-              { proposal_open_contract: 1, contract_id: contractId },
-              (data) => {
-                if (data.proposal_open_contract) {
-                  handleContractUpdate(data.proposal_open_contract)
-                }
-              },
-            ).catch(() => {})
-          })
-        }
-      })
-      .catch(() => {})
-  }, [ws])
-
-  const handleContractUpdate = useCallback((raw: any) => {
-    const contract = mapOpenContract(raw)
-    setOpenContracts((prev) => {
-      const next = { ...prev }
-      if (contract.is_sold || contract.is_expired) {
-        delete next[contract.contract_id]
-        // Save to Supabase
-        if (account) {
-          supabase.from('trades').insert({
-            deriv_account_id: account.account_id,
-            contract_id: contract.contract_id,
-            symbol: contract.symbol,
-            display_name: contract.display_name,
-            contract_type: contract.contract_type,
-            stake: contract.buy_price,
-            payout: contract.payout,
-            profit: contract.profit,
-            status: contract.status,
-            purchase_price: contract.buy_price,
-            sell_price: contract.sell_price,
-            purchase_time: new Date(contract.purchase_time * 1000).toISOString(),
-            sell_time: contract.sell_time ? new Date(contract.sell_time * 1000).toISOString() : null,
-          }).then(({ error }) => {
-            if (error) console.error('Failed to save trade:', error)
-          })
-        }
-        // Toast
-        if (contract.status === 'won') {
-          showToastCallback('success', `Trade won! Profit: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
-        } else if (contract.status === 'lost') {
-          showToastCallback('error', `Trade lost. Loss: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
-        } else if (contract.status === 'sold') {
-          showToastCallback('info', `Contract sold. P/L: ${contract.profit.toFixed(2)} ${account?.currency || ''}`)
-        }
-        refreshBalance()
-      } else {
-        next[contract.contract_id] = contract
-      }
-      return next
-    })
-  }, [account, showToastCallback, refreshBalance])
-
   const executeTrade = async (contractType: 'CALL' | 'PUT') => {
     if (!ws || !account || !selectedSymbol) return
 
@@ -207,30 +142,11 @@ export default function Trade() {
       showToastCallback('info', `${contractType === 'CALL' ? 'Up' : 'Down'} contract purchased for ${buyData.buy_price} ${account.currency}`)
       refreshBalance()
 
-      // Subscribe to contract updates
-      ws.subscribe(
-        { proposal_open_contract: 1, contract_id: buyData.contract_id },
-        (data) => {
-          if (data.proposal_open_contract) {
-            handleContractUpdate(data.proposal_open_contract)
-          }
-        },
-      ).catch(() => {})
+      subscribeToContract(buyData.contract_id)
     } catch (err: unknown) {
       showToastCallback('error', errorMessage(err, 'Trade failed. Please try again.'))
     } finally {
       setIsTrading(false)
-    }
-  }
-
-  const sellContract = async (contractId: number) => {
-    if (!ws) return
-    try {
-      await ws.send({ sell: contractId, price: 0 })
-      showToastCallback('info', 'Selling contract...')
-      refreshBalance()
-    } catch (err: unknown) {
-      showToastCallback('error', errorMessage(err, 'Failed to sell contract'))
     }
   }
 
@@ -254,8 +170,6 @@ export default function Trade() {
     acc[key].push(s)
     return acc
   }, {} as Record<string, SymbolInfo[]>)
-
-  const openContractList = Object.values(openContracts)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
