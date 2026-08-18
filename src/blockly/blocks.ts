@@ -795,3 +795,19 @@ defineBlock('read_ohlc_obj', {
     category: Categories.Candle,
   }),
 })
+
+// ── 10. Custom math block (positive numbers only) ───────
+// Deriv's bot uses a variant of math_number that restricts input to positive values.
+defineBlock('math_number_positive', {
+  definition: () => ({
+    message0: '%1',
+    args0: [{ type: 'field_number', name: 'NUM', value: 1, min: 0.01, precision: 0.01 }],
+    output: 'Number',
+    outputShape: 2,
+    colour: Colours.Base.colour,
+    colourSecondary: Colours.Base.colourSecondary,
+    colourTertiary: Colours.Base.colourTertiary,
+    tooltip: 'A positive number.',
+    category: Categories.Miscellaneous,
+  }),
+})

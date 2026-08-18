@@ -3,6 +3,7 @@
 // Ported from deriv-com/bot's scratch/blockly.js, adapted for our stack.
 
 import * as Blockly from 'blockly'
+import 'blockly/blocks'
 import { Colours, darkThemeOverrides } from './colours'
 import './blocks'
 import { toolbox } from './toolbox'
