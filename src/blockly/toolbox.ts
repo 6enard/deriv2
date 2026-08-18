@@ -109,6 +109,8 @@ export const toolbox: ToolboxInfo = {
         { kind: 'block', type: 'total_profit' },
         { kind: 'block', type: 'total_runs' },
         { kind: 'block', type: 'block_holder' },
+        { kind: 'block', type: 'set_stake' },
+        { kind: 'block', type: 'get_stake' },
       ],
     },
     {

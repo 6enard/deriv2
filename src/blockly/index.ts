@@ -298,3 +298,5 @@ export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymb
 }
 
 export { defaultWorkspaceXml } from './defaultWorkspace'
+export { generateBotCode, registerGenerators } from './generators'
+export { createBotApi, type BotApi, type BotApiOptions, type NotificationType } from './botApi'

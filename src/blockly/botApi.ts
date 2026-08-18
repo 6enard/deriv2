@@ -1,0 +1,255 @@
+import type { DerivWS } from '../lib/deriv-ws'
+import type { DerivSessionAccount } from '../lib/types'
+import type { TradeParams } from './index'
+
+export type NotificationType = 'success' | 'info' | 'warn' | 'error'
+
+export interface BotApi {
+  purchase(contractType?: string): Promise<number>
+  sellAtMarket(): Promise<void>
+  isContractOpen(): boolean
+  isSellAvailable(): boolean
+  getAskPrice(): number
+  getPayout(): number
+  getSellPrice(): number
+  getTick(): number
+  getTicks(): number[]
+  getLastDigit(): number
+  getLastDigitList(): number[]
+  getDirection(): string
+  getBalance(): number
+  getLastResult(): string
+  getDetails(detail: string): string | number
+  getTotalProfit(): number
+  getTotalRuns(): number
+  setStake(amount: number): void
+  getStake(): number
+  notify(type: NotificationType, message: string): void
+  sleep(ms: number): Promise<void>
+  tickDelay(count: number): Promise<void>
+}
+
+export interface BotApiOptions {
+  onNotify?: (type: NotificationType, message: string) => void
+  onTrade?: (contractId: number) => void
+  shouldStop?: () => boolean
+}
+
+export function createBotApi(
+  ws: DerivWS,
+  account: DerivSessionAccount,
+  params: TradeParams,
+  options: BotApiOptions = {},
+): BotApi {
+  let currentStake = params.amount
+  let currentContractType = params.contract_type
+  let openContractId: number | null = null
+  let lastResult: 'win' | 'loss' | 'sold' = 'win'
+  let lastProfit = 0
+  let lastBuyPrice = 0
+  let lastPayout = 0
+  let lastAskPrice = 0
+  let lastProposalPayout = 0
+  let totalProfit = 0
+  let totalRuns = 0
+  let lastTick = 0
+  let tickHistory: number[] = []
+  let sellAvailable = false
+  let currentSellPrice = 0
+
+  const notify = (type: NotificationType, message: string): void => {
+    options.onNotify?.(type, message)
+  }
+
+  const waitForContractSettlement = (contractId: number): Promise<void> => {
+    return new Promise((resolve) => {
+      let settled = false
+
+      ws.subscribe(
+        { proposal_open_contract: 1, contract_id: contractId },
+        (data: any) => {
+          if (settled) return
+          const c = data.proposal_open_contract
+          if (!c) return
+
+          sellAvailable = !c.is_sold && !c.is_expired
+          currentSellPrice = c.sell_price ? parseFloat(c.sell_price) : 0
+
+          if (c.is_sold || c.is_expired) {
+            settled = true
+            const profit = parseFloat(c.profit || '0')
+            lastProfit = profit
+            totalProfit += profit
+            totalRuns++
+
+            if (c.status === 'won') {
+              lastResult = 'win'
+              notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`)
+            } else if (c.status === 'lost') {
+              lastResult = 'loss'
+              notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`)
+            } else {
+              lastResult = 'sold'
+              notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`)
+            }
+
+            openContractId = null
+            resolve()
+          }
+        },
+      ).catch(() => {
+        if (!settled) {
+          settled = true
+          resolve()
+        }
+      })
+    })
+  }
+
+  ws.subscribe({ ticks: params.symbol }, (data: any) => {
+    if (data.tick) {
+      const quote = parseFloat(data.tick.quote)
+      lastTick = quote
+      tickHistory = [...tickHistory.slice(-99), quote]
+    }
+  }).catch(() => {})
+
+  return {
+    async purchase(contractType?: string): Promise<number> {
+      if (options.shouldStop?.()) throw new Error('Bot stopped')
+      const ct = contractType || currentContractType
+
+      const proposalRes = await ws.send({
+        proposal: 1,
+        amount: currentStake,
+        basis: 'stake',
+        contract_type: ct,
+        currency: params.currency,
+        duration: params.duration,
+        duration_unit: params.duration_unit,
+        underlying_symbol: params.symbol,
+      })
+
+      const proposal = proposalRes.proposal
+      lastAskPrice = parseFloat(proposal.ask_price)
+      lastProposalPayout = parseFloat(proposal.payout)
+
+      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
+      const buyData = buyRes.buy
+      const contractId = buyData.contract_id
+      openContractId = contractId
+      lastBuyPrice = parseFloat(buyData.buy_price)
+      lastPayout = lastProposalPayout
+
+      options.onTrade?.(contractId)
+      notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`)
+
+      await waitForContractSettlement(contractId)
+      return contractId
+    },
+
+    async sellAtMarket(): Promise<void> {
+      if (openContractId === null) return
+      try {
+        await ws.send({ sell: openContractId, price: 0 })
+        notify('info', 'Selling contract at market...')
+      } catch {
+        notify('error', 'Failed to sell contract')
+      }
+    },
+
+    isContractOpen(): boolean {
+      return openContractId !== null
+    },
+
+    isSellAvailable(): boolean {
+      return sellAvailable
+    },
+
+    getAskPrice(): number {
+      return lastAskPrice
+    },
+
+    getPayout(): number {
+      return lastProposalPayout
+    },
+
+    getSellPrice(): number {
+      return currentSellPrice
+    },
+
+    getTick(): number {
+      return lastTick
+    },
+
+    getTicks(): number[] {
+      return tickHistory
+    },
+
+    getLastDigit(): number {
+      return lastTick ? lastTick % 10 : 0
+    },
+
+    getLastDigitList(): number[] {
+      return tickHistory.map((t) => t % 10)
+    },
+
+    getDirection(): string {
+      if (tickHistory.length < 2) return ''
+      const prev = tickHistory[tickHistory.length - 2]
+      const curr = tickHistory[tickHistory.length - 1]
+      if (curr > prev) return 'rise'
+      if (curr < prev) return 'fall'
+      return ''
+    },
+
+    getBalance(): number {
+      return account.balance
+    },
+
+    getLastResult(): string {
+      return lastResult
+    },
+
+    getDetails(detail: string): string | number {
+      switch (detail) {
+        case '1': return String(openContractId ?? '')
+        case '2': return lastBuyPrice
+        case '3': return lastPayout
+        case '4': return lastProfit
+        case '11': return lastResult
+        default: return ''
+      }
+    },
+
+    getTotalProfit(): number {
+      return totalProfit
+    },
+
+    getTotalRuns(): number {
+      return totalRuns
+    },
+
+    setStake(amount: number): void {
+      currentStake = amount
+    },
+
+    getStake(): number {
+      return currentStake
+    },
+
+    notify,
+
+    async sleep(ms: number): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve, ms))
+    },
+
+    async tickDelay(count: number): Promise<void> {
+      const startLen = tickHistory.length
+      while (tickHistory.length < startLen + count) {
+        if (options.shouldStop?.()) return
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    },
+  }
+}

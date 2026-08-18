@@ -2,9 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Blockly from 'blockly'
 import {
   createWorkspace,
+  createBotApi,
   extractTradeParams,
+  generateBotCode,
   loadDefaultWorkspace,
   populateMarketDropdowns,
+  type BotApi,
+  type NotificationType,
 } from '../blockly'
 import type { Bot } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
@@ -28,6 +32,7 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
   const [marketsLoading, setMarketsLoading] = useState(false)
   const [marketsLoaded, setMarketsLoaded] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
+  const stopRef = useRef(false)
 
   // Create the Blockly workspace once on mount
   useEffect(() => {
@@ -142,28 +147,39 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
       return
     }
 
+    const code = generateBotCode(workspace)
+    if (!code) {
+      showToast('error', 'Add Purchase conditions and Trade results blocks before running.')
+      return
+    }
+
+    stopRef.current = false
     setIsRunning(true)
+
+    const botApi: BotApi = createBotApi(ws, account, params, {
+      onNotify: (type: NotificationType, message: string) => {
+        showToast(type === 'warn' ? 'error' : type, message)
+      },
+      onTrade: (contractId: number) => {
+        subscribeToContract(contractId)
+      },
+      shouldStop: () => stopRef.current,
+    })
+
     try {
-      const proposalRes = await ws.send({
-        proposal: 1,
-        amount: params.amount,
-        basis: 'stake',
-        contract_type: params.contract_type,
-        currency: params.currency,
-        duration: params.duration,
-        duration_unit: params.duration_unit,
-        underlying_symbol: params.symbol,
-      })
-      const proposal = proposalRes.proposal
-      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
-      const buyData = buyRes.buy
-      subscribeToContract(buyData.contract_id)
-      showToast('success', `${bot.name}: trade placed (ID: ${buyData.contract_id}) for ${buyData.buy_price} ${params.currency}`)
+      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+      const fn = new AsyncFunction('Bot', code)
+      await fn(botApi)
+      showToast('success', `${bot.name} finished running.`)
       refreshBalance()
       onActivated?.()
       onClose()
     } catch (err: unknown) {
-      showToast('error', errorMessage(err, 'Trade failed. Please try again.'))
+      if (stopRef.current) {
+        showToast('info', 'Bot stopped.')
+      } else {
+        showToast('error', errorMessage(err, 'Bot execution failed.'))
+      }
     } finally {
       setIsRunning(false)
     }

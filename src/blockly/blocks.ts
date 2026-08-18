@@ -678,6 +678,33 @@ defineBlock('block_holder', {
   }),
 })
 
+defineBlock('set_stake', {
+  definition: () => ({
+    message0: 'Set stake to %1',
+    args0: [{ type: 'input_value', name: 'STAKE', check: 'Number' }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: Colours.Base.colour,
+    colourSecondary: Colours.Base.colourSecondary,
+    colourTertiary: Colours.Base.colourTertiary,
+    tooltip: 'Set the stake amount for the next trade.',
+    category: Categories.Miscellaneous,
+  }),
+})
+
+defineBlock('get_stake', {
+  definition: () => ({
+    message0: 'Current stake',
+    output: 'Number',
+    outputShape: 2,
+    colour: Colours.Base.colour,
+    colourSecondary: Colours.Base.colourSecondary,
+    colourTertiary: Colours.Base.colourTertiary,
+    tooltip: 'Returns the current stake amount.',
+    category: Categories.Miscellaneous,
+  }),
+})
+
 // ── 8. Tools / Time ──────────────────────────────────────
 defineBlock('epoch', {
   definition: () => ({
