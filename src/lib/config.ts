@@ -23,5 +23,5 @@ export const ADMIN_ACCOUNT_IDS: string[] = (import.meta.env.VITE_ADMIN_ACCOUNT_I
   .map((id: string) => id.trim())
   .filter(Boolean)
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://chuewdbcluwlperhsfil.supabase.co'
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNodWV3ZGJjbHV3bHBlcmhzZmlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNjI4NTgsImV4cCI6MjEwMjYzODg1OH0.HFvCrITg01j3Jo1W_br91kZPthR0t_yVv88ORNPwxBQ'
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jwomjwwgrqbrzulmhcvu.supabase.co'
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3b21qd3dncnFicnp1bG1oY3Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwODIzMzcsImV4cCI6MjEwMjY1ODMzN30.Tf9kM3rAeBnIhPemgAoVWcE0YSO_QgiiwXc09xfysUs'
