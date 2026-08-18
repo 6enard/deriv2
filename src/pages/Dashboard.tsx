@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import type { SymbolInfo } from '../lib/types'
+import { useOpenContracts } from '../hooks/useOpenContracts'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2 } from 'lucide-react'
 
 type Tab = 'my-bots' | 'free-bots' | 'editor' | 'strategy'
@@ -115,12 +116,63 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
 /* ===================== MY BOTS TAB ===================== */
 
 function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) {
-  const { account } = useAuth()
+  const { account, ws, refreshBalance } = useAuth()
+  const { showToast } = useToast()
+  const { subscribeToContract } = useOpenContracts()
   const [showUpload, setShowUpload] = useState(false)
+  const [activating, setActivating] = useState<string | null>(null)
 
   const toggleActive = async (bot: Bot) => {
-    await supabase.from('bots').update({ is_active: !bot.is_active }).eq('id', bot.id)
-    onChanged()
+    if (bot.is_active) {
+      await supabase.from('bots').update({ is_active: false }).eq('id', bot.id)
+      onChanged()
+      showToast('info', `${bot.name} paused.`)
+      return
+    }
+
+    if (!ws || !account) {
+      showToast('error', 'Connect your Deriv account first.')
+      return
+    }
+
+    const cfg = bot.config as Record<string, unknown>
+    const symbol = String(cfg.symbol || cfg.underlying_symbol || '')
+    const contractType = String(cfg.contract_type || 'CALL')
+    const stake = Number(cfg.stake || cfg.initial_stake || 1)
+    const duration = Number(cfg.duration || 5)
+    const durationUnit = String(cfg.duration_unit || 'm')
+    const currency = account.currency
+
+    if (!symbol) {
+      showToast('error', 'This bot has no market selected. Edit it in the Bot Editor first.')
+      return
+    }
+
+    setActivating(bot.id)
+    try {
+      const proposalRes = await ws.send({
+        proposal: 1,
+        amount: stake,
+        basis: 'stake',
+        contract_type: contractType,
+        currency,
+        duration,
+        duration_unit: durationUnit,
+        underlying_symbol: symbol,
+      })
+      const proposal = proposalRes.proposal
+      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
+      const buyData = buyRes.buy
+      subscribeToContract(buyData.contract_id)
+      await supabase.from('bots').update({ is_active: true }).eq('id', bot.id)
+      onChanged()
+      showToast('success', `${bot.name} activated. Trade placed for ${buyData.buy_price} ${currency}.`)
+      refreshBalance()
+    } catch (err: unknown) {
+      showToast('error', errorMessage(err, 'Failed to execute trade from bot.'))
+    } finally {
+      setActivating(null)
+    }
   }
 
   const deleteBot = async (id: string) => {
@@ -150,7 +202,7 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => (
-            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} showControls />
+            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} showControls activating={activating === bot.id} />
           ))}
         </div>
       )}
@@ -188,7 +240,7 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
       strategy_type: strategyType,
       config,
       is_free: false,
-      is_active: true,
+      is_active: false,
     })
 
     setSaving(false)
@@ -286,7 +338,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
       strategy_type: bot.strategy_type,
       config: bot.config,
       is_free: false,
-      is_active: true,
+      is_active: false,
     })
     setCopying(null)
     if (!error) {
@@ -413,7 +465,7 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
         strategy_type: strategyType,
         config,
         is_free: false,
-        is_active: true,
+        is_active: false,
       })
       setSaving(false)
       if (insertError) { setError(insertError.message); return }
@@ -930,7 +982,7 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
 
 /* ===================== SHARED COMPONENTS ===================== */
 
-function BotCard({ bot, onToggle, onDelete, showControls }: { bot: Bot; onToggle: () => void; onDelete: () => void; showControls?: boolean }) {
+function BotCard({ bot, onToggle, onDelete, showControls, activating }: { bot: Bot; onToggle: () => void; onDelete: () => void; showControls?: boolean; activating?: boolean }) {
   const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
   return (
     <div className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
@@ -951,9 +1003,10 @@ function BotCard({ bot, onToggle, onDelete, showControls }: { bot: Bot; onToggle
         <div className="flex items-center gap-2">
           <button
             onClick={onToggle}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors"
+            disabled={activating}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {bot.is_active ? <><Pause className="w-3.5 h-3.5" /> Pause</> : <><Play className="w-3.5 h-3.5" /> Activate</>}
+            {activating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Activating...</> : bot.is_active ? <><Pause className="w-3.5 h-3.5" /> Pause</> : <><Play className="w-3.5 h-3.5" /> Activate</>}
           </button>
           <button
             onClick={onDelete}
