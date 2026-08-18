@@ -7,8 +7,8 @@ import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import type { SymbolInfo } from '../lib/types'
-import { useOpenContracts } from '../hooks/useOpenContracts'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2 } from 'lucide-react'
+import BotConfigModal from '../components/BotConfigModal'
 
 type Tab = 'my-bots' | 'free-bots' | 'editor' | 'strategy'
 
@@ -116,11 +116,10 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
 /* ===================== MY BOTS TAB ===================== */
 
 function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) {
-  const { account, ws, refreshBalance } = useAuth()
+  const { account, ws } = useAuth()
   const { showToast } = useToast()
-  const { subscribeToContract } = useOpenContracts()
   const [showUpload, setShowUpload] = useState(false)
-  const [activating, setActivating] = useState<string | null>(null)
+  const [configBot, setConfigBot] = useState<Bot | null>(null)
 
   const toggleActive = async (bot: Bot) => {
     if (bot.is_active) {
@@ -135,44 +134,13 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
       return
     }
 
-    const cfg = bot.config as Record<string, unknown>
-    const symbol = String(cfg.symbol || cfg.underlying_symbol || '')
-    const contractType = String(cfg.contract_type || 'CALL')
-    const stake = Number(cfg.stake || cfg.initial_stake || 1)
-    const duration = Number(cfg.duration || 5)
-    const durationUnit = String(cfg.duration_unit || 'm')
-    const currency = account.currency
+    setConfigBot(bot)
+  }
 
-    if (!symbol) {
-      showToast('error', 'This bot has no market selected. Edit it in the Bot Editor first.')
-      return
-    }
-
-    setActivating(bot.id)
-    try {
-      const proposalRes = await ws.send({
-        proposal: 1,
-        amount: stake,
-        basis: 'stake',
-        contract_type: contractType,
-        currency,
-        duration,
-        duration_unit: durationUnit,
-        underlying_symbol: symbol,
-      })
-      const proposal = proposalRes.proposal
-      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
-      const buyData = buyRes.buy
-      subscribeToContract(buyData.contract_id)
-      await supabase.from('bots').update({ is_active: true }).eq('id', bot.id)
-      onChanged()
-      showToast('success', `${bot.name} activated. Trade placed for ${buyData.buy_price} ${currency}.`)
-      refreshBalance()
-    } catch (err: unknown) {
-      showToast('error', errorMessage(err, 'Failed to execute trade from bot.'))
-    } finally {
-      setActivating(null)
-    }
+  const handleActivated = async () => {
+    if (!configBot) return
+    await supabase.from('bots').update({ is_active: true }).eq('id', configBot.id)
+    onChanged()
   }
 
   const deleteBot = async (id: string) => {
@@ -202,13 +170,17 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => (
-            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} showControls activating={activating === bot.id} />
+            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} showControls activating={configBot?.id === bot.id} />
           ))}
         </div>
       )}
 
       {showUpload && account && (
         <UploadBotModal account={account.account_id} onClose={() => setShowUpload(false)} onUploaded={() => { setShowUpload(false); onChanged() }} />
+      )}
+
+      {configBot && (
+        <BotConfigModal bot={configBot} onClose={() => setConfigBot(null)} onActivated={handleActivated} />
       )}
     </div>
   )
@@ -324,9 +296,10 @@ function UploadBotModal({ account, onClose, onUploaded }: { account: string; onC
 /* ===================== FREE BOTS TAB ===================== */
 
 function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) {
-  const { account } = useAuth()
+  const { account, ws } = useAuth()
   const [copying, setCopying] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [configBot, setConfigBot] = useState<Bot | null>(null)
 
   const copyBot = async (bot: Bot) => {
     if (!account) return
@@ -348,6 +321,11 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
     }
   }
 
+  const runBot = (bot: Bot) => {
+    if (!ws || !account) return
+    setConfigBot(bot)
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -355,7 +333,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
         <h2 className="font-semibold">Free Community Bots</h2>
       </div>
       <p className="text-sm text-text-secondary mb-5">
-        Ready-to-use trading bots. Copy any bot to your collection and customize it further in the Bot Editor.
+        Ready-to-use trading bots. Run any bot directly or copy it to your collection to customize further.
       </p>
 
       {bots.length === 0 ? (
@@ -381,17 +359,29 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
               <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{bot.description}</p>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => runBot(bot)}
+                  disabled={!ws || !account}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-brand-green text-bg-primary text-sm font-medium hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" />
+                  Run
+                </button>
+                <button
                   onClick={() => copyBot(bot)}
                   disabled={copying === bot.id}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
                 >
                   {copied === bot.id ? <Check className="w-4 h-4 text-brand-green" /> : copying === bot.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                  {copied === bot.id ? 'Copied!' : 'Copy to My Bots'}
+                  {copied === bot.id ? 'Copied!' : 'Copy'}
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {configBot && (
+        <BotConfigModal bot={configBot} onClose={() => setConfigBot(null)} />
       )}
     </div>
   )
