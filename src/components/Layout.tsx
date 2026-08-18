@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -18,6 +18,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: '/trade', label: 'Trade', icon: TrendingUp },
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
     { to: '/history', label: 'History', icon: HistoryIcon },
+    { to: '/bot-builder', label: 'Bot Builder', icon: BotBuilderIcon },
   ]
 
   const handleLogout = () => {
