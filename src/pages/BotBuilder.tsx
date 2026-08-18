@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Blockly from 'blockly'
 import {
   createWorkspace,
+  extractTradeParams,
   loadDefaultWorkspace,
   loadFromXml,
   workspaceToXml,
 } from '../blockly'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
+import { errorMessage } from '../lib/error'
 import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2 } from 'lucide-react'
 
 export default function BotBuilder() {
@@ -35,11 +38,47 @@ export default function BotBuilder() {
     }
   }, [])
 
-  const handleRun = useCallback(() => {
-    // TODO(phase2): wire this to our DerivWS to execute the bot strategy.
+  const { ws, account } = useAuth()
+
+  const handleRun = useCallback(async () => {
+    // TODO(phase3): replace this single-shot fire with an interpreter that
+    // walks the before/during/after-purchase blocks, supports loops, sell
+    // conditions, and martingale retries. For now we read the trade
+    // parameters once and place a single proposal -> buy, same as Trade.tsx.
+    const workspace = workspaceRef.current
+    if (!workspace || !ws || !account) {
+      showToast('error', 'Connect your Deriv account before running a bot.')
+      return
+    }
+
+    const params = extractTradeParams(workspace)
+    if (!params) {
+      showToast('error', 'Add trade parameter blocks before running.')
+      return
+    }
+
     setIsRunning(true)
-    showToast('info', 'Bot execution is not wired yet — this is Phase 1 (workspace only).')
-  }, [showToast])
+    try {
+      const proposalRes = await ws.send({
+        proposal: 1,
+        amount: params.amount,
+        basis: 'stake',
+        contract_type: params.contract_type,
+        currency: params.currency,
+        duration: params.duration,
+        duration_unit: params.duration_unit,
+        underlying_symbol: params.symbol,
+      })
+      const proposal = proposalRes.proposal
+      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
+      const buyData = buyRes.buy
+      showToast('success', `Contract placed (ID: ${buyData.contract_id}) for ${buyData.buy_price} ${params.currency}`)
+    } catch (err: unknown) {
+      showToast('error', errorMessage(err, 'Trade failed. Please try again.'))
+    } finally {
+      setIsRunning(false)
+    }
+  }, [showToast, ws, account])
 
   const handleStop = useCallback(() => {
     // TODO(phase2): stop the running bot via DerivWS.
@@ -110,7 +149,7 @@ export default function BotBuilder() {
         />
         <ToolbarButton
           onClick={handleStop}
-          disabled={!isRunning}
+          disabled
           icon={Square}
           label="Stop"
           variant="danger"

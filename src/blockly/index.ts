@@ -102,4 +102,58 @@ export function loadFromXml(workspace: Blockly.WorkspaceSvg, xmlText: string): b
   }
 }
 
+export interface TradeParams {
+  symbol: string
+  contract_type: string
+  duration: number
+  duration_unit: string
+  amount: number
+  currency: string
+}
+
+function readNumberInput(block: Blockly.Block, inputName: string): number | null {
+  const target = block.getInputTargetBlock(inputName)
+  if (!target) return null
+  const raw = target.getFieldValue('NUM')
+  if (raw === null || raw === undefined || raw === '') return null
+  const num = parseFloat(raw)
+  return isNaN(num) ? null : num
+}
+
+export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams | null {
+  const topBlocks = workspace.getTopBlocks(false)
+  const root = topBlocks.find((b) => b.type === 'trade_definition')
+  if (!root) return null
+
+  const tradeOptionsBlock = root.getInputTargetBlock('TRADE_OPTIONS')
+  if (!tradeOptionsBlock) return null
+
+  let symbol = ''
+  let contractType = ''
+
+  let block: Blockly.Block | null = tradeOptionsBlock
+  while (block) {
+    if (block.type === 'trade_definition_market') {
+      symbol = String(block.getFieldValue('SYMBOL_LIST') || '').trim()
+    } else if (block.type === 'trade_definition_contracttype') {
+      contractType = String(block.getFieldValue('TYPE_LIST') || '').trim()
+    }
+    block = block.getNextBlock()
+  }
+
+  const tradeOptionsParamsBlock = root.getInputTargetBlock('SUBMARKET')
+  if (!tradeOptionsParamsBlock || tradeOptionsParamsBlock.type !== 'trade_definition_tradeoptions') return null
+
+  const durationUnit = String(tradeOptionsParamsBlock.getFieldValue('DURATIONTYPE_LIST') || '').trim()
+  const duration = readNumberInput(tradeOptionsParamsBlock, 'DURATION')
+  const amount = readNumberInput(tradeOptionsParamsBlock, 'AMOUNT')
+  const currency = String(tradeOptionsParamsBlock.getFieldValue('CURRENCY_LIST') || '').trim()
+
+  if (!symbol || !contractType || !durationUnit || duration === null || amount === null || !currency) {
+    return null
+  }
+
+  return { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency }
+}
+
 export { defaultWorkspaceXml } from './defaultWorkspace'
