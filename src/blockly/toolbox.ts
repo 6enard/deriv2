@@ -117,7 +117,6 @@ export const toolbox: ToolboxInfo = {
       categorystyle: 'math',
       contents: [
         { kind: 'block', type: 'math_number' },
-        { kind: 'block', type: 'math_number_positive' },
         { kind: 'block', type: 'math_arithmetic' },
         { kind: 'block', type: 'math_single' },
         { kind: 'block', type: 'math_trig' },

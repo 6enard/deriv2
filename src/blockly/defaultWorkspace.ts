@@ -41,12 +41,12 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
         <field name="DURATIONTYPE_LIST">m</field>
         <field name="CURRENCY_LIST">USD</field>
         <value name="DURATION">
-          <shadow type="math_number_positive">
+          <shadow type="math_number">
             <field name="NUM">5</field>
           </shadow>
         </value>
         <value name="AMOUNT">
-          <shadow type="math_number_positive">
+          <shadow type="math_number">
             <field name="NUM">1</field>
           </shadow>
         </value>
