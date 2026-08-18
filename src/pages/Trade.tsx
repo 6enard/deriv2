@@ -5,7 +5,65 @@ import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
-import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, ArrowUp, ArrowDown, Wallet, Clock, Activity, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon } from 'lucide-react'
+
+type TradeTypeCategory = 'risefall' | 'higherlower' | 'touchnotouch' | 'endsinout' | 'staysinout'
+
+interface TradeTypeOption {
+  category: TradeTypeCategory
+  label: string
+  contractType: 'CALL' | 'PUT' | 'TOUCH' | 'NOTOUCH' | 'EXPIRYRANGE' | 'EXPIRYMISS' | 'RANGE' | 'MISS'
+  side: 'up' | 'down' | 'touch' | 'notouch' | 'in' | 'out'
+  displayName: string
+}
+
+const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
+  {
+    group: 'Rise / Fall',
+    types: [
+      { category: 'risefall', label: 'Rise', contractType: 'CALL', side: 'up', displayName: 'Rise' },
+      { category: 'risefall', label: 'Fall', contractType: 'PUT', side: 'down', displayName: 'Fall' },
+    ],
+  },
+  {
+    group: 'Higher / Lower',
+    types: [
+      { category: 'higherlower', label: 'Higher', contractType: 'CALL', side: 'up', displayName: 'Higher' },
+      { category: 'higherlower', label: 'Lower', contractType: 'PUT', side: 'down', displayName: 'Lower' },
+    ],
+  },
+  {
+    group: 'Touch / No Touch',
+    types: [
+      { category: 'touchnotouch', label: 'Touch', contractType: 'TOUCH', side: 'touch', displayName: 'Touch' },
+      { category: 'touchnotouch', label: 'No Touch', contractType: 'NOTOUCH', side: 'notouch', displayName: 'No Touch' },
+    ],
+  },
+  {
+    group: 'Ends In / Out',
+    types: [
+      { category: 'endsinout', label: 'Ends In', contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In' },
+      { category: 'endsinout', label: 'Ends Out', contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out' },
+    ],
+  },
+  {
+    group: 'Stays In / Goes Out',
+    types: [
+      { category: 'staysinout', label: 'Stays In', contractType: 'RANGE', side: 'in', displayName: 'Stays In' },
+      { category: 'staysinout', label: 'Goes Out', contractType: 'MISS', side: 'out', displayName: 'Goes Out' },
+    ],
+  },
+]
+
+const ALL_TRADE_TYPES = TRADE_TYPE_GROUPS.flatMap((g) => g.types)
+
+function needsSingleBarrier(category: TradeTypeCategory): boolean {
+  return category === 'higherlower' || category === 'touchnotouch'
+}
+
+function needsDoubleBarrier(category: TradeTypeCategory): boolean {
+  return category === 'endsinout' || category === 'staysinout'
+}
 
 export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
@@ -19,6 +77,15 @@ export default function Trade() {
   const [stake, setStake] = useState('1')
   const [duration, setDuration] = useState('5')
   const [durationUnit, setDurationUnit] = useState('m')
+  const [selectedTradeType, setSelectedTradeType] = useState<TradeTypeOption>(ALL_TRADE_TYPES[0])
+  const [tradeTypeDropdownOpen, setTradeTypeDropdownOpen] = useState(false)
+  const [barrier, setBarrier] = useState('')
+  const [barrierHigh, setBarrierHigh] = useState('')
+  const [barrierLow, setBarrierLow] = useState('')
+  const [proposal, setProposal] = useState<{ askPrice: number; payout: number; spot: number } | null>(null)
+  const [proposalLoading, setProposalLoading] = useState(false)
+  const [proposalError, setProposalError] = useState<string | null>(null)
+  const proposalReqIdRef = useRef<number | null>(null)
   const [isTrading, setIsTrading] = useState(false)
   const [loadingSymbols, setLoadingSymbols] = useState(true)
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
@@ -115,31 +182,114 @@ export default function Trade() {
     }
   }, [ws])
 
-  const executeTrade = async (contractType: 'CALL' | 'PUT') => {
+  // Fetch live proposal (expected payout) whenever trade params change
+  useEffect(() => {
+    if (!ws || !selectedSymbol || !account) return
+    const stakeNum = parseFloat(stake)
+    const durationNum = parseInt(duration)
+    if (!stakeNum || stakeNum <= 0 || !durationNum || durationNum <= 0) {
+      setProposal(null)
+      setProposalError(null)
+      return
+    }
+
+    const category = selectedTradeType.category
+    if ((needsSingleBarrier(category) && !barrier) || (needsDoubleBarrier(category) && (!barrierHigh || !barrierLow))) {
+      setProposal(null)
+      setProposalError(null)
+      return
+    }
+
+    let cancelled = false
+    setProposalLoading(true)
+    setProposalError(null)
+
+    const reqId = Date.now() + Math.random()
+    proposalReqIdRef.current = reqId
+
+    const request: Record<string, unknown> = {
+      proposal: 1,
+      amount: stakeNum,
+      basis: 'stake',
+      contract_type: selectedTradeType.contractType,
+      currency: account.currency,
+      duration: durationNum,
+      duration_unit: durationUnit,
+      underlying_symbol: selectedSymbol,
+    }
+
+    if (needsSingleBarrier(category)) {
+      request.barrier = barrier
+    } else if (needsDoubleBarrier(category)) {
+      request.barrier = `${barrierHigh}`
+      request.barrier2 = `${barrierLow}`
+    }
+
+    ws.send(request)
+      .then((res) => {
+        if (cancelled || proposalReqIdRef.current !== reqId) return
+        if (res.proposal) {
+          setProposal({
+            askPrice: parseFloat(res.proposal.ask_price),
+            payout: parseFloat(res.proposal.payout),
+            spot: parseFloat(res.proposal.spot || '0'),
+          })
+          setProposalError(null)
+        } else if (res.error) {
+          setProposal(null)
+          setProposalError(res.error.message || 'No proposal for these parameters')
+        }
+      })
+      .catch((err) => {
+        if (cancelled || proposalReqIdRef.current !== reqId) return
+        setProposal(null)
+        const msg = err?.message || 'Unable to fetch payout'
+        setProposalError(msg)
+      })
+      .finally(() => {
+        if (!cancelled && proposalReqIdRef.current === reqId) setProposalLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow])
+
+  const executeTrade = async () => {
     if (!ws || !account || !selectedSymbol) return
 
     setIsTrading(true)
     try {
-      const proposalRes = await ws.send({
+      const category = selectedTradeType.category
+      const request: Record<string, unknown> = {
         proposal: 1,
         amount: parseFloat(stake),
         basis: 'stake',
-        contract_type: contractType,
+        contract_type: selectedTradeType.contractType,
         currency: account.currency,
         duration: parseInt(duration),
         duration_unit: durationUnit,
         underlying_symbol: selectedSymbol,
-      })
+      }
 
-      const proposal = proposalRes.proposal
+      if (needsSingleBarrier(category)) {
+        request.barrier = barrier
+      } else if (needsDoubleBarrier(category)) {
+        request.barrier = `${barrierHigh}`
+        request.barrier2 = `${barrierLow}`
+      }
+
+      const proposalRes = await ws.send(request)
+
+      const proposalData = proposalRes.proposal
 
       const buyRes = await ws.send({
-        buy: proposal.id,
-        price: proposal.ask_price,
+        buy: proposalData.id,
+        price: proposalData.ask_price,
       })
 
       const buyData = buyRes.buy
-      showToastCallback('info', `${contractType === 'CALL' ? 'Up' : 'Down'} contract purchased for ${buyData.buy_price} ${account.currency}`)
+      showToastCallback('info', `${selectedTradeType.displayName} contract purchased for ${buyData.buy_price} ${account.currency}`)
       refreshBalance()
 
       subscribeToContract(buyData.contract_id)
@@ -258,6 +408,101 @@ export default function Trade() {
               Place Trade
             </h3>
 
+            {/* Trade Type Selector */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Trade Type</label>
+              <div className="relative">
+                <button
+                  onClick={() => setTradeTypeDropdownOpen(!tradeTypeDropdownOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <TradeTypeIcon option={selectedTradeType} />
+                    <span className="text-sm font-medium">{selectedTradeType.displayName}</span>
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-text-secondary" />
+                </button>
+
+                {tradeTypeDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
+                    {TRADE_TYPE_GROUPS.map((group) => (
+                      <div key={group.group}>
+                        <div className="px-3 py-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide sticky top-0 bg-bg-secondary">
+                          {group.group}
+                        </div>
+                        {group.types.map((opt) => (
+                          <button
+                            key={`${opt.category}-${opt.contractType}-${opt.side}`}
+                            onClick={() => {
+                              setSelectedTradeType(opt)
+                              setTradeTypeDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-bg-tertiary transition-colors ${
+                              selectedTradeType.displayName === opt.displayName ? 'text-brand-green' : ''
+                            }`}
+                          >
+                            <TradeTypeIcon option={opt} />
+                            {opt.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Barrier inputs for Higher/Lower and Touch/No Touch */}
+            {needsSingleBarrier(selectedTradeType.category) && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  {selectedTradeType.category === 'touchnotouch' ? 'Barrier (price target)' : 'Barrier (offset from spot)'}
+                </label>
+                <div className="relative">
+                  <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="text"
+                    value={barrier}
+                    onChange={(e) => setBarrier(e.target.value)}
+                    placeholder={selectedTradeType.category === 'touchnotouch' ? 'e.g. 1.1050' : 'e.g. +0.50 or -0.50'}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Double barriers for Ends In/Out and Stays In/Goes Out */}
+            {needsDoubleBarrier(selectedTradeType.category) && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Upper Barrier</label>
+                  <div className="relative">
+                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <input
+                      type="text"
+                      value={barrierHigh}
+                      onChange={(e) => setBarrierHigh(e.target.value)}
+                      placeholder="e.g. +0.50"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Lower Barrier</label>
+                  <div className="relative">
+                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <input
+                      type="text"
+                      value={barrierLow}
+                      onChange={(e) => setBarrierLow(e.target.value)}
+                      placeholder="e.g. -0.50"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Stake ({account?.currency || 'USD'})</label>
@@ -288,7 +533,7 @@ export default function Trade() {
                     onChange={(e) => setDurationUnit(e.target.value)}
                     className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
                   >
-                    <option value="t">Ticks</option>
+                    <option value="t">ticks</option>
                     <option value="s">sec</option>
                     <option value="m">min</option>
                     <option value="h">hrs</option>
@@ -297,24 +542,46 @@ export default function Trade() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => executeTrade('CALL')}
-                disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0}
-                className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold hover:bg-brand-green-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
-                Up / CALL
-              </button>
-              <button
-                onClick={() => executeTrade('PUT')}
-                disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0}
-                className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-red text-white font-bold hover:bg-brand-red-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowDown className="w-5 h-5" />}
-                Down / PUT
-              </button>
+            {/* Expected Payout Display */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+                  <Crosshair className="w-3.5 h-3.5" />
+                  Expected Payout
+                </span>
+                {proposalLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-text-secondary" />
+                ) : proposal ? (
+                  <span className="text-lg font-bold tabular text-brand-green">
+                    {proposal.payout.toFixed(2)} {account?.currency || 'USD'}
+                  </span>
+                ) : (
+                  <span className="text-sm text-text-muted">—</span>
+                )}
+              </div>
+              {proposal && !proposalLoading && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">
+                    Cost / Ask price: <span className="tabular text-text-secondary font-medium">{proposal.askPrice.toFixed(2)} {account?.currency || ''}</span>
+                  </span>
+                  <span className="text-text-muted">
+                    Potential profit: <span className="tabular text-brand-green font-medium">+{(proposal.payout - proposal.askPrice).toFixed(2)} {account?.currency || ''}</span>
+                  </span>
+                </div>
+              )}
+              {proposalError && !proposalLoading && (
+                <p className="text-xs text-brand-amber mt-1">{proposalError}</p>
+              )}
             </div>
+
+            <button
+              onClick={executeTrade}
+              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold hover:bg-brand-green-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <TradeTypeIcon option={selectedTradeType} />}
+              Buy {selectedTradeType.displayName}
+            </button>
 
             {currentSymbol?.exchange_is_open === 0 && (
               <p className="text-xs text-brand-amber mt-3 text-center">This market is currently closed.</p>
@@ -478,4 +745,14 @@ function ContractCard({
       </div>
     </div>
   )
+}
+
+function TradeTypeIcon({ option }: { option: TradeTypeOption }) {
+  const side = option.side
+  if (side === 'up') return <ArrowUp className="w-4 h-4 text-brand-green" />
+  if (side === 'down') return <ArrowDown className="w-4 h-4 text-brand-red" />
+  if (side === 'touch') return <CheckCircle className="w-4 h-4 text-brand-green" />
+  if (side === 'notouch') return <XCircle className="w-4 h-4 text-brand-red" />
+  if (side === 'in') return <CrosshairIcon className="w-4 h-4 text-brand-green" />
+  return <CrosshairIcon className="w-4 h-4 text-brand-red" />
 }
