@@ -24,6 +24,22 @@ function registerTheme() {
   themes.dbot_dark = Blockly.Theme.defineTheme('dbot_dark', {
     name: 'dbot_dark',
     base: Blockly.Themes.Zelos,
+    categoryStyles: {
+      trade_parameters: { colour: Colours.RootBlock.colour },
+      purchase_conditions: { colour: Colours.RootBlock.colour },
+      sell_conditions: { colour: Colours.RootBlock.colour },
+      trade_results: { colour: Colours.RootBlock.colour },
+      technical_analysis: { colour: Colours.Base.colour },
+      indicators: { colour: Colours.Base.colour },
+      time: { colour: Colours.Base.colour },
+      candle: { colour: Colours.Base.colour },
+      miscellaneous: { colour: Colours.Base.colour },
+      math: { colour: '#5b80a5' },
+      logic: { colour: '#5b80a5' },
+      text: { colour: '#5ba55b' },
+      lists: { colour: '#745ba5' },
+      loops: { colour: '#5ba55b' },
+    },
     componentStyles: {
       toolboxBackgroundColour: darkThemeOverrides.toolboxBackground,
       flyoutBackgroundColour: darkThemeOverrides.flyoutBackground,

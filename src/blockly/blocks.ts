@@ -24,11 +24,11 @@ function defineBlock(
 // ── 1. Trade parameters (root block) ─────────────────────
 defineBlock('trade_definition', {
   definition: () => ({
-    message0: '%1 %2 %3',
+    message0: '%1 %2',
     message1: '%1',
-    message2: '%1 %2 %3',
+    message2: '%1 %2',
     message3: '%1',
-    message4: '%1 %2 %3',
+    message4: '%1 %2',
     message5: '%1',
     message6: '%1',
     args0: [
