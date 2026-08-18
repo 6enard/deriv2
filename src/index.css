@@ -101,3 +101,107 @@ body {
 .slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+/* ===== Blockly dark theme overrides ===== */
+.blocklySvg {
+  background-color: #1a1a1a !important;
+}
+.blocklyToolboxDiv {
+  background-color: #141414 !important;
+  border-right: 1px solid #333 !important;
+  overflow-y: auto !important;
+}
+.blocklyFlyoutBackground {
+  fill: #1f1f1f !important;
+  fill-opacity: 1 !important;
+}
+.blocklyScrollbarHandle {
+  fill: #444 !important;
+}
+.blocklyMainBackground {
+  stroke: none !important;
+  stroke-width: 0 !important;
+}
+.blocklyTreeRow {
+  padding: 6px 12px !important;
+  line-height: 24px !important;
+}
+.blocklyTreeRow:hover {
+  background-color: #2a2a2a !important;
+}
+.blocklyTreeSelected {
+  background-color: #333 !important;
+}
+.blocklyTreeLabel {
+  color: #e0e0e0 !important;
+  font-size: 13px !important;
+}
+.blocklyTreeSelected > .blocklyTreeLabel {
+  color: #fff !important;
+}
+.blocklyFlyoutLabelText {
+  fill: #888 !important;
+}
+.blocklyText {
+  fill: #fff !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+.blocklyNonEditableText > text,
+.blocklyEditableText > text {
+  fill: #fff !important;
+}
+.blocklyDropdownText {
+  fill: #fff !important;
+}
+.blocklyZoom {
+  filter: invert(1) brightness(0.9) !important;
+}
+.blocklyTrash {
+  filter: invert(1) brightness(0.7) !important;
+}
+.blocklyResizeHandle {
+  fill: #444 !important;
+}
+/* Light theme Blockly overrides */
+:root.light .blocklySvg {
+  background-color: #f8f8f8 !important;
+}
+:root.light .blocklyToolboxDiv {
+  background-color: #f0f0f0 !important;
+  border-right: 1px solid #e0e0e0 !important;
+}
+:root.light .blocklyFlyoutBackground {
+  fill: #ffffff !important;
+}
+:root.light .blocklyScrollbarHandle {
+  fill: #ccc !important;
+}
+:root.light .blocklyTreeRow:hover {
+  background-color: #e4e4e4 !important;
+}
+:root.light .blocklyTreeSelected {
+  background-color: #ddd !important;
+}
+:root.light .blocklyTreeLabel {
+  color: #333 !important;
+}
+:root.light .blocklyTreeSelected > .blocklyTreeLabel {
+  color: #000 !important;
+}
+:root.light .blocklyText {
+  fill: #1a1a1a !important;
+}
+:root.light .blocklyNonEditableText > text,
+:root.light .blocklyEditableText > text {
+  fill: #1a1a1a !important;
+}
+:root.light .blocklyDropdownText {
+  fill: #1a1a1a !important;
+}
+:root.light .blocklyZoom {
+  filter: none !important;
+}
+:root.light .blocklyTrash {
+  filter: none !important;
+}

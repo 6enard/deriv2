@@ -70,6 +70,7 @@ export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
   const workspace = Blockly.inject(container, {
     toolbox,
     theme: 'dbot_dark',
+    media: '/blockly-media/',
     grid: {
       spacing: 28,
       length: 3,
@@ -91,6 +92,7 @@ export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
       wheel: true,
     },
     renderer: 'zelos',
+    sounds: false,
   })
 
   return workspace

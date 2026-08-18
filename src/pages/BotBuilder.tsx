@@ -40,10 +40,13 @@ export default function BotBuilder() {
 
     const resize = () => Blockly.svgResize(ws)
     window.addEventListener('resize', resize)
+    const ro = new ResizeObserver(() => Blockly.svgResize(ws))
+    ro.observe(containerRef.current)
     requestAnimationFrame(() => Blockly.svgResize(ws))
 
     return () => {
       window.removeEventListener('resize', resize)
+      ro.disconnect()
       ws.dispose()
       workspaceRef.current = null
     }
@@ -52,36 +55,42 @@ export default function BotBuilder() {
   const { ws, account } = useAuth()
   const { subscribeToContract } = useOpenContracts()
 
-  // Load market data into dropdowns once ws is available
+  // Load market data into dropdowns once ws is available — but don't block the UI
   useEffect(() => {
     if (!ws || !workspaceRef.current || marketsLoaded || marketsLoading) return
     let cancelled = false
     setMarketsLoading(true)
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setMarketsLoading(false)
+        showToast('info', 'Market data unavailable. You can still build and save your bot.')
+      }
+    }, 10000)
+
     ws.send({ active_symbols: 'brief' })
       .then((res) => {
         if (cancelled || !res.active_symbols) return
         const ok = populateMarketDropdowns(workspaceRef.current!, res.active_symbols)
         if (ok) {
           setMarketsLoaded(true)
+          clearTimeout(timeout)
           showToast('success', 'Markets loaded.')
         }
       })
       .catch(() => {
-        if (!cancelled) showToast('error', 'Failed to load market data.')
+        if (!cancelled) {
+          clearTimeout(timeout)
+          showToast('info', 'Market data unavailable. You can still build and save your bot.')
+        }
       })
       .finally(() => {
         if (!cancelled) setMarketsLoading(false)
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [ws, marketsLoaded, marketsLoading, showToast])
 
-
-
   const handleRun = useCallback(async () => {
-    // TODO(phase3): replace this single-shot fire with an interpreter that
-    // walks the before/during/after-purchase blocks, supports loops, sell
-    // conditions, and martingale retries. For now we read the trade
-    // parameters once and place a single proposal -> buy, same as Trade.tsx.
     const workspace = workspaceRef.current
     if (!workspace || !ws || !account) {
       showToast('error', 'Connect your Deriv account before running a bot.')
@@ -123,16 +132,15 @@ export default function BotBuilder() {
   }, [showToast, ws, account, marketsLoaded, subscribeToContract])
 
   const handleStop = useCallback(() => {
-    // TODO(phase2): stop the running bot via DerivWS.
     setIsRunning(false)
     showToast('info', 'Bot stopped.')
   }, [showToast])
 
   const handleReset = useCallback(() => {
-    const ws = workspaceRef.current
-    if (!ws) return
-    ws.clear()
-    loadDefaultWorkspace(ws)
+    const w = workspaceRef.current
+    if (!w) return
+    w.clear()
+    loadDefaultWorkspace(w)
     setMarketsLoaded(false)
     setWorkspaceModified(false)
     showToast('info', 'Workspace reset to default.')
@@ -143,9 +151,9 @@ export default function BotBuilder() {
   }
 
   const handleDownload = useCallback(() => {
-    const ws = workspaceRef.current
-    if (!ws) return
-    const xml = workspaceToXml(ws)
+    const w = workspaceRef.current
+    if (!w) return
+    const xml = workspaceToXml(w)
     const blob = new Blob([xml], { type: 'application/xml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -169,7 +177,6 @@ export default function BotBuilder() {
     const ok = loadFromXml(w, xml)
     if (ok) {
       showToast('success', `Loaded "${filename}".`)
-      // Re-populate dropdowns if we still have market data
       if (marketsLoaded && ws) {
         ws.send({ active_symbols: 'brief' })
           .then((res) => {
@@ -242,7 +249,7 @@ export default function BotBuilder() {
   return (
     <div className="flex flex-col h-[calc(100vh-68px)]">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-bg-secondary border-b border-border-default">
+      <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2.5 bg-bg-secondary border-b border-border-default">
         <ToolbarButton
           onClick={handleRun}
           disabled={isRunning || marketsLoading || !marketsLoaded}
@@ -252,24 +259,24 @@ export default function BotBuilder() {
         />
         <ToolbarButton
           onClick={handleStop}
-          disabled
+          disabled={!isRunning}
           icon={Square}
           label="Stop"
           variant="danger"
         />
-        <div className="w-px h-6 bg-border-light mx-1" />
+        <div className="w-px h-6 bg-border-light mx-1 hidden sm:block" />
         <div className="flex items-center gap-2">
           <input
             type="text"
             value={botName}
             onChange={(e) => setBotName(e.target.value)}
             placeholder="Bot name"
-            className="w-32 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+            className="w-24 sm:w-32 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
           />
           <ToolbarButton onClick={handleDownload} icon={FileDown} label="Save" />
         </div>
         <ToolbarButton onClick={handleLoadClick} icon={Upload} label="Load" />
-        <div className="w-px h-6 bg-border-light mx-1" />
+        <div className="w-px h-6 bg-border-light mx-1 hidden sm:block" />
         <ToolbarButton onClick={handleReset} icon={RotateCcw} label="Reset" />
         <input
           ref={fileInputRef}
@@ -281,23 +288,23 @@ export default function BotBuilder() {
         <div className="ml-auto flex items-center gap-2 text-xs text-text-muted">
           {isRunning ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-brand-green pulse-glow" />
-              Running
+              <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
+              <span className="hidden sm:inline">Running</span>
             </>
           ) : marketsLoading ? (
             <>
               <Loader2 className="w-3 h-3 animate-spin" />
-              Loading markets...
+              <span className="hidden sm:inline">Loading markets...</span>
             </>
           ) : marketsLoaded ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-brand-green" />
-              Ready
+              <span className="w-2 h-2 rounded-full bg-brand-red" />
+              <span className="hidden sm:inline">Ready</span>
             </>
           ) : isLoaded ? (
             <>
               <span className="w-2 h-2 rounded-full bg-text-muted" />
-              Waiting for markets
+              <span className="hidden sm:inline">Ready</span>
             </>
           ) : (
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -308,15 +315,15 @@ export default function BotBuilder() {
       {/* Blockly workspace */}
       <div
         ref={containerRef}
-        className="flex-1 w-full relative"
+        className="flex-1 w-full relative min-h-[400px]"
         id="blockly-container"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
         {dragOver && (
-          <div className="absolute inset-0 z-50 bg-brand-blue/10 border-2 border-dashed border-brand-blue rounded-xl flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-2 text-brand-blue font-medium">
+          <div className="absolute inset-0 z-50 bg-brand-red/10 border-2 border-dashed border-brand-red rounded-xl flex items-center justify-center pointer-events-none">
+            <div className="flex items-center gap-2 text-brand-red font-medium">
               <Download className="w-6 h-6" />
               Drop .xml file to load bot
             </div>
@@ -376,16 +383,16 @@ function ToolbarButton({
   disabled?: boolean
 }) {
   const base =
-    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+    'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
   const styles = {
     default: 'bg-bg-tertiary text-text-primary hover:bg-bg-hover border border-border-light',
-    success: 'bg-brand-green text-bg-primary hover:bg-brand-green-dim',
-    danger: 'bg-brand-red text-white hover:bg-brand-red-dim',
+    success: 'bg-brand-red text-white hover:bg-brand-red-dim',
+    danger: 'bg-bg-tertiary text-brand-red hover:bg-brand-red/10 border border-brand-red/30',
   }
   return (
     <button onClick={onClick} disabled={disabled} className={`${base} ${styles[variant]}`}>
       <Icon className={`w-4 h-4 ${label === 'Loading...' ? 'animate-spin' : ''}`} />
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </button>
   )
 }
