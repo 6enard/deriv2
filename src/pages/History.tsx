@@ -1,18 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useOpenContracts } from '../hooks/useOpenContracts'
 import { errorMessage } from '../lib/error'
+import type { OpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2, ChevronDown, Calendar, ListFilter as Filter } from 'lucide-react'
-
-interface OpenPosition {
-  contract_id: number
-  symbol: string
-  display_name: string
-  contract_type: string
-  buy_price: number
-  current_value?: number
-  purchase_time: number
-  payout: number
-}
 
 interface ClosedTrade {
   contract_id: number
@@ -41,8 +32,8 @@ type SubView = 'open' | 'closed' | 'statement'
 
 export default function History() {
   const { ws, account, accountType } = useAuth()
+  const { openContractList, sellContract, refreshPortfolio } = useOpenContracts()
   const [subView, setSubView] = useState<SubView>('open')
-  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([])
   const [closedTrades, setClosedTrades] = useState<ClosedTrade[]>([])
   const [statement, setStatement] = useState<StatementEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -58,29 +49,6 @@ export default function History() {
   const [dateFrom, setDateFrom] = useState(thirtyDaysAgo.toISOString().slice(0, 10))
   const [dateTo, setDateTo] = useState(today.toISOString().slice(0, 10))
   const [showFilters, setShowFilters] = useState(false)
-
-  const loadOpenPositions = useCallback(async () => {
-    if (!ws) return
-    try {
-      const res = await ws.send({ portfolio: 1 })
-      if (res.error) throw new Error(res.error.message)
-      if (res.portfolio?.contracts) {
-        setOpenPositions(res.portfolio.contracts.map((p: any) => ({
-          contract_id: p.contract_id,
-          symbol: p.underlying_symbol ?? p.symbol ?? '',
-          display_name: p.underlying_symbol ?? p.display_name ?? p.symbol ?? '',
-          contract_type: p.contract_type || '',
-          buy_price: parseFloat(p.buy_price || '0'),
-          purchase_time: p.purchase_time,
-          payout: parseFloat(p.payout || '0'),
-        })))
-      } else {
-        setOpenPositions([])
-      }
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to load open positions'))
-    }
-  }, [ws])
 
   const loadClosedTrades = useCallback(async (offset: number = 0, append: boolean = false) => {
     if (!ws) return
@@ -168,7 +136,7 @@ export default function History() {
     setRefreshing(true)
     setError(null)
     try {
-      await loadOpenPositions()
+      await refreshPortfolio()
       await loadClosedTrades(0, false)
     } catch (err) {
       setError(errorMessage(err, 'Failed to load history'))
@@ -176,13 +144,12 @@ export default function History() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [ws, loadOpenPositions, loadClosedTrades])
+  }, [ws, refreshPortfolio, loadClosedTrades])
 
   useEffect(() => {
     loadAll()
   }, [loadAll])
 
-  // Reload when account type changes (different WS connection)
   useEffect(() => {
     if (!loading && ws) {
       setLoading(true)
@@ -258,7 +225,7 @@ export default function History() {
 
       {/* Sub-view tabs */}
       <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
-        <SubTabButton active={subView === 'open'} onClick={() => setSubView('open')} label="Open Positions" count={openPositions.length} />
+        <SubTabButton active={subView === 'open'} onClick={() => setSubView('open')} label="Open Positions" count={openContractList.length} />
         <SubTabButton active={subView === 'closed'} onClick={() => setSubView('closed')} label="Closed Trades" count={closedTrades.length} />
         <SubTabButton active={subView === 'statement'} onClick={() => setSubView('statement')} label="Statement" count={statement.length} />
       </div>
@@ -323,40 +290,20 @@ export default function History() {
           <h2 className="font-semibold mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-brand-green" />
             Open Positions
-            {openPositions.length > 0 && <span className="ml-auto text-sm text-text-muted">{openPositions.length}</span>}
+            {openContractList.length > 0 && <span className="ml-auto text-sm text-text-muted">{openContractList.length}</span>}
           </h2>
-          {openPositions.length === 0 ? (
+          {openContractList.length === 0 ? (
             <div className="text-center py-8 text-text-muted text-sm">No open positions on this account.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-text-muted border-b border-border-default">
-                    <th className="pb-2 pr-4 font-medium">Contract ID</th>
-                    <th className="pb-2 pr-4 font-medium">Market</th>
-                    <th className="pb-2 pr-4 font-medium">Type</th>
-                    <th className="pb-2 pr-4 font-medium text-right">Buy Price</th>
-                    <th className="pb-2 pr-4 font-medium text-right">Payout</th>
-                    <th className="pb-2 font-medium text-right">Purchased</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {openPositions.map((pos) => (
-                    <tr key={pos.contract_id} className="border-b border-border-default/50">
-                      <td className="py-3 pr-4 text-text-muted tabular text-xs">{pos.contract_id}</td>
-                      <td className="py-3 pr-4 font-medium">{pos.display_name}</td>
-                      <td className="py-3 pr-4">
-                        <span className={`text-xs font-medium ${pos.contract_type === 'CALL' ? 'text-brand-green' : 'text-brand-red'}`}>
-                          {pos.contract_type === 'CALL' ? 'UP' : 'DOWN'}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-right tabular">{pos.buy_price.toFixed(2)}</td>
-                      <td className="py-3 pr-4 text-right tabular text-text-secondary">{pos.payout.toFixed(2)}</td>
-                      <td className="py-3 text-right text-text-muted text-xs">{new Date(pos.purchase_time * 1000).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {openContractList.map((contract) => (
+                <HistoryOpenPositionCard
+                  key={contract.contract_id}
+                  contract={contract}
+                  currency={account?.currency || 'USD'}
+                  onSell={() => sellContract(contract.contract_id)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -513,6 +460,62 @@ function SummaryCard({ icon: Icon, label, value, color }: { icon: any; label: st
         <span className="text-xs">{label}</span>
       </div>
       <div className={`text-lg font-bold tabular ${color}`}>{value}</div>
+    </div>
+  )
+}
+
+function HistoryOpenPositionCard({
+  contract,
+  currency,
+  onSell,
+}: {
+  contract: OpenContract
+  currency: string
+  onSell: () => void
+}) {
+  const isCall = contract.contract_type === 'CALL'
+  const profit = contract.profit
+  const isProfit = profit >= 0
+
+  return (
+    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className={`w-6 h-6 rounded flex items-center justify-center ${isCall ? 'bg-brand-green/15' : 'bg-brand-red/15'}`}>
+            {isCall ? <TrendingUp className="w-3.5 h-3.5 text-brand-green" /> : <TrendingDown className="w-3.5 h-3.5 text-brand-red" />}
+          </div>
+          <span className="text-sm font-medium">{contract.display_name || contract.symbol}</span>
+        </div>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${isCall ? 'text-brand-green' : 'text-brand-red'}`}>
+          {isCall ? 'UP' : 'DOWN'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+        <div>
+          <span className="text-text-muted">Buy: </span>
+          <span className="tabular font-medium">{contract.buy_price.toFixed(2)} {currency}</span>
+        </div>
+        <div>
+          <span className="text-text-muted">Payout: </span>
+          <span className="tabular font-medium">{contract.payout.toFixed(2)} {currency}</span>
+        </div>
+        <div>
+          <span className="text-text-muted">P/L: </span>
+          <span className={`tabular font-bold ${isProfit ? 'text-brand-green' : 'text-brand-red'}`}>
+            {isProfit ? '+' : ''}{profit.toFixed(2)} {currency}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end">
+        <button
+          onClick={onSell}
+          className="px-3 py-1.5 rounded-xl bg-bg-hover text-xs font-medium hover:bg-border-light transition-colors"
+        >
+          Sell
+        </button>
+      </div>
     </div>
   )
 }

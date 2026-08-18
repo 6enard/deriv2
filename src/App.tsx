@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { OpenContractsProvider } from './context/OpenContractsContext'
 import { ToastProvider } from './components/Toast'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -19,6 +20,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
+        <OpenContractsProvider>
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout><Home /></Layout>} />
@@ -56,6 +58,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+        </OpenContractsProvider>
         </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
