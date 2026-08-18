@@ -52,9 +52,16 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
 
   // Load markets and pre-fill the bot's saved config into the blocks
   useEffect(() => {
-    if (!ws || !workspaceRef.current || marketsLoaded || marketsLoading) return
+    if (!ws || !workspaceRef.current || marketsLoaded) return
     let cancelled = false
     setMarketsLoading(true)
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setMarketsLoading(false)
+        showToast('error', 'Market data took too long to load. Please close and try again.')
+      }
+    }, 15000)
 
     ws.send({ active_symbols: 'brief' })
       .then((res) => {
@@ -64,6 +71,7 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
 
         applyBotConfigToWorkspace(workspaceRef.current, bot.config as Record<string, unknown>)
         setMarketsLoaded(true)
+        clearTimeout(timeout)
       })
       .catch(() => {
         if (!cancelled) {
@@ -72,10 +80,11 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
       })
       .finally(() => {
         if (!cancelled) setMarketsLoading(false)
+        clearTimeout(timeout)
       })
 
-    return () => { cancelled = true }
-  }, [ws, bot.config, marketsLoaded, marketsLoading, showToast])
+    return () => { cancelled = true; clearTimeout(timeout) }
+  }, [ws, bot.config, marketsLoaded, showToast])
 
   const applyBotConfigToWorkspace = useCallback((workspace: Blockly.WorkspaceSvg, cfg: Record<string, unknown>) => {
     const symbol = String(cfg.symbol || cfg.underlying_symbol || '')
