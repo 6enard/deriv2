@@ -76,29 +76,30 @@ export default function BotBuilder() {
       if (cancelled) return
       attempt++
       const rawSymbols = await fetchSymbols()
-      if (cancelled || !rawSymbols || !workspaceRef.current) return
+      if (cancelled) return
+      if (!rawSymbols || !workspaceRef.current) {
+        if (attempt < maxAttempts) {
+          retryTimer = setTimeout(() => void tryLoad(), 2000)
+        } else {
+          setMarketsLoading(false)
+          showToast('info', 'Market data unavailable. You can still build and save your bot.')
+        }
+        return
+      }
       const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
       if (ok) {
         setMarketsLoaded(true)
         setMarketsLoading(false)
         showToast('success', 'Markets loaded.')
       } else if (attempt < maxAttempts) {
-        retryTimer = setTimeout(tryLoad, 2000)
+        retryTimer = setTimeout(() => void tryLoad(), 2000)
       } else {
         setMarketsLoading(false)
         showToast('info', 'Market data unavailable. You can still build and save your bot.')
       }
     }
 
-    tryLoad().catch(() => {
-      if (cancelled) return
-      if (attempt < maxAttempts) {
-        retryTimer = setTimeout(() => void tryLoad(), 2000)
-      } else {
-        setMarketsLoading(false)
-        showToast('info', 'Market data unavailable. You can still build and save your bot.')
-      }
-    })
+    void tryLoad()
 
     return () => {
       cancelled = true

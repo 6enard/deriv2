@@ -175,6 +175,14 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   return { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency }
 }
 
+function prettifyKey(key: string): string {
+  return key
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
 export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymbols: any[]): boolean {
   const markets: [string, string][] = []
   const submarketsByMarket = new Map<string, [string, string][]>()
@@ -182,9 +190,9 @@ export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymb
 
   for (const s of rawSymbols) {
     const market = s.market
-    const marketDisplay = s.market_display_name ?? market
+    const marketDisplay = s.market_display_name ?? prettifyKey(market)
     const submarket = s.submarket
-    const submarketDisplay = s.submarket_display_name ?? submarket
+    const submarketDisplay = s.submarket_display_name ?? prettifyKey(submarket)
     const symbol = s.underlying_symbol ?? s.symbol
     const symbolDisplay = s.underlying_symbol_name ?? s.display_name ?? symbol
 

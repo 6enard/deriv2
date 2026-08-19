@@ -23,14 +23,17 @@ export interface SymbolInfo {
 }
 
 export function mapActiveSymbol(s: any): SymbolInfo {
+  const market = s.market
+  const marketDisplay = s.market_display_name ?? market
+    .split('_')
+    .filter(Boolean)
+    .map((w: string) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
   return {
     symbol: s.underlying_symbol ?? s.symbol,
     display_name: s.underlying_symbol_name ?? s.display_name,
-    market: s.market,
-    market_display_name: s.market_display_name ?? s.market
-      .split('_')
-      .map((w: string) => w[0].toUpperCase() + w.slice(1))
-      .join(' '),
+    market,
+    market_display_name: marketDisplay,
     submarket: s.submarket,
     pip_size: s.pip_size ?? s.pip ?? 2,
     exchange_is_open: s.exchange_is_open,

@@ -110,7 +110,16 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
       if (cancelled) return
       attempt++
       const rawSymbols = await fetchSymbols()
-      if (cancelled || !rawSymbols || !workspaceRef.current) return
+      if (cancelled) return
+      if (!rawSymbols || !workspaceRef.current) {
+        if (attempt < maxAttempts) {
+          retryTimer = setTimeout(() => void tryLoad(), 2000)
+        } else {
+          setMarketsLoading(false)
+          showToast('error', 'Failed to load markets. Check your connection and try again.')
+        }
+        return
+      }
       const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
       if (!ok) {
         if (attempt < maxAttempts) {
@@ -127,15 +136,7 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
       setMarketsLoading(false)
     }
 
-    tryLoad().catch(() => {
-      if (cancelled) return
-      if (attempt < maxAttempts) {
-        retryTimer = setTimeout(() => void tryLoad(), 2000)
-      } else {
-        setMarketsLoading(false)
-        showToast('error', 'Failed to load markets. Check your connection and try again.')
-      }
-    })
+    void tryLoad()
 
     return () => {
       cancelled = true
