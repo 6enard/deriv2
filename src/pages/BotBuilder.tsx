@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
+import { useMarketData } from '../hooks/useMarketData'
 import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown } from 'lucide-react'
 
 export default function BotBuilder() {
@@ -58,11 +59,12 @@ export default function BotBuilder() {
 
   const { ws, account, refreshBalance } = useAuth()
   const { subscribeToContract } = useOpenContracts()
+  const { fetchSymbols } = useMarketData()
   const stopRef = useRef(false)
 
-  // Load market data into dropdowns once ws is available — with retry
+  // Load market data into dropdowns via the public (no-auth) WebSocket — with retry
   useEffect(() => {
-    if (!ws || !workspaceRef.current || marketsLoaded) return
+    if (!workspaceRef.current || marketsLoaded) return
     let cancelled = false
     let attempt = 0
     const maxAttempts = 4
@@ -70,37 +72,39 @@ export default function BotBuilder() {
 
     setMarketsLoading(true)
 
-    const tryLoad = () => {
+    const tryLoad = async () => {
       if (cancelled) return
       attempt++
-      ws.send({ active_symbols: 'brief' })
-        .then((res) => {
-          if (cancelled || !res.active_symbols) return
-          const ok = populateMarketDropdowns(workspaceRef.current!, res.active_symbols)
-          if (ok) {
-            setMarketsLoaded(true)
-            setMarketsLoading(false)
-            showToast('success', 'Markets loaded.')
-          }
-        })
-        .catch(() => {
-          if (cancelled) return
-          if (attempt < maxAttempts) {
-            retryTimer = setTimeout(tryLoad, 2000)
-          } else {
-            setMarketsLoading(false)
-            showToast('info', 'Market data unavailable. You can still build and save your bot.')
-          }
-        })
+      const rawSymbols = await fetchSymbols()
+      if (cancelled || !rawSymbols || !workspaceRef.current) return
+      const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
+      if (ok) {
+        setMarketsLoaded(true)
+        setMarketsLoading(false)
+        showToast('success', 'Markets loaded.')
+      } else if (attempt < maxAttempts) {
+        retryTimer = setTimeout(tryLoad, 2000)
+      } else {
+        setMarketsLoading(false)
+        showToast('info', 'Market data unavailable. You can still build and save your bot.')
+      }
     }
 
-    tryLoad()
+    tryLoad().catch(() => {
+      if (cancelled) return
+      if (attempt < maxAttempts) {
+        retryTimer = setTimeout(() => void tryLoad(), 2000)
+      } else {
+        setMarketsLoading(false)
+        showToast('info', 'Market data unavailable. You can still build and save your bot.')
+      }
+    })
 
     return () => {
       cancelled = true
       clearTimeout(retryTimer)
     }
-  }, [ws, marketsLoaded, showToast])
+  }, [fetchSymbols, marketsLoaded, showToast])
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current
@@ -201,19 +205,17 @@ export default function BotBuilder() {
     const ok = loadFromXml(w, xml)
     if (ok) {
       showToast('success', `Loaded "${filename}".`)
-      if (marketsLoaded && ws) {
-        ws.send({ active_symbols: 'brief' })
-          .then((res) => {
-            if (res.active_symbols && workspaceRef.current) {
-              populateMarketDropdowns(workspaceRef.current, res.active_symbols)
-            }
-          })
-          .catch(() => {})
+      if (marketsLoaded) {
+        fetchSymbols().then((rawSymbols) => {
+          if (rawSymbols && workspaceRef.current) {
+            populateMarketDropdowns(workspaceRef.current, rawSymbols)
+          }
+        }).catch(() => {})
       }
     } else {
       showToast('error', 'Could not load the XML file — it may be invalid.')
     }
-  }, [showToast, marketsLoaded, ws])
+  }, [showToast, marketsLoaded, fetchSymbols])
 
   const handleFileLoad = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

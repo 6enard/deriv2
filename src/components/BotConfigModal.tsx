@@ -14,6 +14,7 @@ import type { Bot } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import { useOpenContracts } from '../hooks/useOpenContracts'
+import { useMarketData } from '../hooks/useMarketData'
 import { errorMessage } from '../lib/error'
 import { X, Play, Loader as Loader2, Settings as SettingsIcon } from 'lucide-react'
 
@@ -29,6 +30,7 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
   const { ws, account, refreshBalance } = useAuth()
   const { showToast } = useToast()
   const { subscribeToContract } = useOpenContracts()
+  const { fetchSymbols } = useMarketData()
   const [marketsLoading, setMarketsLoading] = useState(false)
   const [marketsLoaded, setMarketsLoaded] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
@@ -94,9 +96,9 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
     }
   }, [])
 
-  // Load markets and pre-fill the bot's saved config into the blocks — with retry
+  // Load markets via the public (no-auth) WebSocket and pre-fill the bot's saved config — with retry
   useEffect(() => {
-    if (!ws || !workspaceRef.current || marketsLoaded) return
+    if (!workspaceRef.current || marketsLoaded) return
     let cancelled = false
     let attempt = 0
     const maxAttempts = 4
@@ -104,37 +106,42 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
 
     setMarketsLoading(true)
 
-    const tryLoad = () => {
+    const tryLoad = async () => {
       if (cancelled) return
       attempt++
-      ws.send({ active_symbols: 'brief' })
-        .then((res) => {
-          if (cancelled || !res.active_symbols || !workspaceRef.current) return
-          const ok = populateMarketDropdowns(workspaceRef.current, res.active_symbols)
-          if (!ok) return
-
-          applyBotConfigToWorkspace(workspaceRef.current, bot.config as Record<string, unknown>)
-          setMarketsLoaded(true)
+      const rawSymbols = await fetchSymbols()
+      if (cancelled || !rawSymbols || !workspaceRef.current) return
+      const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
+      if (!ok) {
+        if (attempt < maxAttempts) {
+          retryTimer = setTimeout(() => void tryLoad(), 2000)
+        } else {
           setMarketsLoading(false)
-        })
-        .catch(() => {
-          if (cancelled) return
-          if (attempt < maxAttempts) {
-            retryTimer = setTimeout(tryLoad, 2000)
-          } else {
-            setMarketsLoading(false)
-            showToast('error', 'Failed to load markets. Check your connection and try again.')
-          }
-        })
+          showToast('error', 'Failed to load markets. Check your connection and try again.')
+        }
+        return
+      }
+
+      applyBotConfigToWorkspace(workspaceRef.current, bot.config as Record<string, unknown>)
+      setMarketsLoaded(true)
+      setMarketsLoading(false)
     }
 
-    tryLoad()
+    tryLoad().catch(() => {
+      if (cancelled) return
+      if (attempt < maxAttempts) {
+        retryTimer = setTimeout(() => void tryLoad(), 2000)
+      } else {
+        setMarketsLoading(false)
+        showToast('error', 'Failed to load markets. Check your connection and try again.')
+      }
+    })
 
     return () => {
       cancelled = true
       clearTimeout(retryTimer)
     }
-  }, [ws, bot.config, marketsLoaded, showToast, applyBotConfigToWorkspace])
+  }, [fetchSymbols, bot.config, marketsLoaded, showToast, applyBotConfigToWorkspace])
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current

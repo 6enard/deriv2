@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
+import { useMarketData } from '../hooks/useMarketData'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon } from 'lucide-react'
@@ -69,6 +70,7 @@ export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
   const { showToast } = useToast()
   const { openContractList, subscribeToContract, sellContract } = useOpenContracts()
+  const { fetchSymbols } = useMarketData()
 
   const [symbols, setSymbols] = useState<SymbolInfo[]>([])
   const [selectedSymbol, setSelectedSymbol] = useState('')
@@ -102,23 +104,26 @@ export default function Trade() {
     return price.toFixed(pipSize)
   }, [pipSize])
 
-  // Load symbols on mount
+  // Load symbols on mount via the public (no-auth) WebSocket
   useEffect(() => {
-    if (!ws) return
+    let cancelled = false
     setLoadingSymbols(true)
-    ws.send({ active_symbols: 'brief' })
-      .then((res) => {
-        const syms: SymbolInfo[] = res.active_symbols.map((s: any) => mapActiveSymbol(s))
+    fetchSymbols()
+      .then((rawSymbols) => {
+        if (cancelled || !rawSymbols) return
+        const syms: SymbolInfo[] = rawSymbols.map((s: any) => mapActiveSymbol(s))
         setSymbols(syms)
         const firstVol = syms.find((s) => s.market === 'synthetic_index')
         setSelectedSymbol(firstVol?.symbol || syms[0]?.symbol || '')
         setLoadingSymbols(false)
       })
       .catch(() => {
+        if (cancelled) return
         showToastCallback('error', 'Failed to load markets')
         setLoadingSymbols(false)
       })
-  }, [ws, showToastCallback])
+    return () => { cancelled = true }
+  }, [fetchSymbols, showToastCallback])
 
   // Subscribe to ticks — use forget(subscription_id) to stop old stream before starting new one
   useEffect(() => {
