@@ -6,65 +6,122 @@ import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
-import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon } from 'lucide-react'
+import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, Gauge, Timer } from 'lucide-react'
 
-type TradeTypeCategory = 'risefall' | 'higherlower' | 'touchnotouch' | 'endsinout' | 'staysinout'
+type BarrierType = 'none' | 'single' | 'double' | 'digit'
 
 interface TradeTypeOption {
-  category: TradeTypeCategory
-  label: string
-  contractType: 'CALL' | 'PUT' | 'TOUCH' | 'NOTOUCH' | 'EXPIRYRANGE' | 'EXPIRYMISS' | 'RANGE' | 'MISS'
-  side: 'up' | 'down' | 'touch' | 'notouch' | 'in' | 'out'
+  contractType: string
+  side: 'up' | 'down' | 'touch' | 'notouch' | 'in' | 'out' | 'digit' | 'multiplier' | 'accumulator' | 'reset' | 'run' | 'tick' | 'turbos' | 'vanilla' | 'asian'
   displayName: string
+  barrierType: BarrierType
 }
 
 const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
   {
     group: 'Rise / Fall',
     types: [
-      { category: 'risefall', label: 'Rise', contractType: 'CALL', side: 'up', displayName: 'Rise' },
-      { category: 'risefall', label: 'Fall', contractType: 'PUT', side: 'down', displayName: 'Fall' },
+      { contractType: 'CALL', side: 'up', displayName: 'Rise', barrierType: 'none' },
+      { contractType: 'PUT', side: 'down', displayName: 'Fall', barrierType: 'none' },
     ],
   },
   {
     group: 'Higher / Lower',
     types: [
-      { category: 'higherlower', label: 'Higher', contractType: 'CALL', side: 'up', displayName: 'Higher' },
-      { category: 'higherlower', label: 'Lower', contractType: 'PUT', side: 'down', displayName: 'Lower' },
+      { contractType: 'HIGHER', side: 'up', displayName: 'Higher', barrierType: 'single' },
+      { contractType: 'LOWER', side: 'down', displayName: 'Lower', barrierType: 'single' },
     ],
   },
   {
     group: 'Touch / No Touch',
     types: [
-      { category: 'touchnotouch', label: 'Touch', contractType: 'TOUCH', side: 'touch', displayName: 'Touch' },
-      { category: 'touchnotouch', label: 'No Touch', contractType: 'NOTOUCH', side: 'notouch', displayName: 'No Touch' },
+      { contractType: 'ONETOUCH', side: 'touch', displayName: 'Touch', barrierType: 'single' },
+      { contractType: 'NOTOUCH', side: 'notouch', displayName: 'No Touch', barrierType: 'single' },
     ],
   },
   {
-    group: 'Ends In / Out',
+    group: 'Ends In / Ends Out',
     types: [
-      { category: 'endsinout', label: 'Ends In', contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In' },
-      { category: 'endsinout', label: 'Ends Out', contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out' },
+      { contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In', barrierType: 'double' },
+      { contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out', barrierType: 'double' },
     ],
   },
   {
     group: 'Stays In / Goes Out',
     types: [
-      { category: 'staysinout', label: 'Stays In', contractType: 'RANGE', side: 'in', displayName: 'Stays In' },
-      { category: 'staysinout', label: 'Goes Out', contractType: 'MISS', side: 'out', displayName: 'Goes Out' },
+      { contractType: 'RANGE', side: 'in', displayName: 'Stays In', barrierType: 'double' },
+      { contractType: 'UPORDOWN', side: 'out', displayName: 'Goes Out', barrierType: 'double' },
+    ],
+  },
+  {
+    group: 'Digits',
+    types: [
+      { contractType: 'DIGITMATCH', side: 'digit', displayName: 'Matches', barrierType: 'digit' },
+      { contractType: 'DIGITDIFF', side: 'digit', displayName: 'Differs', barrierType: 'digit' },
+      { contractType: 'DIGITOVER', side: 'digit', displayName: 'Over', barrierType: 'digit' },
+      { contractType: 'DIGITUNDER', side: 'digit', displayName: 'Under', barrierType: 'digit' },
+      { contractType: 'DIGITODD', side: 'digit', displayName: 'Odd', barrierType: 'digit' },
+      { contractType: 'DIGITEVEN', side: 'digit', displayName: 'Even', barrierType: 'digit' },
+    ],
+  },
+  {
+    group: 'Asians',
+    types: [
+      { contractType: 'ASIANU', side: 'asian', displayName: 'Asian Up', barrierType: 'none' },
+      { contractType: 'ASIAND', side: 'asian', displayName: 'Asian Down', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Multipliers',
+    types: [
+      { contractType: 'MULTUP', side: 'multiplier', displayName: 'Up', barrierType: 'none' },
+      { contractType: 'MULTDOWN', side: 'multiplier', displayName: 'Down', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Accumulators',
+    types: [
+      { contractType: 'ACCU', side: 'accumulator', displayName: 'Accumulator', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Reset',
+    types: [
+      { contractType: 'RESETCALL', side: 'reset', displayName: 'Reset Call', barrierType: 'none' },
+      { contractType: 'RESETPUT', side: 'reset', displayName: 'Reset Put', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Run High / Low',
+    types: [
+      { contractType: 'RUNHIGH', side: 'run', displayName: 'Run High', barrierType: 'none' },
+      { contractType: 'RUNLOW', side: 'run', displayName: 'Run Low', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Tick High / Low',
+    types: [
+      { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'none' },
+      { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'none' },
+    ],
+  },
+  {
+    group: 'Turbos',
+    types: [
+      { contractType: 'TURBOSLONG', side: 'turbos', displayName: 'Long', barrierType: 'single' },
+      { contractType: 'TURBOSSHORT', side: 'turbos', displayName: 'Short', barrierType: 'single' },
+    ],
+  },
+  {
+    group: 'Vanilla',
+    types: [
+      { contractType: 'VANILLALONGCALL', side: 'vanilla', displayName: 'Call', barrierType: 'single' },
+      { contractType: 'VANILLALONGPUT', side: 'vanilla', displayName: 'Put', barrierType: 'single' },
     ],
   },
 ]
 
 const ALL_TRADE_TYPES = TRADE_TYPE_GROUPS.flatMap((g) => g.types)
-
-function needsSingleBarrier(category: TradeTypeCategory): boolean {
-  return category === 'higherlower' || category === 'touchnotouch'
-}
-
-function needsDoubleBarrier(category: TradeTypeCategory): boolean {
-  return category === 'endsinout' || category === 'staysinout'
-}
 
 export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
@@ -84,6 +141,7 @@ export default function Trade() {
   const [barrier, setBarrier] = useState('')
   const [barrierHigh, setBarrierHigh] = useState('')
   const [barrierLow, setBarrierLow] = useState('')
+  const [digit, setDigit] = useState('5')
   const [proposal, setProposal] = useState<{ askPrice: number; payout: number; spot: number } | null>(null)
   const [proposalLoading, setProposalLoading] = useState(false)
   const [proposalError, setProposalError] = useState<string | null>(null)
@@ -198,8 +256,8 @@ export default function Trade() {
       return
     }
 
-    const category = selectedTradeType.category
-    if ((needsSingleBarrier(category) && !barrier) || (needsDoubleBarrier(category) && (!barrierHigh || !barrierLow))) {
+    const bt = selectedTradeType.barrierType
+    if ((bt === 'single' && !barrier) || (bt === 'double' && (!barrierHigh || !barrierLow))) {
       setProposal(null)
       setProposalError(null)
       return
@@ -223,11 +281,13 @@ export default function Trade() {
       underlying_symbol: selectedSymbol,
     }
 
-    if (needsSingleBarrier(category)) {
+    if (bt === 'single') {
       request.barrier = barrier
-    } else if (needsDoubleBarrier(category)) {
+    } else if (bt === 'double') {
       request.barrier = `${barrierHigh}`
       request.barrier2 = `${barrierLow}`
+    } else if (bt === 'digit') {
+      request.barrier = digit
     }
 
     ws.send(request)
@@ -258,14 +318,14 @@ export default function Trade() {
     return () => {
       cancelled = true
     }
-  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow])
+  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow, digit])
 
   const executeTrade = async () => {
     if (!ws || !account || !selectedSymbol) return
 
     setIsTrading(true)
     try {
-      const category = selectedTradeType.category
+      const bt = selectedTradeType.barrierType
       const request: Record<string, unknown> = {
         proposal: 1,
         amount: parseFloat(stake),
@@ -277,11 +337,13 @@ export default function Trade() {
         underlying_symbol: selectedSymbol,
       }
 
-      if (needsSingleBarrier(category)) {
+      if (bt === 'single') {
         request.barrier = barrier
-      } else if (needsDoubleBarrier(category)) {
+      } else if (bt === 'double') {
         request.barrier = `${barrierHigh}`
         request.barrier2 = `${barrierLow}`
+      } else if (bt === 'digit') {
+        request.barrier = digit
       }
 
       const proposalRes = await ws.send(request)
@@ -437,7 +499,7 @@ export default function Trade() {
                         </div>
                         {group.types.map((opt) => (
                           <button
-                            key={`${opt.category}-${opt.contractType}-${opt.side}`}
+                            key={`${opt.contractType}-${opt.side}`}
                             onClick={() => {
                               setSelectedTradeType(opt)
                               setTradeTypeDropdownOpen(false)
@@ -457,11 +519,11 @@ export default function Trade() {
               </div>
             </div>
 
-            {/* Barrier inputs for Higher/Lower and Touch/No Touch */}
-            {needsSingleBarrier(selectedTradeType.category) && (
+            {/* Single barrier input */}
+            {selectedTradeType.barrierType === 'single' && (
               <div className="mb-3">
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  {selectedTradeType.category === 'touchnotouch' ? 'Barrier (price target)' : 'Barrier (offset from spot)'}
+                  {selectedTradeType.side === 'touch' ? 'Barrier (price target)' : 'Barrier (offset from spot)'}
                 </label>
                 <div className="relative">
                   <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
@@ -469,15 +531,34 @@ export default function Trade() {
                     type="text"
                     value={barrier}
                     onChange={(e) => setBarrier(e.target.value)}
-                    placeholder={selectedTradeType.category === 'touchnotouch' ? 'e.g. 1.1050' : 'e.g. +0.50 or -0.50'}
+                    placeholder={selectedTradeType.side === 'touch' ? 'e.g. 1.1050' : 'e.g. +0.50 or -0.50'}
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
                 </div>
               </div>
             )}
 
+            {/* Digit barrier selector (0-9) */}
+            {selectedTradeType.barrierType === 'digit' && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Digit (0-9)</label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <select
+                    value={digit}
+                    onChange={(e) => setDigit(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => (
+                      <option key={i} value={String(i)}>{i}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* Double barriers for Ends In/Out and Stays In/Goes Out */}
-            {needsDoubleBarrier(selectedTradeType.category) && (
+            {selectedTradeType.barrierType === 'double' && (
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1.5">Upper Barrier</label>
@@ -705,21 +786,27 @@ function ContractCard({
   currency: string
   onSell: () => void
 }) {
-  const isCall = contract.contract_type === 'CALL'
+  const ct = contract.contract_type
+  const isUp = ['CALL', 'HIGHER', 'ONETOUCH', 'MULTUP', 'RESETCALL', 'RUNHIGH', 'TICKHIGH', 'TURBOSLONG', 'VANILLALONGCALL', 'ASIANU'].includes(ct)
+  const isDown = ['PUT', 'LOWER', 'NOTOUCH', 'MULTDOWN', 'RESETPUT', 'RUNLOW', 'TICKLOW', 'TURBOSSHORT', 'VANILLALONGPUT', 'ASIAND'].includes(ct)
+  const isDigit = ct.startsWith('DIGIT')
+  const isRange = ['EXPIRYRANGE', 'RANGE'].includes(ct)
   const profit = contract.profit
   const isProfit = profit >= 0
+  const label = isUp ? 'UP' : isDown ? 'DOWN' : isDigit ? 'DIGIT' : isRange ? 'IN' : ct
+  const tone = isUp || isRange ? 'green' : isDown ? 'red' : 'blue'
 
   return (
     <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className={`w-6 h-6 rounded flex items-center justify-center ${isCall ? 'bg-brand-green/15' : 'bg-brand-red/15'}`}>
-            {isCall ? <TrendingUp className="w-3.5 h-3.5 text-brand-green" /> : <TrendingDown className="w-3.5 h-3.5 text-brand-red" />}
+          <div className={`w-6 h-6 rounded flex items-center justify-center ${tone === 'green' ? 'bg-brand-green/15' : tone === 'red' ? 'bg-brand-red/15' : 'bg-brand-blue/15'}`}>
+            {isUp ? <TrendingUp className="w-3.5 h-3.5 text-brand-green" /> : isDown ? <TrendingDown className="w-3.5 h-3.5 text-brand-red" /> : isDigit ? <Hash className="w-3.5 h-3.5 text-brand-blue" /> : <CrosshairIcon className="w-3.5 h-3.5 text-brand-blue" />}
           </div>
           <span className="text-sm font-medium">{contract.display_name || contract.symbol}</span>
         </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded ${isCall ? 'text-brand-green' : 'text-brand-red'}`}>
-          {isCall ? 'UP' : 'DOWN'}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${tone === 'green' ? 'text-brand-green' : tone === 'red' ? 'text-brand-red' : 'text-brand-blue'}`}>
+          {label}
         </span>
       </div>
 
@@ -759,5 +846,15 @@ function TradeTypeIcon({ option }: { option: TradeTypeOption }) {
   if (side === 'touch') return <CheckCircle className="w-4 h-4 text-brand-green" />
   if (side === 'notouch') return <XCircle className="w-4 h-4 text-brand-red" />
   if (side === 'in') return <CrosshairIcon className="w-4 h-4 text-brand-green" />
+  if (side === 'out') return <CrosshairIcon className="w-4 h-4 text-brand-red" />
+  if (side === 'digit') return <Hash className="w-4 h-4 text-brand-blue" />
+  if (side === 'multiplier') return <Layers className="w-4 h-4 text-brand-green" />
+  if (side === 'accumulator') return <Zap className="w-4 h-4 text-brand-amber" />
+  if (side === 'reset') return <RotateCcw className="w-4 h-4 text-brand-blue" />
+  if (side === 'run') return <Gauge className="w-4 h-4 text-brand-green" />
+  if (side === 'tick') return <Timer className="w-4 h-4 text-brand-blue" />
+  if (side === 'turbos') return <Zap className="w-4 h-4 text-brand-green" />
+  if (side === 'vanilla') return <Repeat className="w-4 h-4 text-brand-blue" />
+  if (side === 'asian') return <Activity className="w-4 h-4 text-brand-amber" />
   return <CrosshairIcon className="w-4 h-4 text-brand-red" />
 }
