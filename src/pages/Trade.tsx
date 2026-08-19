@@ -333,7 +333,7 @@ export default function Trade() {
         <div className="lg:col-span-2 space-y-4">
           {/* Symbol Selector + Price */}
           <div className="rounded-xl bg-bg-secondary border border-border-default p-5">
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
               <div className="relative">
                 <button
                   onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
@@ -344,7 +344,7 @@ export default function Trade() {
                 </button>
 
                 {symbolDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
+                  <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2.5rem)] max-w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
                     <div className="p-2 sticky top-0 bg-bg-secondary border-b border-border-default">
                       <input
                         type="text"
@@ -383,8 +383,8 @@ export default function Trade() {
               </div>
 
               {currentSymbol && (
-                <div className="text-right">
-                  <div className={`text-3xl font-bold tabular ${flashClass} rounded px-2`}>
+                <div className="text-left sm:text-right">
+                  <div className={`text-2xl sm:text-3xl font-bold tabular ${flashClass} rounded px-2`}>
                     {currentPrice !== null ? formatPrice(currentPrice) : '---'}
                   </div>
                   <div className={`text-sm font-medium tabular mt-1 ${isUp ? 'text-brand-green' : 'text-brand-red'}`}>
@@ -508,7 +508,7 @@ export default function Trade() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Stake ({account?.currency || 'USD'})</label>
                 <div className="relative">

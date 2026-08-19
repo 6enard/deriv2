@@ -104,7 +104,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {isAuthenticated && account ? (
                   <div className="flex items-center gap-3">
                     {hasRealAccount && (
-                      <div className="flex items-center rounded-full bg-bg-tertiary border border-border-light p-0.5">
+                      <div className="hidden sm:flex items-center rounded-full bg-bg-tertiary border border-border-light p-0.5">
                         <button
                           onClick={handleToggleAccountType}
                           disabled={switching}
@@ -139,7 +139,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                           <span className="text-xs font-semibold tabular">
                             {account.balance.toFixed(2)} {account.currency}
                           </span>
-                          <span className="text-[10px] text-text-muted">
+                          <span className="text-[10px] text-text-muted hidden sm:block">
                             {account.account_id}
                           </span>
                         </div>
