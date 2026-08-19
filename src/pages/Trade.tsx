@@ -511,6 +511,11 @@ export default function Trade() {
             {/* Tick Chart */}
             <TickChart ticks={ticks} pipSize={pipSize} />
 
+            {/* Digit Meter — shown for digit trade types */}
+            {selectedTradeType.barrierType === 'digit' && (
+              <DigitMeter ticks={ticks} selectedDigit={parseInt(digit)} contractType={selectedTradeType.contractType} />
+            )}
+
             {/* High / Low */}
             {ticks.length > 1 && (
               <div className="flex items-center justify-between mt-3 text-xs text-text-secondary">
@@ -892,6 +897,120 @@ function ContractCard({
         >
           Sell
         </button>
+      </div>
+    </div>
+  )
+}
+
+function DigitMeter({ ticks, selectedDigit, contractType }: { ticks: Tick[]; selectedDigit: number; contractType: string }) {
+  const lastTick = ticks.length > 0 ? ticks[ticks.length - 1] : null
+  const lastDigit = lastTick ? Math.floor(Math.abs(lastTick.quote) * 10) % 10 : null
+
+  const digitCounts = new Array(10).fill(0)
+  for (const t of ticks) {
+    const d = Math.floor(Math.abs(t.quote) * 10) % 10
+    digitCounts[d]++
+  }
+  const maxCount = Math.max(...digitCounts, 1)
+
+  const isMatchType = contractType === 'DIGITMATCH'
+  const isDiffType = contractType === 'DIGITDIFF'
+  const isOverType = contractType === 'DIGITOVER'
+  const isUnderType = contractType === 'DIGITUNDER'
+  const isOddType = contractType === 'DIGITODD'
+  const isEvenType = contractType === 'DIGITEVEN'
+
+  const isWinningDigit = (d: number): boolean => {
+    if (isMatchType) return d === selectedDigit
+    if (isDiffType) return d !== selectedDigit
+    if (isOverType) return d > selectedDigit
+    if (isUnderType) return d < selectedDigit
+    if (isOddType) return d % 2 === 1
+    if (isEvenType) return d % 2 === 0
+    return false
+  }
+
+  return (
+    <div className="mt-4 rounded-xl bg-bg-tertiary border border-border-light p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+          <Hash className="w-3.5 h-3.5" />
+          Last Digit Meter
+        </span>
+        {lastDigit !== null && (
+          <span className="text-xs text-text-muted">
+            Current: <span className="font-bold tabular text-text-primary text-base">{lastDigit}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Digits row with indicator */}
+      <div className="relative">
+        <div className="flex items-center justify-between gap-1">
+          {Array.from({ length: 10 }, (_, d) => {
+            const isCurrent = lastDigit === d
+            const isWinning = isWinningDigit(d)
+            const count = digitCounts[d]
+            const barHeight = (count / maxCount) * 100
+            return (
+              <div key={d} className="flex-1 flex flex-col items-center gap-1.5 relative">
+                {/* Frequency bar */}
+                <div className="w-full h-16 flex items-end justify-center">
+                  <div
+                    className={`w-full max-w-[28px] rounded-t-md transition-all duration-300 ${
+                      isCurrent ? 'bg-brand-blue' : 'bg-border-light'
+                    }`}
+                    style={{ height: `${Math.max(barHeight, 3)}%`, opacity: isCurrent ? 1 : 0.5 }}
+                  />
+                </div>
+                {/* Digit circle */}
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold tabular transition-all duration-300 ${
+                    isCurrent
+                      ? 'bg-brand-blue text-white scale-110 shadow-lg shadow-brand-blue/30'
+                      : isWinning
+                      ? 'bg-brand-green/15 text-brand-green border border-brand-green/40'
+                      : 'bg-bg-secondary text-text-secondary border border-border-light'
+                  }`}
+                >
+                  {d}
+                </div>
+                {/* Count */}
+                <span className={`text-[10px] tabular ${isCurrent ? 'text-brand-blue font-semibold' : 'text-text-muted'}`}>
+                  {count}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Moving indicator arrow above the current digit */}
+        {lastDigit !== null && (
+          <div
+            className="absolute -top-1 transition-all duration-300 ease-out"
+            style={{
+              left: `calc(${(lastDigit / 9) * 100}% )`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-brand-blue" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-text-muted">
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-brand-blue" /> Current digit
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-brand-green/30 border border-brand-green/50" /> Winning digits
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-6 rounded-sm bg-border-light" /> Frequency
+        </span>
       </div>
     </div>
   )
