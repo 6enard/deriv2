@@ -10,7 +10,7 @@ import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, Gauge, Timer } from 'lucide-react'
 
-type BarrierType = 'none' | 'single' | 'double' | 'digit'
+type BarrierType = 'none' | 'single' | 'double' | 'digit' | 'tick' | 'multiplier' | 'accumulator'
 
 interface TradeTypeOption {
   contractType: string
@@ -80,14 +80,14 @@ const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
   {
     group: 'Multipliers',
     types: [
-      { contractType: 'MULTUP', side: 'multiplier', displayName: 'Up', barrierType: 'none' },
-      { contractType: 'MULTDOWN', side: 'multiplier', displayName: 'Down', barrierType: 'none' },
+      { contractType: 'MULTUP', side: 'multiplier', displayName: 'Up', barrierType: 'multiplier' },
+      { contractType: 'MULTDOWN', side: 'multiplier', displayName: 'Down', barrierType: 'multiplier' },
     ],
   },
   {
     group: 'Accumulators',
     types: [
-      { contractType: 'ACCU', side: 'accumulator', displayName: 'Accumulator', barrierType: 'none' },
+      { contractType: 'ACCU', side: 'accumulator', displayName: 'Accumulator', barrierType: 'accumulator' },
     ],
   },
   {
@@ -107,8 +107,8 @@ const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
   {
     group: 'Tick High / Low',
     types: [
-      { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'none' },
-      { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'none' },
+      { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'tick' },
+      { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'tick' },
     ],
   },
   {
@@ -148,6 +148,11 @@ export default function Trade() {
   const [barrierHigh, setBarrierHigh] = useState('')
   const [barrierLow, setBarrierLow] = useState('')
   const [digit, setDigit] = useState('5')
+  const [selectedTick, setSelectedTick] = useState('5')
+  const [cancellation, setCancellation] = useState('60')
+  const [growthRate, setGrowthRate] = useState('1')
+  const [takeProfit, setTakeProfit] = useState('')
+  const [stopLoss, setStopLoss] = useState('')
   const [availableContractTypes, setAvailableContractTypes] = useState<Set<string> | null>(null)
   const [contractDurationLimits, setContractDurationLimits] = useState<Record<string, { min: string; max: string; unit: string }>>({})
   const [proposal, setProposal] = useState<{ askPrice: number; payout: number; spot: number } | null>(null)
@@ -314,6 +319,39 @@ export default function Trade() {
     }
   }, [selectedTradeType, durationUnit])
 
+  // Tick High/Low contracts require tick-based durations
+  useEffect(() => {
+    if (selectedTradeType.barrierType === 'tick' && durationUnit !== 't') {
+      setDurationUnit('t')
+      setDuration('5')
+    }
+  }, [selectedTradeType, durationUnit])
+
+  // Daily contracts (CALLE, PUTE, EXPIRYRANGEE, EXPIRYMISSE) use days as duration unit
+  useEffect(() => {
+    const dailyTypes = ['CALLE', 'PUTE', 'EXPIRYRANGEE', 'EXPIRYMISSE']
+    if (dailyTypes.includes(selectedTradeType.contractType) && durationUnit !== 'd') {
+      setDurationUnit('d')
+      setDuration('1')
+    }
+  }, [selectedTradeType, durationUnit])
+
+  // Multiplier contracts use minutes/hours durations, not ticks or days
+  useEffect(() => {
+    if (selectedTradeType.barrierType === 'multiplier' && (durationUnit === 't' || durationUnit === 'd')) {
+      setDurationUnit('m')
+      setDuration('5')
+    }
+  }, [selectedTradeType, durationUnit])
+
+  // Accumulator contracts use ticks duration
+  useEffect(() => {
+    if (selectedTradeType.barrierType === 'accumulator' && durationUnit !== 't') {
+      setDurationUnit('t')
+      setDuration('10')
+    }
+  }, [selectedTradeType, durationUnit])
+
   // Enforce duration limits from contracts_for for the selected contract type
   useEffect(() => {
     const limits = contractDurationLimits[selectedTradeType.contractType]
@@ -340,7 +378,7 @@ export default function Trade() {
     }
 
     const bt = selectedTradeType.barrierType
-    if ((bt === 'single' && !barrier) || (bt === 'double' && (!barrierHigh || !barrierLow))) {
+    if ((bt === 'single' && !barrier) || (bt === 'double' && (!barrierHigh || !barrierLow)) || (bt === 'tick' && !selectedTick)) {
       setProposal(null)
       setProposalError(null)
       return
@@ -371,6 +409,20 @@ export default function Trade() {
       request.barrier2 = `${barrierLow}`
     } else if (bt === 'digit') {
       request.barrier = digit
+    } else if (bt === 'tick') {
+      request.selected_tick = parseInt(selectedTick)
+    } else if (bt === 'multiplier') {
+      request.cancellation = cancellation
+      const limitOrder: Record<string, number> = {}
+      if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+      if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+      if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
+    } else if (bt === 'accumulator') {
+      request.growth_rate = parseFloat(growthRate)
+      const limitOrder: Record<string, number> = {}
+      if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+      if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+      if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
     }
 
     ws.send(request)
@@ -401,7 +453,7 @@ export default function Trade() {
     return () => {
       cancelled = true
     }
-  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow, digit])
+  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow, digit, selectedTick, cancellation, growthRate, takeProfit, stopLoss])
 
   const executeTrade = async () => {
     if (!ws || !account || !selectedSymbol) return
@@ -427,6 +479,20 @@ export default function Trade() {
         request.barrier2 = `${barrierLow}`
       } else if (bt === 'digit') {
         request.barrier = digit
+      } else if (bt === 'tick') {
+        request.selected_tick = parseInt(selectedTick)
+      } else if (bt === 'multiplier') {
+        request.cancellation = cancellation
+        const limitOrder: Record<string, number> = {}
+        if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+        if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+        if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
+      } else if (bt === 'accumulator') {
+        request.growth_rate = parseFloat(growthRate)
+        const limitOrder: Record<string, number> = {}
+        if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+        if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+        if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
       }
 
       const proposalRes = await ws.send(request)
@@ -651,6 +717,98 @@ export default function Trade() {
               </div>
             )}
 
+            {/* Tick selector for Tick High/Low contracts */}
+            {selectedTradeType.barrierType === 'tick' && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Selected Tick (1-10)</label>
+                <div className="relative">
+                  <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <select
+                    value={selectedTick}
+                    onChange={(e) => setSelectedTick(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => (
+                      <option key={i} value={String(i + 1)}>{i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-text-muted mt-1">Predict which tick (out of 10) will have the highest/lowest value.</p>
+              </div>
+            )}
+
+            {/* Multiplier cancellation duration */}
+            {selectedTradeType.barrierType === 'multiplier' && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Cancellation (seconds)</label>
+                <div className="relative">
+                  <RotateCcw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="number"
+                    value={cancellation}
+                    onChange={(e) => setCancellation(e.target.value)}
+                    min="15"
+                    step="15"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  />
+                </div>
+                <p className="text-[10px] text-text-muted mt-1">You can cancel the contract within this time window for a refund.</p>
+              </div>
+            )}
+
+            {/* Accumulator growth rate */}
+            {selectedTradeType.barrierType === 'accumulator' && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">Growth Rate (%)</label>
+                <div className="relative">
+                  <Zap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="number"
+                    value={growthRate}
+                    onChange={(e) => setGrowthRate(e.target.value)}
+                    min="0.01"
+                    step="0.01"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                  />
+                </div>
+                <p className="text-[10px] text-text-muted mt-1">The growth rate applied per tick for the accumulator contract.</p>
+              </div>
+            )}
+
+            {/* Take Profit / Stop Loss for multiplier and accumulator contracts */}
+            {(selectedTradeType.barrierType === 'multiplier' || selectedTradeType.barrierType === 'accumulator') && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Take Profit (optional)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <input
+                      type="number"
+                      value={takeProfit}
+                      onChange={(e) => setTakeProfit(e.target.value)}
+                      step="0.01"
+                      placeholder="Auto-close at profit"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Stop Loss (optional)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <input
+                      type="number"
+                      value={stopLoss}
+                      onChange={(e) => setStopLoss(e.target.value)}
+                      step="0.01"
+                      placeholder="Auto-close at loss"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Double barriers for Ends In/Out and Stays In/Goes Out */}
             {selectedTradeType.barrierType === 'double' && (
               <div className="grid grid-cols-2 gap-3 mb-3">
@@ -712,19 +870,20 @@ export default function Trade() {
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    disabled={selectedTradeType.barrierType === 'digit'}
+                    disabled={selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'tick' || selectedTradeType.barrierType === 'accumulator'}
                     className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="t">ticks</option>
                     <option value="s">sec</option>
                     <option value="m">min</option>
                     <option value="h">hrs</option>
+                    <option value="d">days</option>
                   </select>
                 </div>
                 {contractDurationLimits[selectedTradeType.contractType] && (
                   <p className="text-[10px] text-text-muted mt-1">
-                    {selectedTradeType.barrierType === 'digit'
-                      ? `Digit contracts use ticks only · ${contractDurationLimits[selectedTradeType.contractType].min}–${contractDurationLimits[selectedTradeType.contractType].max} ticks`
+                    {(selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'tick' || selectedTradeType.barrierType === 'accumulator')
+                      ? `Uses ticks only · ${contractDurationLimits[selectedTradeType.contractType].min}–${contractDurationLimits[selectedTradeType.contractType].max} ticks`
                       : `Min: ${contractDurationLimits[selectedTradeType.contractType].min} · Max: ${contractDurationLimits[selectedTradeType.contractType].max}`}
                   </p>
                 )}
@@ -765,7 +924,7 @@ export default function Trade() {
 
             <button
               onClick={executeTrade}
-              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading}
+              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading || (selectedTradeType.barrierType === 'tick' && !selectedTick)}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold hover:bg-brand-green-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <TradeTypeIcon option={selectedTradeType} />}
