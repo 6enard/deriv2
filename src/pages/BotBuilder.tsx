@@ -60,39 +60,46 @@ export default function BotBuilder() {
   const { subscribeToContract } = useOpenContracts()
   const stopRef = useRef(false)
 
-  // Load market data into dropdowns once ws is available — but don't block the UI
+  // Load market data into dropdowns once ws is available — with retry
   useEffect(() => {
-    if (!ws || !workspaceRef.current || marketsLoaded || marketsLoading) return
+    if (!ws || !workspaceRef.current || marketsLoaded) return
     let cancelled = false
+    let attempt = 0
+    const maxAttempts = 4
+    let retryTimer: ReturnType<typeof setTimeout>
+
     setMarketsLoading(true)
 
-    const timeout = setTimeout(() => {
-      if (!cancelled) {
-        setMarketsLoading(false)
-        showToast('info', 'Market data unavailable. You can still build and save your bot.')
-      }
-    }, 10000)
+    const tryLoad = () => {
+      if (cancelled) return
+      attempt++
+      ws.send({ active_symbols: 'brief' })
+        .then((res) => {
+          if (cancelled || !res.active_symbols) return
+          const ok = populateMarketDropdowns(workspaceRef.current!, res.active_symbols)
+          if (ok) {
+            setMarketsLoaded(true)
+            setMarketsLoading(false)
+            showToast('success', 'Markets loaded.')
+          }
+        })
+        .catch(() => {
+          if (cancelled) return
+          if (attempt < maxAttempts) {
+            retryTimer = setTimeout(tryLoad, 2000)
+          } else {
+            setMarketsLoading(false)
+            showToast('info', 'Market data unavailable. You can still build and save your bot.')
+          }
+        })
+    }
 
-    ws.send({ active_symbols: 'brief' })
-      .then((res) => {
-        if (cancelled || !res.active_symbols) return
-        const ok = populateMarketDropdowns(workspaceRef.current!, res.active_symbols)
-        if (ok) {
-          setMarketsLoaded(true)
-          clearTimeout(timeout)
-          showToast('success', 'Markets loaded.')
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          clearTimeout(timeout)
-          showToast('info', 'Market data unavailable. You can still build and save your bot.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setMarketsLoading(false)
-      })
-    return () => { cancelled = true; clearTimeout(timeout) }
+    tryLoad()
+
+    return () => {
+      cancelled = true
+      clearTimeout(retryTimer)
+    }
   }, [ws, marketsLoaded, showToast])
 
   const handleRun = useCallback(async () => {

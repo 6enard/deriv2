@@ -55,42 +55,6 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
     }
   }, [])
 
-  // Load markets and pre-fill the bot's saved config into the blocks
-  useEffect(() => {
-    if (!ws || !workspaceRef.current || marketsLoaded) return
-    let cancelled = false
-    setMarketsLoading(true)
-
-    const timeout = setTimeout(() => {
-      if (!cancelled) {
-        setMarketsLoading(false)
-        showToast('error', 'Market data took too long to load. Please close and try again.')
-      }
-    }, 15000)
-
-    ws.send({ active_symbols: 'brief' })
-      .then((res) => {
-        if (cancelled || !res.active_symbols || !workspaceRef.current) return
-        const ok = populateMarketDropdowns(workspaceRef.current, res.active_symbols)
-        if (!ok) return
-
-        applyBotConfigToWorkspace(workspaceRef.current, bot.config as Record<string, unknown>)
-        setMarketsLoaded(true)
-        clearTimeout(timeout)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          showToast('error', 'Failed to load markets. Check your connection and try again.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setMarketsLoading(false)
-        clearTimeout(timeout)
-      })
-
-    return () => { cancelled = true; clearTimeout(timeout) }
-  }, [ws, bot.config, marketsLoaded, showToast])
-
   const applyBotConfigToWorkspace = useCallback((workspace: Blockly.WorkspaceSvg, cfg: Record<string, unknown>) => {
     const symbol = String(cfg.symbol || cfg.underlying_symbol || '')
     const contractType = String(cfg.contract_type || 'CALL')
@@ -129,6 +93,48 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
       }
     }
   }, [])
+
+  // Load markets and pre-fill the bot's saved config into the blocks — with retry
+  useEffect(() => {
+    if (!ws || !workspaceRef.current || marketsLoaded) return
+    let cancelled = false
+    let attempt = 0
+    const maxAttempts = 4
+    let retryTimer: ReturnType<typeof setTimeout>
+
+    setMarketsLoading(true)
+
+    const tryLoad = () => {
+      if (cancelled) return
+      attempt++
+      ws.send({ active_symbols: 'brief' })
+        .then((res) => {
+          if (cancelled || !res.active_symbols || !workspaceRef.current) return
+          const ok = populateMarketDropdowns(workspaceRef.current, res.active_symbols)
+          if (!ok) return
+
+          applyBotConfigToWorkspace(workspaceRef.current, bot.config as Record<string, unknown>)
+          setMarketsLoaded(true)
+          setMarketsLoading(false)
+        })
+        .catch(() => {
+          if (cancelled) return
+          if (attempt < maxAttempts) {
+            retryTimer = setTimeout(tryLoad, 2000)
+          } else {
+            setMarketsLoading(false)
+            showToast('error', 'Failed to load markets. Check your connection and try again.')
+          }
+        })
+    }
+
+    tryLoad()
+
+    return () => {
+      cancelled = true
+      clearTimeout(retryTimer)
+    }
+  }, [ws, bot.config, marketsLoaded, showToast, applyBotConfigToWorkspace])
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current

@@ -3,7 +3,12 @@ type PendingRequest = {
   reject: (error: any) => void
   subscribe?: (data: any) => void
   resolved?: boolean
+  timer?: ReturnType<typeof setTimeout>
 }
+
+const REQUEST_TIMEOUT_MS = 15000
+const RECONNECT_DELAY_MS = 2000
+const MAX_RECONNECT_ATTEMPTS = 5
 
 export class DerivWS {
   private ws: WebSocket | null = null
@@ -11,6 +16,9 @@ export class DerivWS {
   private pending = new Map<number, PendingRequest>()
   private url: string
   private listeners: ((status: string) => void)[] = []
+  private shouldReconnect = false
+  private reconnectAttempts = 0
+  private connectPromise: Promise<void> | null = null
 
   constructor(url: string) {
     this.url = url
@@ -28,24 +36,46 @@ export class DerivWS {
   }
 
   connect(): Promise<void> {
+    this.shouldReconnect = true
+    if (this.connectPromise) return this.connectPromise
+    this.connectPromise = this.doConnect()
+    return this.connectPromise
+  }
+
+  private doConnect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(this.url)
+      try {
+        this.ws = new WebSocket(this.url)
+      } catch (err) {
+        this.connectPromise = null
+        reject(err)
+        return
+      }
       this.setStatus('connecting')
 
       this.ws.onopen = () => {
+        this.reconnectAttempts = 0
         this.setStatus('connected')
+        this.connectPromise = null
         resolve()
       }
 
       this.ws.onerror = () => {
         this.setStatus('error')
-        reject(new Error('WebSocket connection failed'))
+        if (this.reconnectAttempts === 0) {
+          this.connectPromise = null
+          reject(new Error('WebSocket connection failed'))
+        }
       }
 
       this.ws.onclose = () => {
         this.setStatus('disconnected')
-        this.pending.forEach((p) => p.reject(new Error('Connection closed')))
-        this.pending.clear()
+        this.failAllPending(new Error('Connection closed'))
+        this.connectPromise = null
+        this.ws = null
+        if (this.shouldReconnect) {
+          this.scheduleReconnect()
+        }
       }
 
       this.ws.onmessage = (event: MessageEvent) => {
@@ -54,14 +84,43 @@ export class DerivWS {
     })
   }
 
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this.setStatus('failed')
+      return
+    }
+    this.reconnectAttempts++
+    this.setStatus('reconnecting')
+    setTimeout(() => {
+      if (!this.shouldReconnect) return
+      this.doConnect().catch(() => {
+        // doConnect already handles re-scheduling on close
+      })
+    }, RECONNECT_DELAY_MS)
+  }
+
+  private failAllPending(error: Error): void {
+    this.pending.forEach((req) => {
+      if (req.timer) clearTimeout(req.timer)
+      req.reject(error)
+    })
+    this.pending.clear()
+  }
+
   private handleMessage(event: MessageEvent): void {
-    const data = JSON.parse(event.data)
+    let data: any
+    try {
+      data = JSON.parse(event.data)
+    } catch {
+      return
+    }
     const reqId = data.req_id
 
     if (reqId && this.pending.has(reqId)) {
       const req = this.pending.get(reqId)!
 
       if (data.error) {
+        if (req.timer) clearTimeout(req.timer)
         req.reject(data.error)
         if (!data.subscription) {
           this.pending.delete(reqId)
@@ -73,11 +132,13 @@ export class DerivWS {
         req.subscribe(data)
         if (!req.resolved) {
           req.resolved = true
+          if (req.timer) clearTimeout(req.timer)
           req.resolve(data)
         }
         return
       }
 
+      if (req.timer) clearTimeout(req.timer)
       req.resolve(data)
       if (!data.subscription) {
         this.pending.delete(reqId)
@@ -85,29 +146,51 @@ export class DerivWS {
     }
   }
 
-  send(request: Record<string, unknown>): Promise<any> {
+  private async ensureConnected(): Promise<void> {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return
+    if (this.connectPromise) {
+      await this.connectPromise
+      return
+    }
+    if (!this.shouldReconnect) {
+      this.shouldReconnect = true
+    }
+    await this.connect()
+  }
+
+  async send(request: Record<string, unknown>): Promise<any> {
+    await this.ensureConnected()
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error('WebSocket not connected'))
+      throw new Error('WebSocket not connected')
     }
     const id = this.reqId++
     const msg = JSON.stringify({ ...request, req_id: id })
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error('Request timed out'))
+      }, REQUEST_TIMEOUT_MS)
+      this.pending.set(id, { resolve, reject, timer })
       this.ws!.send(msg)
     })
   }
 
-  subscribe(
+  async subscribe(
     request: Record<string, unknown>,
     callback: (data: any) => void,
   ): Promise<any> {
+    await this.ensureConnected()
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error('WebSocket not connected'))
+      throw new Error('WebSocket not connected')
     }
     const id = this.reqId++
     const msg = JSON.stringify({ ...request, req_id: id, subscribe: 1 })
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, subscribe: callback })
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error('Subscription request timed out'))
+      }, REQUEST_TIMEOUT_MS)
+      this.pending.set(id, { resolve, reject, subscribe: callback, timer })
       this.ws!.send(msg)
     })
   }
@@ -121,9 +204,11 @@ export class DerivWS {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false
     this.ws?.close()
     this.ws = null
-    this.pending.clear()
+    this.failAllPending(new Error('Connection closed'))
+    this.connectPromise = null
     this.setStatus('disconnected')
   }
 
