@@ -93,7 +93,7 @@ export default function BotBuilder() {
         if (!cancelled) setMarketsLoading(false)
       })
     return () => { cancelled = true; clearTimeout(timeout) }
-  }, [ws, marketsLoaded, marketsLoading, showToast])
+  }, [ws, marketsLoaded, showToast])
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current
