@@ -555,7 +555,7 @@ export default function Trade() {
                 </button>
 
                 {symbolDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2.5rem)] max-w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
+                  <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2.5rem)] sm:w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
                     <div className="p-2 sticky top-0 bg-bg-secondary border-b border-border-default">
                       <input
                         type="text"
@@ -1021,7 +1021,7 @@ function TickChart({ ticks }: { ticks: Tick[]; pipSize: number }) {
   const areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${height} L ${points[0].x.toFixed(1)} ${height} Z`
 
   const isUp = quotes[quotes.length - 1] >= quotes[0]
-  const color = isUp ? '#e53935' : '#e53935'
+  const color = isUp ? '#22c55e' : '#e53935'
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[200px]" preserveAspectRatio="none">

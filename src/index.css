@@ -12,9 +12,9 @@
   --color-text-muted: #6b6b6b;
   --color-brand-red: #e53935;
   --color-brand-red-dim: #c62828;
-  --color-brand-green: #e53935;
-  --color-brand-green-dim: #c62828;
-  --color-brand-blue: #e53935;
+  --color-brand-green: #22c55e;
+  --color-brand-green-dim: #16a34a;
+  --color-brand-blue: #3b82f6;
   --color-brand-amber: #ffa940;
   --font-sans: "Inter", system-ui, sans-serif;
 }
@@ -31,9 +31,9 @@
   --color-text-muted: #999999;
   --color-brand-red: #d32f2f;
   --color-brand-red-dim: #b71c1c;
-  --color-brand-green: #d32f2f;
-  --color-brand-green-dim: #b71c1c;
-  --color-brand-blue: #d32f2f;
+  --color-brand-green: #16a34a;
+  --color-brand-green-dim: #15803d;
+  --color-brand-blue: #2563eb;
   --color-brand-amber: #e8861a;
 }
 
@@ -72,11 +72,11 @@ body {
 }
 
 @keyframes flash-green {
-  0% { background-color: rgba(229, 57, 53, 0.15); }
+  0% { background-color: rgba(34, 197, 94, 0.18); }
   100% { background-color: transparent; }
 }
 @keyframes flash-red {
-  0% { background-color: rgba(229, 57, 53, 0.15); }
+  0% { background-color: rgba(229, 57, 53, 0.18); }
   100% { background-color: transparent; }
 }
 .flash-green {
