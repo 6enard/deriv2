@@ -149,6 +149,7 @@ export default function Trade() {
   const [barrierLow, setBarrierLow] = useState('')
   const [digit, setDigit] = useState('5')
   const [availableContractTypes, setAvailableContractTypes] = useState<Set<string> | null>(null)
+  const [contractDurationLimits, setContractDurationLimits] = useState<Record<string, { min: string; max: string; unit: string }>>({})
   const [proposal, setProposal] = useState<{ askPrice: number; payout: number; spot: number } | null>(null)
   const [proposalLoading, setProposalLoading] = useState(false)
   const [proposalError, setProposalError] = useState<string | null>(null)
@@ -252,11 +253,12 @@ export default function Trade() {
     }
   }, [ws])
 
-  // Fetch available contract types for the selected symbol via contracts_for
+  // Fetch available contract types and duration limits for the selected symbol via contracts_for
   useEffect(() => {
     if (!selectedSymbol) return
     let cancelled = false
     setAvailableContractTypes(null)
+    setContractDurationLimits({})
 
     const pubWs = new DerivWS(PUBLIC_WS_URL)
     pubWs.connect()
@@ -266,15 +268,22 @@ export default function Trade() {
         const available = res.contracts_for?.available
         if (available && Array.isArray(available)) {
           const types = new Set<string>()
+          const limits: Record<string, { min: string; max: string; unit: string }> = {}
           for (const c of available) {
-            if (c.contract_type) types.add(c.contract_type)
+            if (c.contract_type) {
+              types.add(c.contract_type)
+              const minDur = String(c.min_contract_duration || '1')
+              const maxDur = String(c.max_contract_duration || '365')
+              const unit = minDur.match(/[a-z]$/i)?.[0]?.toLowerCase() || 't'
+              limits[c.contract_type] = { min: minDur.replace(/[^0-9.]/g, ''), max: maxDur.replace(/[^0-9.]/g, ''), unit }
+            }
           }
           setAvailableContractTypes(types)
+          setContractDurationLimits(limits)
         }
       })
       .catch(() => {
         if (cancelled) return
-        // If contracts_for fails, show all types
         setAvailableContractTypes(null)
       })
       .finally(() => {
@@ -296,6 +305,28 @@ export default function Trade() {
       if (firstAvailable) setSelectedTradeType(firstAvailable)
     }
   }, [availableContractTypes, selectedTradeType])
+
+  // Digit contracts require tick-based durations — auto-switch when a digit type is selected
+  useEffect(() => {
+    if (selectedTradeType.barrierType === 'digit' && durationUnit !== 't') {
+      setDurationUnit('t')
+      setDuration('5')
+    }
+  }, [selectedTradeType, durationUnit])
+
+  // Enforce duration limits from contracts_for for the selected contract type
+  useEffect(() => {
+    const limits = contractDurationLimits[selectedTradeType.contractType]
+    if (!limits) return
+    const durNum = parseInt(duration) || 0
+    const minNum = parseInt(limits.min) || 1
+    const maxNum = parseInt(limits.max) || 365
+    if (durNum < minNum) {
+      setDuration(limits.min)
+    } else if (durNum > maxNum) {
+      setDuration(limits.max)
+    }
+  }, [contractDurationLimits, selectedTradeType, duration])
 
   // Fetch live proposal (expected payout) whenever trade params change
   useEffect(() => {
@@ -674,13 +705,15 @@ export default function Trade() {
                     type="number"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
-                    min="1"
+                    min={contractDurationLimits[selectedTradeType.contractType]?.min || '1'}
+                    max={contractDurationLimits[selectedTradeType.contractType]?.max}
                     className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+                    disabled={selectedTradeType.barrierType === 'digit'}
+                    className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="t">ticks</option>
                     <option value="s">sec</option>
@@ -688,6 +721,13 @@ export default function Trade() {
                     <option value="h">hrs</option>
                   </select>
                 </div>
+                {contractDurationLimits[selectedTradeType.contractType] && (
+                  <p className="text-[10px] text-text-muted mt-1">
+                    {selectedTradeType.barrierType === 'digit'
+                      ? `Digit contracts use ticks only · ${contractDurationLimits[selectedTradeType.contractType].min}–${contractDurationLimits[selectedTradeType.contractType].max} ticks`
+                      : `Min: ${contractDurationLimits[selectedTradeType.contractType].min} · Max: ${contractDurationLimits[selectedTradeType.contractType].max}`}
+                  </p>
+                )}
               </div>
             </div>
 
