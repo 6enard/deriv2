@@ -220,14 +220,23 @@ export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymb
     const submarketField = block.getField('SUBMARKET_LIST') as any
     const symbolField = block.getField('SYMBOL_LIST') as any
 
+    const safeSubs = (marketKey: string): [string, string][] =>
+      submarketsByMarket.get(marketKey) || [['—', '']]
+    const safeSyms = (subKey: string): [string, string][] =>
+      symbolsBySubmarket.get(subKey) || [['—', '']]
+
     if (marketField) {
       marketField.menuGenerator_ = markets
       marketField.generatedOptions = null
       marketField.setValidator(function (this: any, newValue: string): string {
         const sf = this.sourceBlock_.getField('SUBMARKET_LIST') as any
-        const subs = submarketsByMarket.get(newValue) || []
-        if (subs.length > 0 && !subs.find(s => s[1] === sf.getValue())) {
-          sf.setValue(subs[0][1])
+        if (sf) {
+          sf.menuGenerator_ = () => safeSubs(newValue)
+          sf.generatedOptions = null
+          const subs = safeSubs(newValue)
+          if (subs.length > 0 && subs[0][1] !== '') {
+            sf.setValue(subs[0][1])
+          }
         }
         return newValue
       })
@@ -235,14 +244,18 @@ export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymb
     if (submarketField) {
       submarketField.menuGenerator_ = function (this: any): [string, string][] {
         const sel = this.sourceBlock_.getFieldValue('MARKET_LIST')
-        return submarketsByMarket.get(sel) || []
+        return safeSubs(sel)
       }
       submarketField.generatedOptions = null
       submarketField.setValidator(function (this: any, newValue: string): string {
         const sf = this.sourceBlock_.getField('SYMBOL_LIST') as any
-        const syms = symbolsBySubmarket.get(newValue) || []
-        if (syms.length > 0 && !syms.find(s => s[1] === sf.getValue())) {
-          sf.setValue(syms[0][1])
+        if (sf) {
+          sf.menuGenerator_ = () => safeSyms(newValue)
+          sf.generatedOptions = null
+          const syms = safeSyms(newValue)
+          if (syms.length > 0 && syms[0][1] !== '') {
+            sf.setValue(syms[0][1])
+          }
         }
         return newValue
       })
@@ -250,16 +263,34 @@ export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymb
     if (symbolField) {
       symbolField.menuGenerator_ = function (this: any): [string, string][] {
         const sel = this.sourceBlock_.getFieldValue('SUBMARKET_LIST')
-        return symbolsBySubmarket.get(sel) || []
+        return safeSyms(sel)
       }
       symbolField.generatedOptions = null
     }
 
-    const firstSubs = submarketsByMarket.get(markets[0][1]) || []
-    const firstSyms = firstSubs.length > 0 ? (symbolsBySubmarket.get(firstSubs[0][1]) || []) : []
-    if (marketField && markets.length > 0) marketField.setValue(markets[0][1])
-    if (submarketField && firstSubs.length > 0) submarketField.setValue(firstSubs[0][1])
-    if (symbolField && firstSyms.length > 0) symbolField.setValue(firstSyms[0][1])
+    // Set values in order, disabling events to prevent cascading validators
+    Blockly.Events.disable()
+    try {
+      const firstMarket = markets[0][1]
+      const firstSubs = safeSubs(firstMarket)
+      const firstSub = firstSubs[0][1] !== '' ? firstSubs[0][1] : ''
+      const firstSyms = firstSub !== '' ? safeSyms(firstSub) : [['—', '']]
+      const firstSym = firstSyms[0][1] !== '' ? firstSyms[0][1] : ''
+
+      if (marketField) marketField.setValue(firstMarket)
+      if (submarketField) {
+        submarketField.menuGenerator_ = () => safeSubs(firstMarket)
+        submarketField.generatedOptions = null
+        if (firstSub) submarketField.setValue(firstSub)
+      }
+      if (symbolField) {
+        symbolField.menuGenerator_ = () => safeSyms(firstSub)
+        symbolField.generatedOptions = null
+        if (firstSym) symbolField.setValue(firstSym)
+      }
+    } finally {
+      Blockly.Events.enable()
+    }
   }
 
   // TODO(phase3): fetch contract types from contracts_for_symbol endpoint for the selected symbol
