@@ -4,6 +4,8 @@ import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
+import { DerivWS } from '../lib/deriv-ws'
+import { PUBLIC_WS_URL } from '../lib/config'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, Gauge, Timer } from 'lucide-react'
@@ -23,6 +25,8 @@ const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
     types: [
       { contractType: 'CALL', side: 'up', displayName: 'Rise', barrierType: 'none' },
       { contractType: 'PUT', side: 'down', displayName: 'Fall', barrierType: 'none' },
+      { contractType: 'CALLE', side: 'up', displayName: 'Rise (Daily)', barrierType: 'none' },
+      { contractType: 'PUTE', side: 'down', displayName: 'Fall (Daily)', barrierType: 'none' },
     ],
   },
   {
@@ -44,6 +48,8 @@ const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
     types: [
       { contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In', barrierType: 'double' },
       { contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out', barrierType: 'double' },
+      { contractType: 'EXPIRYRANGEE', side: 'in', displayName: 'Ends In (Daily)', barrierType: 'double' },
+      { contractType: 'EXPIRYMISSE', side: 'out', displayName: 'Ends Out (Daily)', barrierType: 'double' },
     ],
   },
   {
@@ -142,6 +148,7 @@ export default function Trade() {
   const [barrierHigh, setBarrierHigh] = useState('')
   const [barrierLow, setBarrierLow] = useState('')
   const [digit, setDigit] = useState('5')
+  const [availableContractTypes, setAvailableContractTypes] = useState<Set<string> | null>(null)
   const [proposal, setProposal] = useState<{ askPrice: number; payout: number; spot: number } | null>(null)
   const [proposalLoading, setProposalLoading] = useState(false)
   const [proposalError, setProposalError] = useState<string | null>(null)
@@ -244,6 +251,51 @@ export default function Trade() {
       }
     }
   }, [ws])
+
+  // Fetch available contract types for the selected symbol via contracts_for
+  useEffect(() => {
+    if (!selectedSymbol) return
+    let cancelled = false
+    setAvailableContractTypes(null)
+
+    const pubWs = new DerivWS(PUBLIC_WS_URL)
+    pubWs.connect()
+      .then(() => pubWs.send({ contracts_for: selectedSymbol }))
+      .then((res) => {
+        if (cancelled) return
+        const available = res.contracts_for?.available
+        if (available && Array.isArray(available)) {
+          const types = new Set<string>()
+          for (const c of available) {
+            if (c.contract_type) types.add(c.contract_type)
+          }
+          setAvailableContractTypes(types)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        // If contracts_for fails, show all types
+        setAvailableContractTypes(null)
+      })
+      .finally(() => {
+        if (!cancelled) pubWs.disconnect()
+      })
+
+    return () => {
+      cancelled = true
+      pubWs.disconnect()
+    }
+  }, [selectedSymbol])
+
+  // When available types change, ensure selected type is still valid
+  useEffect(() => {
+    if (!availableContractTypes) return
+    if (availableContractTypes.size === 0) return
+    if (!availableContractTypes.has(selectedTradeType.contractType)) {
+      const firstAvailable = ALL_TRADE_TYPES.find((t) => availableContractTypes.has(t.contractType))
+      if (firstAvailable) setSelectedTradeType(firstAvailable)
+    }
+  }, [availableContractTypes, selectedTradeType])
 
   // Fetch live proposal (expected payout) whenever trade params change
   useEffect(() => {
@@ -492,12 +544,17 @@ export default function Trade() {
 
                 {tradeTypeDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
-                    {TRADE_TYPE_GROUPS.map((group) => (
+                    {TRADE_TYPE_GROUPS.map((group) => {
+                      const visibleTypes = group.types.filter(
+                        (opt) => !availableContractTypes || availableContractTypes.has(opt.contractType),
+                      )
+                      if (visibleTypes.length === 0) return null
+                      return (
                       <div key={group.group}>
                         <div className="px-3 py-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide sticky top-0 bg-bg-secondary">
                           {group.group}
                         </div>
-                        {group.types.map((opt) => (
+                        {visibleTypes.map((opt) => (
                           <button
                             key={`${opt.contractType}-${opt.side}`}
                             onClick={() => {
@@ -513,7 +570,8 @@ export default function Trade() {
                           </button>
                         ))}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -787,10 +845,10 @@ function ContractCard({
   onSell: () => void
 }) {
   const ct = contract.contract_type
-  const isUp = ['CALL', 'HIGHER', 'ONETOUCH', 'MULTUP', 'RESETCALL', 'RUNHIGH', 'TICKHIGH', 'TURBOSLONG', 'VANILLALONGCALL', 'ASIANU'].includes(ct)
-  const isDown = ['PUT', 'LOWER', 'NOTOUCH', 'MULTDOWN', 'RESETPUT', 'RUNLOW', 'TICKLOW', 'TURBOSSHORT', 'VANILLALONGPUT', 'ASIAND'].includes(ct)
+  const isUp = ['CALL', 'CALLE', 'HIGHER', 'ONETOUCH', 'MULTUP', 'RESETCALL', 'RUNHIGH', 'TICKHIGH', 'TURBOSLONG', 'VANILLALONGCALL', 'ASIANU'].includes(ct)
+  const isDown = ['PUT', 'PUTE', 'LOWER', 'NOTOUCH', 'MULTDOWN', 'RESETPUT', 'RUNLOW', 'TICKLOW', 'TURBOSSHORT', 'VANILLALONGPUT', 'ASIAND'].includes(ct)
   const isDigit = ct.startsWith('DIGIT')
-  const isRange = ['EXPIRYRANGE', 'RANGE'].includes(ct)
+  const isRange = ['EXPIRYRANGE', 'EXPIRYRANGEE', 'RANGE'].includes(ct)
   const profit = contract.profit
   const isProfit = profit >= 0
   const label = isUp ? 'UP' : isDown ? 'DOWN' : isDigit ? 'DIGIT' : isRange ? 'IN' : ct
