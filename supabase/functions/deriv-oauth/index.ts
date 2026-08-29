@@ -1,5 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+// Deriv OAuth token exchange + refresh proxy.
+// Runs as a public (verify_jwt=false) edge function so the browser
+// can call it without Supabase auth.
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
