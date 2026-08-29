@@ -23,5 +23,5 @@ export const ADMIN_ACCOUNT_IDS: string[] = (import.meta.env.VITE_ADMIN_ACCOUNT_I
   .map((id: string) => id.trim())
   .filter(Boolean)
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://kfqpxhurjfssglooqdwk.supabase.co'
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmcXB4aHVyamZzc2dsb29xZHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTI2MzYsImV4cCI6MjEwMzU4ODYzNn0.H0heevd9IUygc_qc3UZ2ALV46lZTCRHg8w-US4Xao6Y'
