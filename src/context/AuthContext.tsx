@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
-import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE, ADMIN_ACCOUNT_IDS } from '../lib/config'
-import { supabase } from '../lib/supabase'
+import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE, ADMIN_ACCOUNT_IDS, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
 import type { DerivSessionAccount } from '../lib/types'
 
 const ACCOUNTS_KEY = 'deriv_accounts'
@@ -83,16 +82,29 @@ function isTokenExpired(expiry: number): boolean {
   return Date.now() >= expiry - REFRESH_THRESHOLD_MS
 }
 
-async function refreshAccessToken(refreshToken: string): Promise<OAuthTokenResponse> {
-  const { data, error } = await supabase.functions.invoke('deriv-oauth', {
-    body: {
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: DERIV_CLIENT_ID,
+async function callDerivOAuth(payload: Record<string, unknown>): Promise<OAuthTokenResponse> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/deriv-oauth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     },
+    body: JSON.stringify(payload),
   })
-  if (error) throw new Error(error.message || 'Token refresh failed.')
-  const tokens = getOAuthToken(data)
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const msg = (body as { error?: string }).error || `Edge function error (${res.status})`
+    throw new Error(msg)
+  }
+  return getOAuthToken(body)
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<OAuthTokenResponse> {
+  const tokens = await callDerivOAuth({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: DERIV_CLIENT_ID,
+  })
   if (!tokens.access_token) throw new Error('Deriv did not return a refreshed access token.')
   return tokens
 }
@@ -249,17 +261,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (!codeVerifier) throw new Error('The Deriv sign-in session has expired. Please try again.')
 
-      const { data, error: exchangeError } = await supabase.functions.invoke('deriv-oauth', {
-        body: {
-          code,
-          code_verifier: codeVerifier,
-          client_id: DERIV_CLIENT_ID,
-          redirect_uri: DERIV_REDIRECT_URI,
-        },
+      const tokens = await callDerivOAuth({
+        code,
+        code_verifier: codeVerifier,
+        client_id: DERIV_CLIENT_ID,
+        redirect_uri: DERIV_REDIRECT_URI,
       })
-
-      if (exchangeError) throw new Error(exchangeError.message || 'Deriv token exchange failed.')
-      const tokens = getOAuthToken(data)
       if (!tokens.access_token) throw new Error('Deriv did not return an access token.')
 
       let accountList = await fetchAccounts(tokens.access_token)
