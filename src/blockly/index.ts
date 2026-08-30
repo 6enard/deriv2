@@ -208,12 +208,12 @@ export async function loadBotXmlSafely(
     return { ok: false, reason: 'Could not load market data.' }
   }
 
+  setGlobalMarketOptions(symbols)
   const loaded = loadFromXml(workspace, xml)
   if (!loaded) {
     return { ok: false, reason: 'This file is not a valid bot.' }
   }
 
-  setGlobalMarketOptions(symbols)
   return { ok: true }
 }
 
