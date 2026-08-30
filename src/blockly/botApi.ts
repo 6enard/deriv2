@@ -128,7 +128,8 @@ export function createBotApi(
       if (options.shouldStop?.()) throw new Error('Bot stopped')
       const ct = contractType || currentContractType
 
-      const proposalRes = await ws.send({
+      const digitContractsRequiringBarrier = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
+      const proposalReq: Record<string, unknown> = {
         proposal: 1,
         amount: currentStake,
         basis: 'stake',
@@ -137,7 +138,12 @@ export function createBotApi(
         duration: params.duration,
         duration_unit: params.duration_unit,
         underlying_symbol: params.symbol,
-      })
+      }
+      if (digitContractsRequiringBarrier.includes(ct) && params.prediction !== undefined) {
+        proposalReq.barrier = String(params.prediction)
+      }
+
+      const proposalRes = await ws.send(proposalReq)
 
       const proposal = proposalRes.proposal
       lastAskPrice = parseFloat(proposal.ask_price)

@@ -30,8 +30,8 @@ let marketOptions: [string, string][] = [['', '']]
 let submarketOptionsByMarket: Record<string, [string, string][]> = {}
 let symbolOptionsBySubmarket: Record<string, [string, string][]> = {}
 let tradeTypeCategoryOptions: [string, string][] = [['', '']]
-let tradeTypeOptions: [string, string][] = [['', '']]
-let contractTypeOptions: [string, string][] = [['', '']]
+let tradeTypeOptionsByCategory: Record<string, [string, string][]> = {}
+let contractTypeOptionsByTradeType: Record<string, [string, string][]> = {}
 
 function marketMenuOptions(this: any): [string, string][] {
   return marketOptions
@@ -56,11 +56,24 @@ function tradeTypeCategoryMenuOptions(this: any): [string, string][] {
 }
 
 function tradeTypeMenuOptions(this: any): [string, string][] {
-  return tradeTypeOptions
+  const block = this.getSourceBlock()
+  if (!block) return [['—', '']]
+  const category = block.getFieldValue('TRADETYPECAT_LIST')
+  return tradeTypeOptionsByCategory[category] || [['—', '']]
 }
 
 function contractTypeMenuOptions(this: any): [string, string][] {
-  return contractTypeOptions
+  const block = this.getSourceBlock()
+  if (!block) return [['—', '']]
+  let cursor: any = block
+  while (cursor) {
+    if (cursor.type === 'trade_definition_tradetype') {
+      const tradeType = cursor.getFieldValue('TRADETYPE_LIST')
+      return contractTypeOptionsByTradeType[tradeType] || [['—', '']]
+    }
+    cursor = cursor.getPreviousBlock()
+  }
+  return [['—', '']]
 }
 
 // Accessors for the self-healing pass in loadBotXmlSafely — let it pick
@@ -77,11 +90,11 @@ export function getFirstSymbolValue(submarket: string): string {
 export function getFirstTradeTypeCategoryValue(): string {
   return tradeTypeCategoryOptions[0]?.[1] ?? ''
 }
-export function getFirstTradeTypeValue(): string {
-  return tradeTypeOptions[0]?.[1] ?? ''
+export function getFirstTradeTypeValue(category: string): string {
+  return tradeTypeOptionsByCategory[category]?.[0]?.[1] ?? ''
 }
-export function getFirstContractTypeValue(): string {
-  return contractTypeOptions[0]?.[1] ?? ''
+export function getFirstContractTypeValue(tradeType: string): string {
+  return contractTypeOptionsByTradeType[tradeType]?.[0]?.[1] ?? ''
 }
 
 // Validators for the self-healing pass — check whether a saved field value
@@ -98,11 +111,11 @@ export function isValidSymbolValue(submarket: string, v: string): boolean {
 export function isValidTradeTypeCategoryValue(v: string): boolean {
   return tradeTypeCategoryOptions.some((opt) => opt[1] === v)
 }
-export function isValidTradeTypeValue(v: string): boolean {
-  return tradeTypeOptions.some((opt) => opt[1] === v)
+export function isValidTradeTypeValue(category: string, v: string): boolean {
+  return (tradeTypeOptionsByCategory[category] || []).some((opt) => opt[1] === v)
 }
-export function isValidContractTypeValue(v: string): boolean {
-  return contractTypeOptions.some((opt) => opt[1] === v)
+export function isValidContractTypeValue(tradeType: string, v: string): boolean {
+  return (contractTypeOptionsByTradeType[tradeType] || []).some((opt) => opt[1] === v)
 }
 
 function prettifyKey(key: string): string {
@@ -149,21 +162,28 @@ export function setGlobalMarketOptions(rawSymbols: RawSymbol[]): boolean {
     ['Up/Down', 'updown'],
     ['Touch/No Touch', 'touchnotouch'],
     ['In/Out', 'inout'],
+    ['Digits', 'digits'],
   ]
-  tradeTypeOptions = [
-    ['Rise/Fall', 'risefall'],
-    ['Higher/Lower', 'higherlower'],
-  ]
-  contractTypeOptions = [
-    ['Rise', 'CALL'],
-    ['Fall', 'PUT'],
-    ['Touch', 'TOUCH'],
-    ['No Touch', 'NOTOUCH'],
-    ['Ends In', 'EXPIRYRANGE'],
-    ['Ends Out', 'EXPIRYMISS'],
-    ['Stays In', 'RANGE'],
-    ['Goes Out', 'MISS'],
-  ]
+  tradeTypeOptionsByCategory = {
+    updown: [['Rise/Fall', 'risefall'], ['Higher/Lower', 'higherlower']],
+    touchnotouch: [['Touch/No Touch', 'touchnotouch']],
+    inout: [['Ends In/Out', 'endsinout'], ['Stays In/Goes Out', 'staysinout']],
+    digits: [
+      ['Matches/Differs', 'matchesdiffers'],
+      ['Even/Odd', 'evenodd'],
+      ['Over/Under', 'overunder'],
+    ],
+  }
+  contractTypeOptionsByTradeType = {
+    risefall: [['Rise', 'CALL'], ['Fall', 'PUT']],
+    higherlower: [['Higher', 'CALL'], ['Lower', 'PUT']],
+    touchnotouch: [['Touch', 'TOUCH'], ['No Touch', 'NOTOUCH']],
+    endsinout: [['Ends In', 'EXPIRYRANGE'], ['Ends Out', 'EXPIRYMISS']],
+    staysinout: [['Stays In', 'RANGE'], ['Goes Out', 'MISS']],
+    matchesdiffers: [['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF']],
+    evenodd: [['Even', 'DIGITEVEN'], ['Odd', 'DIGITODD']],
+    overunder: [['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER']],
+  }
 
   return true
 }
@@ -360,7 +380,7 @@ defineBlock('trade_definition_restartonerror', {
 
 defineBlock('trade_definition_tradeoptions', {
   definition: () => ({
-    message0: 'Duration: %1 %2  Amount: %3 %4',
+    message0: 'Duration: %1 %2  Amount: %3 %4  Prediction: %5',
     args0: [
       { type: 'input_value', name: 'DURATION', check: 'Number' },
       {
@@ -384,6 +404,7 @@ defineBlock('trade_definition_tradeoptions', {
           ['AUD', 'AUD'],
         ],
       },
+      { type: 'field_number', name: 'PREDICTION', value: 5, min: 0, max: 9, precision: 1 },
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,

@@ -152,6 +152,7 @@ export interface TradeParams {
   duration_unit: string
   amount: number
   currency: string
+  prediction?: number
 }
 
 export type TradeParamsResult =
@@ -201,12 +202,19 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   const amount = readNumberInput(tradeOptionsParamsBlock, 'AMOUNT')
   const currency = String(tradeOptionsParamsBlock.getFieldValue('CURRENCY_LIST') || '').trim()
 
+  const predictionRaw = tradeOptionsParamsBlock.getFieldValue('PREDICTION')
+  const prediction = predictionRaw !== null && predictionRaw !== undefined && predictionRaw !== '' ? parseInt(String(predictionRaw), 10) : NaN
+  const digitContractsRequiringPrediction = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
+  if (digitContractsRequiringPrediction.includes(contractType) && isNaN(prediction)) {
+    return { ok: false, missingField: 'prediction' }
+  }
+
   if (!durationUnit) return { ok: false, missingField: 'duration_unit' }
   if (duration === null) return { ok: false, missingField: 'duration' }
   if (amount === null) return { ok: false, missingField: 'amount' }
   if (!currency) return { ok: false, missingField: 'currency' }
 
-  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency } }
+  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency, prediction: isNaN(prediction) ? undefined : prediction } }
 }
 
 // Renamed/deprecated block types that may appear in bots saved earlier in
@@ -232,11 +240,21 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
   let repaired = false
   const allBlocks = workspace.getAllBlocks(false)
 
-  // 1. Repair missing AMOUNT / DURATION number inputs on every tradeoptions block.
+  // 1. Repair missing OR unreadable AMOUNT / DURATION number inputs, and
+  //    validate the PREDICTION field, on every tradeoptions block.
   for (const block of allBlocks) {
     if (block.type !== 'trade_definition_tradeoptions') continue
     for (const inputName of ['AMOUNT', 'DURATION'] as const) {
-      if (block.getInputTargetBlock(inputName)) continue
+      const target = block.getInputTargetBlock(inputName)
+      const raw = target?.getFieldValue('NUM')
+      const isValid = raw !== null && raw !== undefined && raw !== '' && !isNaN(parseFloat(raw))
+      if (isValid) continue
+      if (target && target.type === 'math_number') {
+        target.setFieldValue('1', 'NUM')
+        repaired = true
+        console.warn(`[bot-loader] auto-repaired invalid ${inputName} value on trade_definition_tradeoptions`)
+        continue
+      }
       const shadow = workspace.newBlock('math_number')
       shadow.setFieldValue('1', 'NUM')
       shadow.initSvg()
@@ -245,6 +263,19 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
       if (input?.connection?.targetBlock() === shadow) {
         console.warn(`[bot-loader] auto-repaired missing ${inputName} input on trade_definition_tradeoptions`)
         repaired = true
+      }
+    }
+    const predictionRaw = block.getFieldValue('PREDICTION')
+    if (predictionRaw === null || predictionRaw === undefined || predictionRaw === '') {
+      block.setFieldValue('5', 'PREDICTION')
+      repaired = true
+      console.warn('[bot-loader] PREDICTION was empty — reset to 5')
+    } else {
+      const predictionNum = parseFloat(String(predictionRaw))
+      if (isNaN(predictionNum) || predictionNum < 0 || predictionNum > 9) {
+        block.setFieldValue('5', 'PREDICTION')
+        repaired = true
+        console.warn(`[bot-loader] PREDICTION was '${predictionRaw}' (invalid) — reset to 5`)
       }
     }
   }
@@ -278,16 +309,29 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
         const v = getFirstTradeTypeCategoryValue()
         if (v) { block.setFieldValue(v, 'TRADETYPECAT_LIST'); repaired = true; console.warn(`[bot-loader] TRADETYPECAT_LIST was '${cat}' (invalid) — reset to '${v}'`) }
       }
+      const effectiveCat = String(block.getFieldValue('TRADETYPECAT_LIST') || '').trim()
       const tt = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
-      if (!tt || !isValidTradeTypeValue(tt)) {
-        const v = getFirstTradeTypeValue()
-        if (v) { block.setFieldValue(v, 'TRADETYPE_LIST'); repaired = true; console.warn(`[bot-loader] TRADETYPE_LIST was '${tt}' (invalid) — reset to '${v}'`) }
+      if (!tt || !isValidTradeTypeValue(effectiveCat, tt)) {
+        const v = getFirstTradeTypeValue(effectiveCat)
+        if (v) { block.setFieldValue(v, 'TRADETYPE_LIST'); repaired = true; console.warn(`[bot-loader] TRADETYPE_LIST was '${tt}' (invalid for category '${effectiveCat}') — reset to '${v}'`) }
       }
-    } else if (block.type === 'trade_definition_contracttype') {
+    }
+  }
+
+  // 3. Repair contract type — depends on the trade type resolved above.
+  let resolvedTradeType = ''
+  for (const block of allBlocks) {
+    if (block.type === 'trade_definition_tradetype') {
+      resolvedTradeType = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
+      break
+    }
+  }
+  for (const block of allBlocks) {
+    if (block.type === 'trade_definition_contracttype') {
       const ct = String(block.getFieldValue('TYPE_LIST') || '').trim()
-      if (!ct || !isValidContractTypeValue(ct)) {
-        const v = getFirstContractTypeValue()
-        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn(`[bot-loader] TYPE_LIST was '${ct}' (invalid) — reset to '${v}'`) }
+      if (!ct || !isValidContractTypeValue(resolvedTradeType, ct)) {
+        const v = getFirstContractTypeValue(resolvedTradeType)
+        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn(`[bot-loader] TYPE_LIST was '${ct}' (invalid for trade type '${resolvedTradeType}') — reset to '${v}'`) }
       }
     }
   }

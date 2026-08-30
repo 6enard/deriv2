@@ -67,6 +67,7 @@ export function useBotRunner(
         duration: 'Trade Definition is missing a Duration value — set a number in the Duration field of the Trade Definition block.',
         amount: 'Trade Definition is missing a Stake Amount — set a number in the Amount field of the Trade Definition block.',
         currency: 'Trade Definition is missing a Currency — select a currency in the Trade Definition block.',
+        prediction: 'Trade Definition is missing a Prediction value — set a digit (0-9) in the Prediction field of the Trade Definition block.',
       }
       // Diagnostic: dump the full current state of the Trade Definition block's
       // fields so if this error recurs we have real data instead of guessing.
@@ -91,6 +92,7 @@ export function useBotRunner(
         fieldDump.CURRENCY_LIST = String(paramsBlock.getFieldValue('CURRENCY_LIST') || '')
         fieldDump.DURATION = String(paramsBlock.getInputTargetBlock('DURATION')?.getFieldValue('NUM') || '')
         fieldDump.AMOUNT = String(paramsBlock.getInputTargetBlock('AMOUNT')?.getFieldValue('NUM') || '')
+        fieldDump.PREDICTION = String(paramsBlock.getFieldValue('PREDICTION') || '')
       }
       console.error('[useBotRunner] extractTradeParams failed — missingField:', paramsResult.missingField, 'current Trade Definition fields:', fieldDump)
       showToast('error', messages[paramsResult.missingField] || 'Trade Definition is incomplete — check the Trade parameters block.')
