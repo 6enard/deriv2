@@ -104,7 +104,11 @@ export default function BotBuilder() {
           )
           pendingXmlRef.current = null
           if (result.ok) {
-            showToast('success', 'Bot loaded — ready to run.')
+            if (result.repaired) {
+              showToast('info', 'This bot was updated to work with the latest builder — please double check its settings before running.')
+            } else {
+              showToast('success', 'Bot loaded — ready to run.')
+            }
             checkLoadedFields(workspaceRef.current)
           } else {
             showToast('error', result.reason)
@@ -177,7 +181,11 @@ export default function BotBuilder() {
     if (!w) return
     const result = await loadBotXmlSafely(w, xml, fetchSymbols, symbols.length > 0 ? symbols : null)
     if (result.ok) {
-      showToast('success', `Loaded "${filename}".`)
+      if (result.repaired) {
+        showToast('info', 'This bot was updated to work with the latest builder — please double check its settings before running.')
+      } else {
+        showToast('success', `Loaded "${filename}".`)
+      }
       checkLoadedFields(w)
     } else {
       showToast('error', result.reason)

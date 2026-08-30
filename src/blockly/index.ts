@@ -5,7 +5,16 @@
 import * as Blockly from 'blockly'
 import 'blockly/blocks'
 import { Colours, darkThemeOverrides } from './colours'
-import { setGlobalMarketOptions, type RawSymbol } from './blocks'
+import {
+  setGlobalMarketOptions,
+  getFirstMarketValue,
+  getFirstSubmarketValue,
+  getFirstSymbolValue,
+  getFirstTradeTypeCategoryValue,
+  getFirstTradeTypeValue,
+  getFirstContractTypeValue,
+  type RawSymbol,
+} from './blocks'
 import { toolbox } from './toolbox'
 import { defaultWorkspaceXml } from './defaultWorkspace'
 
@@ -194,12 +203,96 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency } }
 }
 
+// Renamed/deprecated block types that may appear in bots saved earlier in
+// this project's history. Keep this as an explicit, extensible list so old
+// saved bots stay compatible after block renames.
+const DEPRECATED_BLOCK_RENAMES: Record<string, string> = {
+  // math_number_positive was used before being replaced by the standard math_number block.
+  math_number_positive: 'math_number',
+}
+
+export function sanitizeLegacyXml(xml: string): string {
+  let sanitized = xml
+  for (const [oldType, newType] of Object.entries(DEPRECATED_BLOCK_RENAMES)) {
+    sanitized = sanitized.replaceAll(`type="${oldType}"`, `type="${newType}"`)
+  }
+  return sanitized
+}
+
+// Self-healing pass after a bot is loaded. Repairs missing/empty fields and
+// inputs so the bot is runnable instead of failing with a missing-value error.
+// Returns true if anything was auto-repaired (used to surface a toast).
+function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
+  let repaired = false
+  const allBlocks = workspace.getAllBlocks(false)
+
+  // 1. Repair missing AMOUNT / DURATION number inputs on every tradeoptions block.
+  for (const block of allBlocks) {
+    if (block.type !== 'trade_definition_tradeoptions') continue
+    for (const inputName of ['AMOUNT', 'DURATION'] as const) {
+      if (block.getInputTargetBlock(inputName)) continue
+      const shadow = workspace.newBlock('math_number')
+      shadow.setFieldValue('1', 'NUM')
+      shadow.initSvg()
+      const input = block.getInput(inputName)
+      input?.connection?.connect(shadow.outputConnection)
+      if (input?.connection?.targetBlock() === shadow) {
+        console.warn(`[bot-loader] auto-repaired missing ${inputName} input on trade_definition_tradeoptions`)
+        repaired = true
+      }
+    }
+  }
+
+  // 2. Repair empty market/type dropdown fields with the first available option.
+  for (const block of allBlocks) {
+    if (block.type === 'trade_definition_market') {
+      const market = String(block.getFieldValue('MARKET_LIST') || '').trim()
+      const submarket = String(block.getFieldValue('SUBMARKET_LIST') || '').trim()
+      const symbol = String(block.getFieldValue('SYMBOL_LIST') || '').trim()
+
+      if (!market) {
+        const v = getFirstMarketValue()
+        if (v) { block.setFieldValue(v, 'MARKET_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty MARKET_LIST') }
+      }
+      const effectiveMarket = String(block.getFieldValue('MARKET_LIST') || '').trim()
+      if (!submarket) {
+        const v = getFirstSubmarketValue(effectiveMarket)
+        if (v) { block.setFieldValue(v, 'SUBMARKET_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty SUBMARKET_LIST') }
+      }
+      const effectiveSubmarket = String(block.getFieldValue('SUBMARKET_LIST') || '').trim()
+      if (!symbol) {
+        const v = getFirstSymbolValue(effectiveSubmarket)
+        if (v) { block.setFieldValue(v, 'SYMBOL_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty SYMBOL_LIST') }
+      }
+    } else if (block.type === 'trade_definition_tradetype') {
+      const cat = String(block.getFieldValue('TRADETYPECAT_LIST') || '').trim()
+      const tt = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
+      if (!cat) {
+        const v = getFirstTradeTypeCategoryValue()
+        if (v) { block.setFieldValue(v, 'TRADETYPECAT_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TRADETYPECAT_LIST') }
+      }
+      if (!tt) {
+        const v = getFirstTradeTypeValue()
+        if (v) { block.setFieldValue(v, 'TRADETYPE_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TRADETYPE_LIST') }
+      }
+    } else if (block.type === 'trade_definition_contracttype') {
+      const ct = String(block.getFieldValue('TYPE_LIST') || '').trim()
+      if (!ct) {
+        const v = getFirstContractTypeValue()
+        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TYPE_LIST') }
+      }
+    }
+  }
+
+  return repaired
+}
+
 export async function loadBotXmlSafely(
   workspace: Blockly.WorkspaceSvg,
   xml: string,
   fetchSymbolsIfNeeded: () => Promise<RawSymbol[] | null>,
   currentlyLoadedSymbols: RawSymbol[] | null,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
+): Promise<{ ok: true; repaired: boolean } | { ok: false; reason: string }> {
   let symbols = currentlyLoadedSymbols
   if (!symbols || symbols.length === 0) {
     symbols = await fetchSymbolsIfNeeded()
@@ -209,12 +302,14 @@ export async function loadBotXmlSafely(
   }
 
   setGlobalMarketOptions(symbols)
-  const loaded = loadFromXml(workspace, xml)
+  const sanitized = sanitizeLegacyXml(xml)
+  const loaded = loadFromXml(workspace, sanitized)
   if (!loaded) {
     return { ok: false, reason: 'This file is not a valid bot.' }
   }
 
-  return { ok: true }
+  const repaired = repairLoadedBot(workspace)
+  return { ok: true, repaired }
 }
 
 export { defaultWorkspaceXml } from './defaultWorkspace'

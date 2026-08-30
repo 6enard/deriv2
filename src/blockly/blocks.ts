@@ -63,6 +63,27 @@ function contractTypeMenuOptions(this: any): [string, string][] {
   return contractTypeOptions
 }
 
+// Accessors for the self-healing pass in loadBotXmlSafely — let it pick
+// the first valid option for a field whose saved value no longer exists.
+export function getFirstMarketValue(): string {
+  return marketOptions[0]?.[1] ?? ''
+}
+export function getFirstSubmarketValue(market: string): string {
+  return submarketOptionsByMarket[market]?.[0]?.[1] ?? ''
+}
+export function getFirstSymbolValue(submarket: string): string {
+  return symbolOptionsBySubmarket[submarket]?.[0]?.[1] ?? ''
+}
+export function getFirstTradeTypeCategoryValue(): string {
+  return tradeTypeCategoryOptions[0]?.[1] ?? ''
+}
+export function getFirstTradeTypeValue(): string {
+  return tradeTypeOptions[0]?.[1] ?? ''
+}
+export function getFirstContractTypeValue(): string {
+  return contractTypeOptions[0]?.[1] ?? ''
+}
+
 function prettifyKey(key: string): string {
   return key
     .split('_')
