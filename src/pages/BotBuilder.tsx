@@ -2,32 +2,25 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Blockly from 'blockly'
 import {
   createWorkspace,
-  createBotApi,
-  extractTradeParams,
-  generateBotCode,
   loadDefaultWorkspace,
   loadFromXml,
   populateMarketDropdowns,
   workspaceToXml,
   isValidBotXml,
-  type BotApi,
-  type NotificationType,
-  type NotifyData,
 } from '../blockly'
-import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
-import { errorMessage } from '../lib/error'
+import { useAuth } from '../context/AuthContext'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
-import type { OpenContract } from '../lib/types'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown, BarChart3, List, ScrollText, Trash2 } from 'lucide-react'
+import { useBotRunner } from '../hooks/useBotRunner'
+import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { showToast } = useToast()
-  const [isRunning, setIsRunning] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [marketsLoading, setMarketsLoading] = useState(false)
   const [marketsLoaded, setMarketsLoaded] = useState(false)
@@ -36,10 +29,7 @@ export default function BotBuilder() {
   const [dragOver, setDragOver] = useState(false)
   const [workspaceModified, setWorkspaceModified] = useState(false)
   const pendingXmlRef = useRef<string | null>(null)
-  const [runStats, setRunStats] = useState({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0 })
-  const [journal, setJournal] = useState<{ time: Date; type: NotificationType; message: string }[]>([])
-  const [hasRunOnce, setHasRunOnce] = useState(false)
-  const [resultsTab, setResultsTab] = useState<'summary' | 'transactions' | 'journal'>('summary')
+  const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -74,10 +64,12 @@ export default function BotBuilder() {
     }
   }, [])
 
-  const { ws, account, refreshBalance } = useAuth()
-  const { subscribeToContract, openContractList } = useOpenContracts()
+  const { account } = useAuth()
+  const { openContractList } = useOpenContracts()
   const { fetchSymbols } = useMarketData()
-  const stopRef = useRef(false)
+
+  const { handleRun, handleStop, isRunning, runStats, journal, hasRunOnce, handleResetStats, handleClearJournal } =
+    useBotRunner(workspaceRef, { marketsLoaded })
 
   // Load market data into dropdowns via the public (no-auth) WebSocket — with retry
   useEffect(() => {
@@ -131,75 +123,6 @@ export default function BotBuilder() {
     }
   }, [fetchSymbols, marketsLoaded, showToast])
 
-  const handleRun = useCallback(async () => {
-    const workspace = workspaceRef.current
-    if (!workspace || !ws || !account) {
-      showToast('error', 'Connect your Deriv account before running a bot.')
-      return
-    }
-    if (!marketsLoaded) {
-      showToast('error', 'Markets are still loading. Please wait.')
-      return
-    }
-
-    const params = extractTradeParams(workspace)
-    if (!params) {
-      showToast('error', 'Add trade parameter blocks before running.')
-      return
-    }
-
-    const code = generateBotCode(workspace)
-    if (!code) {
-      showToast('error', 'Add Purchase conditions and Trade results blocks before running.')
-      return
-    }
-
-    stopRef.current = false
-    setIsRunning(true)
-    setHasRunOnce(true)
-
-    const botApi: BotApi = createBotApi(ws, account, params, {
-      onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
-        showToast(type === 'warn' ? 'error' : type, message)
-        setJournal((prev) => [...prev, { time: new Date(), type, message }])
-        if (data?.event === 'trade_won' || data?.event === 'trade_lost') {
-          setRunStats((prev) => ({
-            totalRuns: prev.totalRuns + 1,
-            wins: prev.wins + (data.event === 'trade_won' ? 1 : 0),
-            losses: prev.losses + (data.event === 'trade_lost' ? 1 : 0),
-            totalProfit: prev.totalProfit + (data.profit ?? 0),
-            totalStake: prev.totalStake + (data.stake ?? 0),
-          }))
-        }
-      },
-      onTrade: (contractId: number) => {
-        subscribeToContract(contractId)
-      },
-      shouldStop: () => stopRef.current,
-    })
-
-    try {
-      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-      const fn = new AsyncFunction('Bot', code)
-      await fn(botApi)
-      showToast('success', 'Bot finished running.')
-      refreshBalance()
-    } catch (err: unknown) {
-      if (stopRef.current) {
-        showToast('info', 'Bot stopped.')
-      } else {
-        showToast('error', errorMessage(err, 'Bot execution failed.'))
-      }
-    } finally {
-      setIsRunning(false)
-    }
-  }, [showToast, ws, account, marketsLoaded, subscribeToContract, refreshBalance])
-
-  const handleStop = useCallback(() => {
-    stopRef.current = true
-    showToast('info', 'Stopping bot after current trade...')
-  }, [showToast])
-
   const handleReset = useCallback(() => {
     const w = workspaceRef.current
     if (!w) return
@@ -209,16 +132,6 @@ export default function BotBuilder() {
     setWorkspaceModified(false)
     showToast('info', 'Workspace reset to default.')
   }, [showToast])
-
-  const handleResetStats = useCallback(() => {
-    setRunStats({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0 })
-    setJournal([])
-    setHasRunOnce(false)
-  }, [])
-
-  const handleClearJournal = useCallback(() => {
-    setJournal([])
-  }, [])
 
   const sanitizeFilename = (name: string): string => {
     return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bot'
@@ -487,172 +400,5 @@ function ToolbarButton({
       <Icon className={`w-4 h-4 ${label === 'Loading...' ? 'animate-spin' : ''}`} />
       <span className="hidden sm:inline">{label}</span>
     </button>
-  )
-}
-
-interface RunStats {
-  totalRuns: number
-  wins: number
-  losses: number
-  totalProfit: number
-  totalStake: number
-}
-
-interface JournalEntry {
-  time: Date
-  type: NotificationType
-  message: string
-}
-
-function RunResultsPanel({
-  tab,
-  onTabChange,
-  runStats,
-  journal,
-  journalEndRef,
-  openContractList,
-  currency,
-  onClearJournal,
-  onResetStats,
-}: {
-  tab: 'summary' | 'transactions' | 'journal'
-  onTabChange: (t: 'summary' | 'transactions' | 'journal') => void
-  runStats: RunStats
-  journal: JournalEntry[]
-  journalEndRef: React.RefObject<HTMLDivElement | null>
-  openContractList: OpenContract[]
-  currency: string
-  onClearJournal: () => void
-  onResetStats: () => void
-}) {
-  const winRate = runStats.totalRuns > 0 ? (runStats.wins / runStats.totalRuns) * 100 : 0
-  const isProfit = runStats.totalProfit >= 0
-
-  return (
-    <div className="bg-bg-secondary border-t border-border-default flex flex-col" style={{ height: '240px' }}>
-      <div className="flex items-center gap-1 px-3 pt-2.5 border-b border-border-default">
-        <ResultsTabButton active={tab === 'summary'} onClick={() => onTabChange('summary')} icon={BarChart3} label="Summary" />
-        <ResultsTabButton active={tab === 'transactions'} onClick={() => onTabChange('transactions')} icon={List} label="Transactions" />
-        <ResultsTabButton active={tab === 'journal'} onClick={() => onTabChange('journal')} icon={ScrollText} label="Journal" />
-        <div className="ml-auto flex items-center gap-2 pr-1">
-          {tab === 'journal' && journal.length > 0 && (
-            <button onClick={onClearJournal} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-              <Trash2 className="w-3 h-3" />
-              Clear
-            </button>
-          )}
-          <button onClick={onResetStats} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-            <RotateCcw className="w-3 h-3" />
-            Reset
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {tab === 'summary' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
-            <StatCard label="Total P/L" value={`${isProfit ? '+' : ''}${runStats.totalProfit.toFixed(2)} ${currency}`} color={isProfit ? 'text-brand-green' : 'text-brand-red'} />
-            <StatCard label="Win Rate" value={`${winRate.toFixed(1)}%`} color={winRate >= 50 ? 'text-brand-green' : 'text-text-primary'} />
-            <StatCard label="Total Trades" value={String(runStats.totalRuns)} color="text-text-primary" />
-            <StatCard label="Total Staked" value={`${runStats.totalStake.toFixed(2)} ${currency}`} color="text-text-primary" />
-          </div>
-        )}
-
-        {tab === 'transactions' && (
-          <div className="p-4">
-            {openContractList.length === 0 ? (
-              <div className="text-center text-sm text-text-muted py-8">No open contracts.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-text-muted border-b border-border-default">
-                      <th className="pb-2 pr-4 font-medium">Time</th>
-                      <th className="pb-2 pr-4 font-medium">Symbol</th>
-                      <th className="pb-2 pr-4 font-medium">Type</th>
-                      <th className="pb-2 pr-4 font-medium text-right">Stake</th>
-                      <th className="pb-2 pr-4 font-medium text-right">Payout</th>
-                      <th className="pb-2 pr-4 font-medium text-right">P/L</th>
-                      <th className="pb-2 font-medium text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {openContractList.map((c) => {
-                      const isCall = c.contract_type === 'CALL'
-                      const profit = c.profit
-                      const isPos = profit >= 0
-                      return (
-                        <tr key={c.contract_id} className="border-b border-border-default/50">
-                          <td className="py-2 pr-4 text-text-secondary">{new Date(c.purchase_time * 1000).toLocaleTimeString()}</td>
-                          <td className="py-2 pr-4">{c.display_name || c.symbol}</td>
-                          <td className="py-2 pr-4">
-                            <span className={`text-xs font-medium ${isCall ? 'text-brand-green' : 'text-brand-red'}`}>{isCall ? 'UP' : 'DOWN'}</span>
-                          </td>
-                          <td className="py-2 pr-4 text-right tabular">{c.buy_price.toFixed(2)} {currency}</td>
-                          <td className="py-2 pr-4 text-right tabular">{c.payout.toFixed(2)} {currency}</td>
-                          <td className={`py-2 pr-4 text-right tabular font-bold ${isPos ? 'text-brand-green' : 'text-brand-red'}`}>
-                            {isPos ? '+' : ''}{profit.toFixed(2)} {currency}
-                          </td>
-                          <td className="py-2 text-right">
-                            <span className={`text-xs px-2 py-0.5 rounded ${c.is_sold ? 'bg-bg-tertiary text-text-secondary' : 'bg-brand-blue/15 text-brand-blue'}`}>
-                              {c.is_sold ? c.status : 'Open'}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'journal' && (
-          <div className="p-3 space-y-1.5">
-            {journal.length === 0 ? (
-              <div className="text-center text-sm text-text-muted py-8">No journal entries yet.</div>
-            ) : (
-              journal.map((entry, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-sm py-1">
-                  <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                    entry.type === 'success' ? 'bg-brand-green' :
-                    entry.type === 'error' ? 'bg-brand-red' :
-                    entry.type === 'warn' ? 'bg-brand-amber' :
-                    'bg-brand-blue'
-                  }`} />
-                  <span className="text-text-muted tabular text-xs shrink-0 pt-0.5">{entry.time.toLocaleTimeString()}</span>
-                  <span className="text-text-secondary">{entry.message}</span>
-                </div>
-              ))
-            )}
-            <div ref={journalEndRef} />
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ResultsTabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof BarChart3; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-sm font-medium transition-colors ${
-        active ? 'text-text-primary border-b-2 border-brand-green' : 'text-text-secondary hover:text-text-primary'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  )
-}
-
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3">
-      <div className="text-xs text-text-muted mb-1">{label}</div>
-      <div className={`text-lg font-bold tabular ${color}`}>{value}</div>
-    </div>
   )
 }

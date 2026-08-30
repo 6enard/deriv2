@@ -2,21 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Blockly from 'blockly'
 import {
   createWorkspace,
-  createBotApi,
-  extractTradeParams,
-  generateBotCode,
   loadDefaultWorkspace,
   populateMarketDropdowns,
-  type BotApi,
-  type NotificationType,
 } from '../blockly'
 import type { Bot } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from './Toast'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
-import { errorMessage } from '../lib/error'
-import { X, Play, Loader as Loader2, Settings as SettingsIcon } from 'lucide-react'
+import { useBotRunner } from '../hooks/useBotRunner'
+import { RunResultsPanel, type ResultsTab } from './RunResultsPanel'
+import { X, Play, Loader as Loader2, Settings as SettingsIcon, Square } from 'lucide-react'
 
 interface BotConfigModalProps {
   bot: Bot
@@ -27,14 +23,23 @@ interface BotConfigModalProps {
 export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigModalProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
-  const { ws, account, refreshBalance } = useAuth()
+  const { account } = useAuth()
   const { showToast } = useToast()
-  const { subscribeToContract } = useOpenContracts()
+  const { openContractList } = useOpenContracts()
   const { fetchSymbols } = useMarketData()
   const [marketsLoading, setMarketsLoading] = useState(false)
   const [marketsLoaded, setMarketsLoaded] = useState(false)
-  const [isRunning, setIsRunning] = useState(false)
-  const stopRef = useRef(false)
+  const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
+  const journalEndRef = useRef<HTMLDivElement | null>(null)
+
+  const { handleRun, handleStop, isRunning, runStats, journal, hasRunOnce, handleResetStats, handleClearJournal } =
+    useBotRunner(workspaceRef, {
+      marketsLoaded,
+      onRunComplete: () => {
+        onActivated?.()
+        onClose()
+      },
+    })
 
   // Create the Blockly workspace once on mount
   useEffect(() => {
@@ -144,60 +149,11 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
     }
   }, [fetchSymbols, bot.config, marketsLoaded, showToast, applyBotConfigToWorkspace])
 
-  const handleRun = useCallback(async () => {
-    const workspace = workspaceRef.current
-    if (!workspace || !ws || !account) {
-      showToast('error', 'Connect your Deriv account before running a bot.')
-      return
+  useEffect(() => {
+    if (resultsTab === 'journal' && journalEndRef.current) {
+      journalEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-    if (!marketsLoaded) {
-      showToast('error', 'Markets are still loading. Please wait.')
-      return
-    }
-
-    const params = extractTradeParams(workspace)
-    if (!params) {
-      showToast('error', 'Set the market, contract type, stake, and duration in the blocks before running.')
-      return
-    }
-
-    const code = generateBotCode(workspace)
-    if (!code) {
-      showToast('error', 'Add Purchase conditions and Trade results blocks before running.')
-      return
-    }
-
-    stopRef.current = false
-    setIsRunning(true)
-
-    const botApi: BotApi = createBotApi(ws, account, params, {
-      onNotify: (type: NotificationType, message: string) => {
-        showToast(type === 'warn' ? 'error' : type, message)
-      },
-      onTrade: (contractId: number) => {
-        subscribeToContract(contractId)
-      },
-      shouldStop: () => stopRef.current,
-    })
-
-    try {
-      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-      const fn = new AsyncFunction('Bot', code)
-      await fn(botApi)
-      showToast('success', `${bot.name} finished running.`)
-      refreshBalance()
-      onActivated?.()
-      onClose()
-    } catch (err: unknown) {
-      if (stopRef.current) {
-        showToast('info', 'Bot stopped.')
-      } else {
-        showToast('error', errorMessage(err, 'Bot execution failed.'))
-      }
-    } finally {
-      setIsRunning(false)
-    }
-  }, [ws, account, marketsLoaded, bot.name, subscribeToContract, showToast, refreshBalance, onActivated, onClose])
+  }, [journal, resultsTab])
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -234,12 +190,36 @@ export default function BotConfigModal({ bot, onClose, onActivated }: BotConfigM
           )}
         </div>
 
+        {/* Run Results Panel */}
+        {hasRunOnce && (
+          <RunResultsPanel
+            tab={resultsTab}
+            onTabChange={setResultsTab}
+            runStats={runStats}
+            journal={journal}
+            journalEndRef={journalEndRef}
+            openContractList={openContractList}
+            currency={account?.currency || 'USD'}
+            onClearJournal={handleClearJournal}
+            onResetStats={handleResetStats}
+          />
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-border-default shrink-0">
           <p className="text-xs text-text-muted hidden sm:block">
             {bot.description}
           </p>
           <div className="flex items-center gap-3 ml-auto">
+            {isRunning && (
+              <button
+                onClick={handleStop}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-tertiary text-brand-red text-sm font-medium hover:bg-brand-red/10 border border-brand-red/30 transition-colors"
+              >
+                <Square className="w-4 h-4" />
+                Stop
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors"
