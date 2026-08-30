@@ -3,10 +3,10 @@ import * as Blockly from 'blockly'
 import {
   createWorkspace,
   loadDefaultWorkspace,
-  loadFromXml,
+  loadBotXmlSafely,
   populateMarketDropdowns,
   workspaceToXml,
-  isValidBotXml,
+  extractTradeParams,
 } from '../blockly'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
@@ -45,9 +45,7 @@ export default function BotBuilder() {
     const pendingXml = sessionStorage.getItem('pending_bot_xml')
     if (pendingXml) {
       sessionStorage.removeItem('pending_bot_xml')
-      if (isValidBotXml(pendingXml)) {
-        pendingXmlRef.current = pendingXml
-      }
+      pendingXmlRef.current = pendingXml
     }
 
     const resize = () => Blockly.svgResize(ws)
@@ -66,7 +64,7 @@ export default function BotBuilder() {
 
   const { account } = useAuth()
   const { openContractList } = useOpenContracts()
-  const { fetchSymbols } = useMarketData()
+  const { fetchSymbols, symbols } = useMarketData()
 
   const { handleRun, handleStop, isRunning, runStats, journal, hasRunOnce, handleResetStats, handleClearJournal } =
     useBotRunner(workspaceRef, { marketsLoaded })
@@ -98,10 +96,19 @@ export default function BotBuilder() {
       const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
       if (ok) {
         if (pendingXmlRef.current && workspaceRef.current) {
-          loadFromXml(workspaceRef.current, pendingXmlRef.current)
-          populateMarketDropdowns(workspaceRef.current, rawSymbols)
+          const result = await loadBotXmlSafely(
+            workspaceRef.current,
+            pendingXmlRef.current,
+            () => Promise.resolve(rawSymbols),
+            rawSymbols,
+          )
           pendingXmlRef.current = null
-          showToast('success', 'Bot loaded — ready to run.')
+          if (result.ok) {
+            showToast('success', 'Bot loaded — ready to run.')
+            checkLoadedFields(workspaceRef.current)
+          } else {
+            showToast('error', result.reason)
+          }
         } else {
           showToast('success', 'Markets loaded.')
         }
@@ -158,23 +165,24 @@ export default function BotBuilder() {
     fileInputRef.current?.click()
   }, [])
 
-  const performLoad = useCallback((xml: string, filename: string) => {
+  const checkLoadedFields = useCallback((w: Blockly.WorkspaceSvg) => {
+    const result = extractTradeParams(w)
+    if (!result.ok && (result.missingField === 'symbol' || result.missingField === 'contract_type')) {
+      showToast('error', "This bot's market selection didn't load correctly. Please reselect a symbol in the Trade Definition block.")
+    }
+  }, [showToast])
+
+  const performLoad = useCallback(async (xml: string, filename: string) => {
     const w = workspaceRef.current
     if (!w) return
-    const ok = loadFromXml(w, xml)
-    if (ok) {
+    const result = await loadBotXmlSafely(w, xml, fetchSymbols, symbols.length > 0 ? symbols : null)
+    if (result.ok) {
       showToast('success', `Loaded "${filename}".`)
-      if (marketsLoaded) {
-        fetchSymbols().then((rawSymbols) => {
-          if (rawSymbols && workspaceRef.current) {
-            populateMarketDropdowns(workspaceRef.current, rawSymbols)
-          }
-        }).catch(() => {})
-      }
+      checkLoadedFields(w)
     } else {
-      showToast('error', 'Could not load the XML file — it may be invalid.')
+      showToast('error', result.reason)
     }
-  }, [showToast, marketsLoaded, fetchSymbols])
+  }, [showToast, fetchSymbols, symbols, checkLoadedFields])
 
   const handleFileLoad = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

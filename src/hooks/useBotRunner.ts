@@ -56,11 +56,22 @@ export function useBotRunner(
       return
     }
 
-    const params = extractTradeParams(workspace)
-    if (!params) {
-      showToast('error', 'Add trade parameter blocks before running.')
+    const paramsResult = extractTradeParams(workspace)
+    if (!paramsResult.ok) {
+      const messages: Record<string, string> = {
+        trade_definition: 'Trade Definition block is missing — open the Trade parameters category and add the root block.',
+        trade_options: 'Trade Definition is missing trade options (duration/amount) — check the Trade Definition block.',
+        symbol: 'Trade Definition is missing a Symbol — open the Trade Definition block and select a market.',
+        contract_type: 'Trade Definition is missing a Contract Type — open the Trade Definition block and select a contract type.',
+        duration_unit: 'Trade Definition is missing a Duration unit — open the Trade Definition block and select ticks/seconds/minutes/hours.',
+        duration: 'Trade Definition is missing a Duration value — set a number in the Duration field of the Trade Definition block.',
+        amount: 'Trade Definition is missing a Stake Amount — set a number in the Amount field of the Trade Definition block.',
+        currency: 'Trade Definition is missing a Currency — select a currency in the Trade Definition block.',
+      }
+      showToast('error', messages[paramsResult.missingField] || 'Trade Definition is incomplete — check the Trade parameters block.')
       return
     }
+    const params = paramsResult.params
 
     const code = generateBotCode(workspace)
     if (!code) {

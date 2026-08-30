@@ -139,6 +139,24 @@ export interface TradeParams {
   currency: string
 }
 
+export type TradeParamsResult =
+  | { ok: true; params: TradeParams }
+  | { ok: false; missingField: string }
+
+export interface RawSymbol {
+  market: string
+  market_display_name?: string
+  submarket: string
+  submarket_display_name?: string
+  underlying_symbol?: string
+  symbol?: string
+  underlying_symbol_name?: string
+  display_name?: string
+  exchange_is_open: number
+  pip_size?: number
+  pip?: number
+}
+
 function readNumberInput(block: Blockly.Block, inputName: string): number | null {
   const target = block.getInputTargetBlock(inputName)
   if (!target) return null
@@ -148,13 +166,13 @@ function readNumberInput(block: Blockly.Block, inputName: string): number | null
   return isNaN(num) ? null : num
 }
 
-export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams | null {
+export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParamsResult {
   const topBlocks = workspace.getTopBlocks(false)
   const root = topBlocks.find((b) => b.type === 'trade_definition')
-  if (!root) return null
+  if (!root) return { ok: false, missingField: 'trade_definition' }
 
   const tradeOptionsBlock = root.getInputTargetBlock('TRADE_OPTIONS')
-  if (!tradeOptionsBlock) return null
+  if (!tradeOptionsBlock) return { ok: false, missingField: 'trade_definition' }
 
   let symbol = ''
   let contractType = ''
@@ -169,19 +187,48 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
     block = block.getNextBlock()
   }
 
+  if (!symbol) return { ok: false, missingField: 'symbol' }
+  if (!contractType) return { ok: false, missingField: 'contract_type' }
+
   const tradeOptionsParamsBlock = root.getInputTargetBlock('SUBMARKET')
-  if (!tradeOptionsParamsBlock || tradeOptionsParamsBlock.type !== 'trade_definition_tradeoptions') return null
+  if (!tradeOptionsParamsBlock || tradeOptionsParamsBlock.type !== 'trade_definition_tradeoptions') {
+    return { ok: false, missingField: 'trade_options' }
+  }
 
   const durationUnit = String(tradeOptionsParamsBlock.getFieldValue('DURATIONTYPE_LIST') || '').trim()
   const duration = readNumberInput(tradeOptionsParamsBlock, 'DURATION')
   const amount = readNumberInput(tradeOptionsParamsBlock, 'AMOUNT')
   const currency = String(tradeOptionsParamsBlock.getFieldValue('CURRENCY_LIST') || '').trim()
 
-  if (!symbol || !contractType || !durationUnit || duration === null || amount === null || !currency) {
-    return null
+  if (!durationUnit) return { ok: false, missingField: 'duration_unit' }
+  if (duration === null) return { ok: false, missingField: 'duration' }
+  if (amount === null) return { ok: false, missingField: 'amount' }
+  if (!currency) return { ok: false, missingField: 'currency' }
+
+  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency } }
+}
+
+export async function loadBotXmlSafely(
+  workspace: Blockly.WorkspaceSvg,
+  xml: string,
+  fetchSymbolsIfNeeded: () => Promise<RawSymbol[] | null>,
+  currentlyLoadedSymbols: RawSymbol[] | null,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  let symbols = currentlyLoadedSymbols
+  if (!symbols || symbols.length === 0) {
+    symbols = await fetchSymbolsIfNeeded()
+  }
+  if (!symbols || symbols.length === 0) {
+    return { ok: false, reason: 'Could not load market data.' }
   }
 
-  return { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency }
+  const loaded = loadFromXml(workspace, xml)
+  if (!loaded) {
+    return { ok: false, reason: 'This file is not a valid bot.' }
+  }
+
+  populateMarketDropdowns(workspace, symbols)
+  return { ok: true }
 }
 
 function prettifyKey(key: string): string {
