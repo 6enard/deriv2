@@ -29,8 +29,17 @@ export interface BotApi {
   tickDelay(count: number): Promise<void>
 }
 
+export interface NotifyData {
+  event?: 'trade_won' | 'trade_lost' | 'trade_sold' | 'purchased'
+  profit?: number
+  stake?: number
+  contractId?: number
+  symbol?: string
+  contractType?: string
+}
+
 export interface BotApiOptions {
-  onNotify?: (type: NotificationType, message: string) => void
+  onNotify?: (type: NotificationType, message: string, data?: NotifyData) => void
   onTrade?: (contractId: number) => void
   shouldStop?: () => boolean
 }
@@ -57,8 +66,8 @@ export function createBotApi(
   let sellAvailable = false
   let currentSellPrice = 0
 
-  const notify = (type: NotificationType, message: string): void => {
-    options.onNotify?.(type, message)
+  const notify = (type: NotificationType, message: string, data?: NotifyData): void => {
+    options.onNotify?.(type, message, data)
   }
 
   const waitForContractSettlement = (contractId: number): Promise<void> => {
@@ -84,13 +93,13 @@ export function createBotApi(
 
             if (c.status === 'won') {
               lastResult = 'win'
-              notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`)
+              notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
             } else if (c.status === 'lost') {
               lastResult = 'loss'
-              notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`)
+              notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
             } else {
               lastResult = 'sold'
-              notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`)
+              notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
             }
 
             openContractId = null
@@ -142,7 +151,7 @@ export function createBotApi(
       lastPayout = lastProposalPayout
 
       options.onTrade?.(contractId)
-      notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`)
+      notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`, { event: 'purchased', stake: parseFloat(buyData.buy_price), contractId, symbol: params.symbol, contractType: ct })
 
       await waitForContractSettlement(contractId)
       return contractId
