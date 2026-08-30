@@ -4,7 +4,7 @@ import {
   createWorkspace,
   loadDefaultWorkspace,
   loadBotXmlSafely,
-  populateMarketDropdowns,
+  setGlobalMarketOptions,
   workspaceToXml,
   extractTradeParams,
 } from '../blockly'
@@ -93,7 +93,7 @@ export default function BotBuilder() {
         }
         return
       }
-      const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
+      const ok = setGlobalMarketOptions(rawSymbols)
       if (ok) {
         if (pendingXmlRef.current && workspaceRef.current) {
           const result = await loadBotXmlSafely(

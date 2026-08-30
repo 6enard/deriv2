@@ -6,6 +6,126 @@
 import * as Blockly from 'blockly'
 import { Colours, Categories } from './colours'
 
+// ── Shared market/symbol state ───────────────────────────
+// Module-level mutable state populated by setGlobalMarketOptions().
+// Dropdown menu functions read from these live, so as long as the
+// state is populated before a block is created from XML, saved values
+// validate correctly during deserialization — no per-instance patching.
+
+export interface RawSymbol {
+  market: string
+  market_display_name?: string
+  submarket: string
+  submarket_display_name?: string
+  underlying_symbol?: string
+  symbol?: string
+  underlying_symbol_name?: string
+  display_name?: string
+  exchange_is_open: number
+  pip_size?: number
+  pip?: number
+}
+
+let marketOptions: [string, string][] = [['', '']]
+let submarketOptionsByMarket: Record<string, [string, string][]> = {}
+let symbolOptionsBySubmarket: Record<string, [string, string][]> = {}
+let tradeTypeCategoryOptions: [string, string][] = [['', '']]
+let tradeTypeOptions: [string, string][] = [['', '']]
+let contractTypeOptions: [string, string][] = [['', '']]
+
+function marketMenuOptions(this: any): [string, string][] {
+  return marketOptions
+}
+
+function submarketMenuOptions(this: any): [string, string][] {
+  const block = this.getSourceBlock()
+  if (!block) return [['—', '']]
+  const market = block.getFieldValue('MARKET_LIST')
+  return submarketOptionsByMarket[market] || [['—', '']]
+}
+
+function symbolMenuOptions(this: any): [string, string][] {
+  const block = this.getSourceBlock()
+  if (!block) return [['—', '']]
+  const submarket = block.getFieldValue('SUBMARKET_LIST')
+  return symbolOptionsBySubmarket[submarket] || [['—', '']]
+}
+
+function tradeTypeCategoryMenuOptions(this: any): [string, string][] {
+  return tradeTypeCategoryOptions
+}
+
+function tradeTypeMenuOptions(this: any): [string, string][] {
+  return tradeTypeOptions
+}
+
+function contractTypeMenuOptions(this: any): [string, string][] {
+  return contractTypeOptions
+}
+
+function prettifyKey(key: string): string {
+  return key
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+export function setGlobalMarketOptions(rawSymbols: RawSymbol[]): boolean {
+  const markets: [string, string][] = []
+  const submarketsByMarket: Record<string, [string, string][]> = {}
+  const symbolsBySubmarket: Record<string, [string, string][]> = {}
+
+  for (const s of rawSymbols) {
+    const market = s.market
+    const marketDisplay = s.market_display_name ?? prettifyKey(market)
+    const submarket = s.submarket
+    const submarketDisplay = s.submarket_display_name ?? prettifyKey(submarket)
+    const symbol = s.underlying_symbol ?? s.symbol ?? ''
+    const symbolDisplay = s.underlying_symbol_name ?? s.display_name ?? symbol
+
+    if (!submarketsByMarket[market]) {
+      submarketsByMarket[market] = []
+      markets.push([marketDisplay, market])
+    }
+    if (!submarketsByMarket[market].find((sm) => sm[1] === submarket)) {
+      submarketsByMarket[market].push([submarketDisplay, submarket])
+    }
+    if (!symbolsBySubmarket[submarket]) {
+      symbolsBySubmarket[submarket] = []
+    }
+    symbolsBySubmarket[submarket].push([symbolDisplay, symbol])
+  }
+
+  if (markets.length === 0) return false
+
+  marketOptions = markets
+  submarketOptionsByMarket = submarketsByMarket
+  symbolOptionsBySubmarket = symbolsBySubmarket
+
+  tradeTypeCategoryOptions = [
+    ['Up/Down', 'updown'],
+    ['Touch/No Touch', 'touchnotouch'],
+    ['In/Out', 'inout'],
+  ]
+  tradeTypeOptions = [
+    ['Rise/Fall', 'risefall'],
+    ['Higher/Lower', 'higherlower'],
+  ]
+  contractTypeOptions = [
+    ['Rise', 'CALL'],
+    ['Fall', 'PUT'],
+    ['Touch', 'TOUCH'],
+    ['No Touch', 'NOTOUCH'],
+    ['Ends In', 'EXPIRYRANGE'],
+    ['Ends Out', 'EXPIRYMISS'],
+    ['Stays In', 'RANGE'],
+    ['Goes Out', 'MISS'],
+  ]
+
+  return true
+}
+
 // ── Helpers ──────────────────────────────────────────────
 function defineBlock(
   name: string,
@@ -62,9 +182,9 @@ defineBlock('trade_definition_market', {
   definition: () => ({
     message0: 'Market: %1 > %2 > %3',
     args0: [
-      { type: 'field_dropdown', name: 'MARKET_LIST', options: [['', '']] },
-      { type: 'field_dropdown', name: 'SUBMARKET_LIST', options: [['', '']] },
-      { type: 'field_dropdown', name: 'SYMBOL_LIST', options: [['', '']] },
+      { type: 'field_dropdown', name: 'MARKET_LIST', options: marketMenuOptions },
+      { type: 'field_dropdown', name: 'SUBMARKET_LIST', options: submarketMenuOptions },
+      { type: 'field_dropdown', name: 'SYMBOL_LIST', options: symbolMenuOptions },
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,
@@ -83,8 +203,8 @@ defineBlock('trade_definition_tradetype', {
   definition: () => ({
     message0: 'Trade type: %1 > %2',
     args0: [
-      { type: 'field_dropdown', name: 'TRADETYPECAT_LIST', options: [['', '']] },
-      { type: 'field_dropdown', name: 'TRADETYPE_LIST', options: [['', '']] },
+      { type: 'field_dropdown', name: 'TRADETYPECAT_LIST', options: tradeTypeCategoryMenuOptions },
+      { type: 'field_dropdown', name: 'TRADETYPE_LIST', options: tradeTypeMenuOptions },
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,
@@ -102,7 +222,7 @@ defineBlock('trade_definition_tradetype', {
 defineBlock('trade_definition_contracttype', {
   definition: () => ({
     message0: 'Contract type: %1',
-    args0: [{ type: 'field_dropdown', name: 'TYPE_LIST', options: [['', '']] }],
+    args0: [{ type: 'field_dropdown', name: 'TYPE_LIST', options: contractTypeMenuOptions }],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,
     colourTertiary: Colours.Special1.colourTertiary,

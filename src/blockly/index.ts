@@ -5,7 +5,7 @@
 import * as Blockly from 'blockly'
 import 'blockly/blocks'
 import { Colours, darkThemeOverrides } from './colours'
-import './blocks'
+import { setGlobalMarketOptions, type RawSymbol } from './blocks'
 import { toolbox } from './toolbox'
 import { defaultWorkspaceXml } from './defaultWorkspace'
 
@@ -143,20 +143,6 @@ export type TradeParamsResult =
   | { ok: true; params: TradeParams }
   | { ok: false; missingField: string }
 
-export interface RawSymbol {
-  market: string
-  market_display_name?: string
-  submarket: string
-  submarket_display_name?: string
-  underlying_symbol?: string
-  symbol?: string
-  underlying_symbol_name?: string
-  display_name?: string
-  exchange_is_open: number
-  pip_size?: number
-  pip?: number
-}
-
 function readNumberInput(block: Blockly.Block, inputName: string): number | null {
   const target = block.getInputTargetBlock(inputName)
   if (!target) return null
@@ -227,171 +213,11 @@ export async function loadBotXmlSafely(
     return { ok: false, reason: 'This file is not a valid bot.' }
   }
 
-  populateMarketDropdowns(workspace, symbols)
+  setGlobalMarketOptions(symbols)
   return { ok: true }
-}
-
-function prettifyKey(key: string): string {
-  return key
-    .split('_')
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ')
-}
-
-export function populateMarketDropdowns(workspace: Blockly.WorkspaceSvg, rawSymbols: any[]): boolean {
-  const markets: [string, string][] = []
-  const submarketsByMarket = new Map<string, [string, string][]>()
-  const symbolsBySubmarket = new Map<string, [string, string][]>()
-
-  for (const s of rawSymbols) {
-    const market = s.market
-    const marketDisplay = s.market_display_name ?? prettifyKey(market)
-    const submarket = s.submarket
-    const submarketDisplay = s.submarket_display_name ?? prettifyKey(submarket)
-    const symbol = s.underlying_symbol ?? s.symbol
-    const symbolDisplay = s.underlying_symbol_name ?? s.display_name ?? symbol
-
-    if (!submarketsByMarket.has(market)) {
-      submarketsByMarket.set(market, [])
-      markets.push([marketDisplay, market])
-    }
-    const subList = submarketsByMarket.get(market)!
-    if (!subList.find(sm => sm[1] === submarket)) {
-      subList.push([submarketDisplay, submarket])
-    }
-    if (!symbolsBySubmarket.has(submarket)) {
-      symbolsBySubmarket.set(submarket, [])
-    }
-    symbolsBySubmarket.get(submarket)!.push([symbolDisplay, symbol])
-  }
-
-  if (markets.length === 0) return false
-
-  const allBlocks = workspace.getAllBlocks()
-  const marketBlocks = allBlocks.filter(b => b.type === 'trade_definition_market')
-
-  for (const block of marketBlocks) {
-    const marketField = block.getField('MARKET_LIST') as any
-    const submarketField = block.getField('SUBMARKET_LIST') as any
-    const symbolField = block.getField('SYMBOL_LIST') as any
-
-    const safeSubs = (marketKey: string): [string, string][] =>
-      submarketsByMarket.get(marketKey) || [['—', '']]
-    const safeSyms = (subKey: string): [string, string][] =>
-      symbolsBySubmarket.get(subKey) || [['—', '']]
-
-    if (marketField) {
-      marketField.menuGenerator_ = markets
-      marketField.generatedOptions = null
-      marketField.setValidator(function (this: any, newValue: string): string {
-        const sf = this.sourceBlock_.getField('SUBMARKET_LIST') as any
-        if (sf) {
-          sf.menuGenerator_ = () => safeSubs(newValue)
-          sf.generatedOptions = null
-          const subs = safeSubs(newValue)
-          if (subs.length > 0 && subs[0][1] !== '') {
-            sf.setValue(subs[0][1])
-          }
-        }
-        return newValue
-      })
-    }
-    if (submarketField) {
-      submarketField.menuGenerator_ = function (this: any): [string, string][] {
-        const sel = this.sourceBlock_.getFieldValue('MARKET_LIST')
-        return safeSubs(sel)
-      }
-      submarketField.generatedOptions = null
-      submarketField.setValidator(function (this: any, newValue: string): string {
-        const sf = this.sourceBlock_.getField('SYMBOL_LIST') as any
-        if (sf) {
-          sf.menuGenerator_ = () => safeSyms(newValue)
-          sf.generatedOptions = null
-          const syms = safeSyms(newValue)
-          if (syms.length > 0 && syms[0][1] !== '') {
-            sf.setValue(syms[0][1])
-          }
-        }
-        return newValue
-      })
-    }
-    if (symbolField) {
-      symbolField.menuGenerator_ = function (this: any): [string, string][] {
-        const sel = this.sourceBlock_.getFieldValue('SUBMARKET_LIST')
-        return safeSyms(sel)
-      }
-      symbolField.generatedOptions = null
-    }
-
-    // Set values in order, disabling events to prevent cascading validators
-    Blockly.Events.disable()
-    try {
-      const firstMarket = markets[0][1]
-      const firstSubs = safeSubs(firstMarket)
-      const firstSub = firstSubs[0][1] !== '' ? firstSubs[0][1] : ''
-      const firstSyms = firstSub !== '' ? safeSyms(firstSub) : [['—', '']]
-      const firstSym = firstSyms[0][1] !== '' ? firstSyms[0][1] : ''
-
-      if (marketField) marketField.setValue(firstMarket)
-      if (submarketField) {
-        submarketField.menuGenerator_ = () => safeSubs(firstMarket)
-        submarketField.generatedOptions = null
-        if (firstSub) submarketField.setValue(firstSub)
-      }
-      if (symbolField) {
-        symbolField.menuGenerator_ = () => safeSyms(firstSub)
-        symbolField.generatedOptions = null
-        if (firstSym) symbolField.setValue(firstSym)
-      }
-    } finally {
-      Blockly.Events.enable()
-    }
-  }
-
-  // TODO(phase3): fetch contract types from contracts_for_symbol endpoint for the selected symbol
-  const contractTypeOptions: [string, string][] = [
-    ['Rise', 'CALL'],
-    ['Fall', 'PUT'],
-    ['Touch', 'TOUCH'],
-    ['No Touch', 'NOTOUCH'],
-    ['Ends In', 'EXPIRYRANGE'],
-    ['Ends Out', 'EXPIRYMISS'],
-    ['Stays In', 'RANGE'],
-    ['Goes Out', 'MISS'],
-  ]
-  for (const block of allBlocks.filter(b => b.type === 'trade_definition_contracttype')) {
-    const f = block.getField('TYPE_LIST') as any
-    if (f) {
-      f.menuGenerator_ = contractTypeOptions
-      f.generatedOptions = null
-      f.setValue(contractTypeOptions[0][1])
-    }
-  }
-
-  const tradeTypeCatOptions: [string, string][] = [
-    ['Up/Down', 'updown'],
-    ['Touch/No Touch', 'touchnotouch'],
-    ['In/Out', 'inout'],
-  ]
-  for (const block of allBlocks.filter(b => b.type === 'trade_definition_tradetype')) {
-    const catField = block.getField('TRADETYPECAT_LIST') as any
-    if (catField) {
-      catField.menuGenerator_ = tradeTypeCatOptions
-      catField.generatedOptions = null
-      catField.setValue(tradeTypeCatOptions[0][1])
-    }
-    const typeField = block.getField('TRADETYPE_LIST') as any
-    if (typeField) {
-      typeField.menuGenerator_ = [['Rise/Fall', 'risefall'], ['Higher/Lower', 'higherlower']]
-      typeField.generatedOptions = null
-      typeField.setValue('risefall')
-    }
-  }
-
-  return true
 }
 
 export { defaultWorkspaceXml } from './defaultWorkspace'
 export { generateBotCode, registerGenerators } from './generators'
 export { createBotApi, type BotApi, type BotApiOptions, type NotificationType, type NotifyData } from './botApi'
+export { setGlobalMarketOptions, type RawSymbol } from './blocks'
