@@ -256,14 +256,24 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
         console.warn(`[bot-loader] auto-repaired invalid ${inputName} value on trade_definition_tradeoptions`)
         continue
       }
+      // Disconnect and dispose of whatever's currently connected (any type)
+      // before attaching a fresh shadow — otherwise connect() silently fails
+      // on an already-occupied input.
+      const input = block.getInput(inputName)
+      if (target) {
+        console.warn(`[bot-loader] ${inputName} had an unreadable block of type '${target.type}' — replacing it`)
+        input?.connection?.disconnect()
+        target.dispose(false)
+      }
       const shadow = workspace.newBlock('math_number')
       shadow.setFieldValue('1', 'NUM')
       shadow.initSvg()
-      const input = block.getInput(inputName)
       input?.connection?.connect(shadow.outputConnection)
       if (input?.connection?.targetBlock() === shadow) {
         console.warn(`[bot-loader] auto-repaired missing ${inputName} input on trade_definition_tradeoptions`)
         repaired = true
+      } else {
+        console.error(`[bot-loader] FAILED to repair ${inputName} — connection did not attach after disconnect`)
       }
     }
     const predictionRaw = block.getFieldValue('PREDICTION')
@@ -278,6 +288,16 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
         repaired = true
         console.warn(`[bot-loader] PREDICTION was '${predictionRaw}' (invalid) — reset to 5`)
       }
+    }
+  }
+
+  // Diagnostic: log the final readable state of AMOUNT/DURATION inputs so
+  // any future repair failure shows definitively what's connected and why.
+  for (const block of allBlocks) {
+    if (block.type !== 'trade_definition_tradeoptions') continue
+    for (const inputName of ['AMOUNT', 'DURATION'] as const) {
+      const t = block.getInputTargetBlock(inputName)
+      console.warn(`[bot-loader] post-repair ${inputName}:`, { input: inputName, targetType: t?.type, value: t?.getFieldValue('NUM') })
     }
   }
 
