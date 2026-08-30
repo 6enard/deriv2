@@ -30,8 +30,8 @@ export function RunResultsPanel({
   const isProfit = runStats.totalProfit >= 0
 
   return (
-    <div className="bg-bg-secondary border-t border-border-default flex flex-col" style={{ height: '240px' }}>
-      <div className="flex items-center gap-1 px-3 pt-2.5 border-b border-border-default">
+    <div className="bg-bg-secondary flex flex-col h-full">
+      <div className="flex items-center gap-1 px-3 pt-2.5 border-b border-border-default shrink-0">
         <ResultsTabButton active={tab === 'summary'} onClick={() => onTabChange('summary')} icon={BarChart3} label="Summary" />
         <ResultsTabButton active={tab === 'transactions'} onClick={() => onTabChange('transactions')} icon={List} label="Transactions" />
         <ResultsTabButton active={tab === 'journal'} onClick={() => onTabChange('journal')} icon={ScrollText} label="Journal" />
@@ -51,7 +51,7 @@ export function RunResultsPanel({
 
       <div className="flex-1 overflow-y-auto">
         {tab === 'summary' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+          <div className="grid grid-cols-2 gap-3 p-4">
             <StatCard label="Total P/L" value={`${isProfit ? '+' : ''}${runStats.totalProfit.toFixed(2)} ${currency}`} color={isProfit ? 'text-brand-green' : 'text-brand-red'} />
             <StatCard label="Win Rate" value={`${winRate.toFixed(1)}%`} color={winRate >= 50 ? 'text-brand-green' : 'text-text-primary'} />
             <StatCard label="Total Trades" value={String(runStats.totalRuns)} color="text-text-primary" />
@@ -68,31 +68,20 @@ export function RunResultsPanel({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-text-muted border-b border-border-default">
-                      <th className="pb-2 pr-4 font-medium">Time</th>
-                      <th className="pb-2 pr-4 font-medium">Symbol</th>
-                      <th className="pb-2 pr-4 font-medium">Type</th>
-                      <th className="pb-2 pr-4 font-medium text-right">Stake</th>
-                      <th className="pb-2 pr-4 font-medium text-right">Payout</th>
-                      <th className="pb-2 pr-4 font-medium text-right">P/L</th>
+                      <th className="pb-2 pr-3 font-medium">Symbol</th>
+                      <th className="pb-2 pr-3 font-medium text-right">P/L</th>
                       <th className="pb-2 font-medium text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openContractList.map((c) => {
-                      const isCall = c.contract_type === 'CALL'
                       const profit = c.profit
                       const isPos = profit >= 0
                       return (
                         <tr key={c.contract_id} className="border-b border-border-default/50">
-                          <td className="py-2 pr-4 text-text-secondary">{new Date(c.purchase_time * 1000).toLocaleTimeString()}</td>
-                          <td className="py-2 pr-4">{c.display_name || c.symbol}</td>
-                          <td className="py-2 pr-4">
-                            <span className={`text-xs font-medium ${isCall ? 'text-brand-green' : 'text-brand-red'}`}>{isCall ? 'UP' : 'DOWN'}</span>
-                          </td>
-                          <td className="py-2 pr-4 text-right tabular">{c.buy_price.toFixed(2)} {currency}</td>
-                          <td className="py-2 pr-4 text-right tabular">{c.payout.toFixed(2)} {currency}</td>
-                          <td className={`py-2 pr-4 text-right tabular font-bold ${isPos ? 'text-brand-green' : 'text-brand-red'}`}>
-                            {isPos ? '+' : ''}{profit.toFixed(2)} {currency}
+                          <td className="py-2 pr-3 truncate max-w-[120px]" title={c.display_name || c.symbol}>{c.display_name || c.symbol}</td>
+                          <td className={`py-2 pr-3 text-right tabular font-bold ${isPos ? 'text-brand-green' : 'text-brand-red'}`}>
+                            {isPos ? '+' : ''}{profit.toFixed(2)}
                           </td>
                           <td className="py-2 text-right">
                             <span className={`text-xs px-2 py-0.5 rounded ${c.is_sold ? 'bg-bg-tertiary text-text-secondary' : 'bg-brand-blue/15 text-brand-blue'}`}>

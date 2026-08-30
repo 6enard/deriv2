@@ -8,8 +8,7 @@ import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import type { SymbolInfo } from '../lib/types'
 import { isValidBotXml } from '../blockly'
-import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2, Monitor, Cloud, Blocks, Zap as ZapIcon } from 'lucide-react'
-import BotConfigModal from '../components/BotConfigModal'
+import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2, Monitor, Cloud, Blocks, Zap as ZapIcon, ArrowRight } from 'lucide-react'
 import { useMarketData } from '../hooks/useMarketData'
 
 type Tab = 'my-bots' | 'free-bots' | 'editor' | 'strategy'
@@ -251,32 +250,6 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
 /* ===================== MY BOTS TAB ===================== */
 
 function MyBotsTab({ bots, onChanged, onBotClick }: { bots: Bot[]; onChanged: () => void; onBotClick: (bot: Bot) => void }) {
-  const { account, ws } = useAuth()
-  const { showToast } = useToast()
-  const [configBot, setConfigBot] = useState<Bot | null>(null)
-
-  const toggleActive = async (bot: Bot) => {
-    if (bot.is_active) {
-      await supabase.from('bots').update({ is_active: false }).eq('id', bot.id)
-      onChanged()
-      showToast('info', `${bot.name} paused.`)
-      return
-    }
-
-    if (!ws || !account) {
-      showToast('error', 'Connect your Deriv account first.')
-      return
-    }
-
-    setConfigBot(bot)
-  }
-
-  const handleActivated = async () => {
-    if (!configBot) return
-    await supabase.from('bots').update({ is_active: true }).eq('id', configBot.id)
-    onChanged()
-  }
-
   const deleteBot = async (id: string) => {
     await supabase.from('bots').delete().eq('id', id)
     onChanged()
@@ -297,13 +270,9 @@ function MyBotsTab({ bots, onChanged, onBotClick }: { bots: Bot[]; onChanged: ()
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => (
-            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} onCardClick={() => onBotClick(bot)} showControls activating={configBot?.id === bot.id} />
+            <BotCard key={bot.id} bot={bot} onOpen={() => onBotClick(bot)} onDelete={() => deleteBot(bot.id)} showControls />
           ))}
         </div>
-      )}
-
-      {configBot && (
-        <BotConfigModal bot={configBot} onClose={() => setConfigBot(null)} onActivated={handleActivated} />
       )}
     </div>
   )
@@ -313,9 +282,9 @@ function MyBotsTab({ bots, onChanged, onBotClick }: { bots: Bot[]; onChanged: ()
 
 function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) {
   const { account, ws } = useAuth()
+  const navigate = useNavigate()
   const [copying, setCopying] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
-  const [configBot, setConfigBot] = useState<Bot | null>(null)
 
   const copyBot = async (bot: Bot) => {
     if (!account) return
@@ -339,7 +308,11 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
 
   const runBot = (bot: Bot) => {
     if (!ws || !account) return
-    setConfigBot(bot)
+    const xml = (bot.config as Record<string, unknown>).xml
+    if (typeof xml === 'string' && xml) {
+      sessionStorage.setItem('pending_bot_xml', xml)
+    }
+    navigate('/bot-builder')
   }
 
   return (
@@ -394,10 +367,6 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
             </div>
           ))}
         </div>
-      )}
-
-      {configBot && (
-        <BotConfigModal bot={configBot} onClose={() => setConfigBot(null)} />
       )}
     </div>
   )
@@ -997,31 +966,26 @@ function QuickStrategyTab({ strategies, onChanged, externalShowForm, onExternalC
 
 /* ===================== SHARED COMPONENTS ===================== */
 
-function BotCard({ bot, onToggle, onDelete, onCardClick, showControls, activating }: { bot: Bot; onToggle: () => void; onDelete: () => void; onCardClick?: () => void; showControls?: boolean; activating?: boolean }) {
+function BotCard({ bot, onOpen, onDelete, showControls }: { bot: Bot; onOpen: () => void; onDelete: () => void; showControls?: boolean }) {
   const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
   return (
-    <div onClick={onCardClick} className={`rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col ${onCardClick ? 'cursor-pointer' : ''}`}>
+    <div className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center">
           <Icon className="w-5 h-5 text-brand-green" />
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full ${bot.is_active ? 'bg-brand-green/15 text-brand-green' : 'bg-bg-hover text-text-muted'}`}>
-            {bot.is_active ? 'Active' : 'Paused'}
-          </span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary">{STRATEGY_LABELS[bot.strategy_type]}</span>
-        </div>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary">{STRATEGY_LABELS[bot.strategy_type]}</span>
       </div>
       <h3 className="font-semibold mb-1">{bot.name}</h3>
       <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{bot.description || 'No description provided.'}</p>
       {showControls && (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
           <button
-            onClick={onToggle}
-            disabled={activating}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onOpen}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors"
           >
-            {activating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Activating...</> : bot.is_active ? <><Pause className="w-3.5 h-3.5" /> Pause</> : <><Play className="w-3.5 h-3.5" /> Activate</>}
+            <ArrowRight className="w-3.5 h-3.5" />
+            Open
           </button>
           <button
             onClick={onDelete}
