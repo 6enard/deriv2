@@ -157,16 +157,40 @@ export interface TradeParams {
 }
 
 export type TradeParamsResult =
-  | { ok: true; params: TradeParams }
+  | { ok: true; params: TradeParams; repairedInputs: string[] }
   | { ok: false; missingField: string }
 
-function readNumberInput(block: Blockly.Block, inputName: string): number | null {
-  const target = block.getInputTargetBlock(inputName)
-  if (!target) return null
-  const raw = target.getFieldValue('NUM')
-  if (raw === null || raw === undefined || raw === '') return null
-  const num = parseFloat(raw)
-  return isNaN(num) ? null : num
+function readOrRepairNumberInput(
+  workspace: Blockly.WorkspaceSvg,
+  block: Blockly.Block,
+  inputName: string,
+  fallback: number,
+): { value: number; repaired: boolean } {
+  const input = block.getInput(inputName)
+  let target = block.getInputTargetBlock(inputName)
+  let raw = target?.getFieldValue('NUM')
+  const isValid = raw !== null && raw !== undefined && raw !== '' && !isNaN(parseFloat(raw))
+
+  if (!isValid) {
+    if (target && target.type === 'math_number') {
+      target.setFieldValue(String(fallback), 'NUM')
+    } else {
+      if (target) {
+        input?.connection?.disconnect()
+        target.dispose(false)
+      }
+      const shadow = workspace.newBlock('math_number')
+      shadow.setFieldValue(String(fallback), 'NUM')
+      shadow.initSvg()
+      input?.connection?.connect(shadow.outputConnection)
+    }
+    target = block.getInputTargetBlock(inputName)
+    raw = target?.getFieldValue('NUM')
+    console.warn(`[bot-loader] ${inputName} was invalid at run time — auto-corrected to ${fallback}`)
+    return { value: parseFloat(String(raw ?? fallback)), repaired: true }
+  }
+
+  return { value: parseFloat(String(raw)), repaired: false }
 }
 
 export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParamsResult {
@@ -199,22 +223,27 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   }
 
   const durationUnit = String(tradeOptionsParamsBlock.getFieldValue('DURATIONTYPE_LIST') || '').trim()
-  const duration = readNumberInput(tradeOptionsParamsBlock, 'DURATION')
-  const amount = readNumberInput(tradeOptionsParamsBlock, 'AMOUNT')
   const currency = String(tradeOptionsParamsBlock.getFieldValue('CURRENCY_LIST') || '').trim()
 
-  const prediction = readNumberInput(tradeOptionsParamsBlock, 'PREDICTION')
+  const durationResult = readOrRepairNumberInput(workspace, tradeOptionsParamsBlock, 'DURATION', 5)
+  const amountResult = readOrRepairNumberInput(workspace, tradeOptionsParamsBlock, 'AMOUNT', 1)
+  const predictionResult = readOrRepairNumberInput(workspace, tradeOptionsParamsBlock, 'PREDICTION', 5)
+
+  const prediction = predictionResult.value
   const digitContractsRequiringPrediction = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
-  if (digitContractsRequiringPrediction.includes(contractType) && prediction === null) {
+  if (digitContractsRequiringPrediction.includes(contractType) && isNaN(prediction)) {
     return { ok: false, missingField: 'prediction' }
   }
 
   if (!durationUnit) return { ok: false, missingField: 'duration_unit' }
-  if (duration === null) return { ok: false, missingField: 'duration' }
-  if (amount === null) return { ok: false, missingField: 'amount' }
   if (!currency) return { ok: false, missingField: 'currency' }
 
-  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency, prediction: prediction === null ? undefined : prediction } }
+  const repairedInputs: string[] = []
+  if (durationResult.repaired) repairedInputs.push('Duration')
+  if (amountResult.repaired) repairedInputs.push('Amount')
+  if (predictionResult.repaired) repairedInputs.push('Prediction')
+
+  return { ok: true, params: { symbol, contract_type: contractType, duration: durationResult.value, duration_unit: durationUnit, amount: amountResult.value, currency, prediction: isNaN(prediction) ? undefined : prediction }, repairedInputs }
 }
 
 // Renamed/deprecated block types that may appear in bots saved earlier in

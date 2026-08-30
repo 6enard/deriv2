@@ -100,6 +100,10 @@ export function useBotRunner(
     }
     const params = paramsResult.params
 
+    if (paramsResult.repairedInputs.length > 0) {
+      showToast('info', `Some trade values needed correcting (${paramsResult.repairedInputs.join(', ')}) — please verify before relying on this bot.`)
+    }
+
     const code = generateBotCode(workspace)
     if (!code) {
       showToast('error', 'Add Purchase conditions and Trade results blocks before running.')
