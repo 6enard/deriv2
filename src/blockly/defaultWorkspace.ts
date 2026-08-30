@@ -50,6 +50,11 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
             <field name="NUM">1</field>
           </shadow>
         </value>
+        <value name="PREDICTION">
+          <shadow type="math_number">
+            <field name="NUM">5</field>
+          </shadow>
+        </value>
       </block>
     </statement>
   </block>

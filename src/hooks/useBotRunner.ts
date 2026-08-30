@@ -92,7 +92,7 @@ export function useBotRunner(
         fieldDump.CURRENCY_LIST = String(paramsBlock.getFieldValue('CURRENCY_LIST') || '')
         fieldDump.DURATION = String(paramsBlock.getInputTargetBlock('DURATION')?.getFieldValue('NUM') || '')
         fieldDump.AMOUNT = String(paramsBlock.getInputTargetBlock('AMOUNT')?.getFieldValue('NUM') || '')
-        fieldDump.PREDICTION = String(paramsBlock.getFieldValue('PREDICTION') || '')
+        fieldDump.PREDICTION = String(paramsBlock.getInputTargetBlock('PREDICTION')?.getFieldValue('NUM') || '')
       }
       console.error('[useBotRunner] extractTradeParams failed — missingField:', paramsResult.missingField, 'current Trade Definition fields:', fieldDump)
       showToast('error', messages[paramsResult.missingField] || 'Trade Definition is incomplete — check the Trade parameters block.')

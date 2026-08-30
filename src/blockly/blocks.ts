@@ -431,7 +431,7 @@ defineBlock('trade_definition_tradeoptions', {
           ['AUD', 'AUD'],
         ],
       },
-      { type: 'field_number', name: 'PREDICTION', value: 5, min: 0, max: 9, precision: 1 },
+      { type: 'input_value', name: 'PREDICTION', check: 'Number' },
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,

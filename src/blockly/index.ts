@@ -203,10 +203,9 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   const amount = readNumberInput(tradeOptionsParamsBlock, 'AMOUNT')
   const currency = String(tradeOptionsParamsBlock.getFieldValue('CURRENCY_LIST') || '').trim()
 
-  const predictionRaw = tradeOptionsParamsBlock.getFieldValue('PREDICTION')
-  const prediction = predictionRaw !== null && predictionRaw !== undefined && predictionRaw !== '' ? parseInt(String(predictionRaw), 10) : NaN
+  const prediction = readNumberInput(tradeOptionsParamsBlock, 'PREDICTION')
   const digitContractsRequiringPrediction = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
-  if (digitContractsRequiringPrediction.includes(contractType) && isNaN(prediction)) {
+  if (digitContractsRequiringPrediction.includes(contractType) && prediction === null) {
     return { ok: false, missingField: 'prediction' }
   }
 
@@ -215,7 +214,7 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   if (amount === null) return { ok: false, missingField: 'amount' }
   if (!currency) return { ok: false, missingField: 'currency' }
 
-  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency, prediction: isNaN(prediction) ? undefined : prediction } }
+  return { ok: true, params: { symbol, contract_type: contractType, duration, duration_unit: durationUnit, amount, currency, prediction: prediction === null ? undefined : prediction } }
 }
 
 // Renamed/deprecated block types that may appear in bots saved earlier in
@@ -241,11 +240,11 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
   let repaired = false
   const allBlocks = workspace.getAllBlocks(false)
 
-  // 1. Repair missing OR unreadable AMOUNT / DURATION number inputs, and
-  //    validate the PREDICTION field, on every tradeoptions block.
+  // 1. Repair missing OR unreadable AMOUNT / DURATION / PREDICTION number
+  //    inputs on every tradeoptions block.
   for (const block of allBlocks) {
     if (block.type !== 'trade_definition_tradeoptions') continue
-    for (const inputName of ['AMOUNT', 'DURATION'] as const) {
+    for (const inputName of ['AMOUNT', 'DURATION', 'PREDICTION'] as const) {
       const target = block.getInputTargetBlock(inputName)
       const raw = target?.getFieldValue('NUM')
       const isValid = raw !== null && raw !== undefined && raw !== '' && !isNaN(parseFloat(raw))
@@ -266,7 +265,8 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
         target.dispose(false)
       }
       const shadow = workspace.newBlock('math_number')
-      shadow.setFieldValue('1', 'NUM')
+      const defaultVal = inputName === 'PREDICTION' ? '5' : '1'
+      shadow.setFieldValue(defaultVal, 'NUM')
       shadow.initSvg()
       input?.connection?.connect(shadow.outputConnection)
       if (input?.connection?.targetBlock() === shadow) {
@@ -276,26 +276,14 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
         console.error(`[bot-loader] FAILED to repair ${inputName} — connection did not attach after disconnect`)
       }
     }
-    const predictionRaw = block.getFieldValue('PREDICTION')
-    if (predictionRaw === null || predictionRaw === undefined || predictionRaw === '') {
-      block.setFieldValue('5', 'PREDICTION')
-      repaired = true
-      console.warn('[bot-loader] PREDICTION was empty — reset to 5')
-    } else {
-      const predictionNum = parseFloat(String(predictionRaw))
-      if (isNaN(predictionNum) || predictionNum < 0 || predictionNum > 9) {
-        block.setFieldValue('5', 'PREDICTION')
-        repaired = true
-        console.warn(`[bot-loader] PREDICTION was '${predictionRaw}' (invalid) — reset to 5`)
-      }
-    }
   }
 
-  // Diagnostic: log the final readable state of AMOUNT/DURATION inputs so
-  // any future repair failure shows definitively what's connected and why.
+  // Diagnostic: log the final readable state of AMOUNT/DURATION/PREDICTION
+  // inputs so any future repair failure shows definitively what's connected
+  // and why.
   for (const block of allBlocks) {
     if (block.type !== 'trade_definition_tradeoptions') continue
-    for (const inputName of ['AMOUNT', 'DURATION'] as const) {
+    for (const inputName of ['AMOUNT', 'DURATION', 'PREDICTION'] as const) {
       const t = block.getInputTargetBlock(inputName)
       console.warn(`[bot-loader] post-repair ${inputName}:`, { input: inputName, targetType: t?.type, value: t?.getFieldValue('NUM') })
     }
