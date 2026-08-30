@@ -33,6 +33,7 @@ export default function BotBuilder() {
   const [confirmLoad, setConfirmLoad] = useState<{ xml: string; filename: string } | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [workspaceModified, setWorkspaceModified] = useState(false)
+  const pendingXmlRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -48,7 +49,7 @@ export default function BotBuilder() {
     if (pendingXml) {
       sessionStorage.removeItem('pending_bot_xml')
       if (isValidBotXml(pendingXml)) {
-        loadFromXml(ws, pendingXml)
+        pendingXmlRef.current = pendingXml
       }
     }
 
@@ -97,9 +98,16 @@ export default function BotBuilder() {
       }
       const ok = populateMarketDropdowns(workspaceRef.current, rawSymbols)
       if (ok) {
+        if (pendingXmlRef.current && workspaceRef.current) {
+          loadFromXml(workspaceRef.current, pendingXmlRef.current)
+          populateMarketDropdowns(workspaceRef.current, rawSymbols)
+          pendingXmlRef.current = null
+          showToast('success', 'Bot loaded — ready to run.')
+        } else {
+          showToast('success', 'Markets loaded.')
+        }
         setMarketsLoaded(true)
         setMarketsLoading(false)
-        showToast('success', 'Markets loaded.')
       } else if (attempt < maxAttempts) {
         retryTimer = setTimeout(() => void tryLoad(), 2000)
       } else {
