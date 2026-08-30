@@ -20,6 +20,7 @@ import {
   isValidTradeTypeValue,
   isValidContractTypeValue,
   findPairedTradeTypeBlock,
+  getPurchaseListOptions,
   type RawSymbol,
 } from './blocks'
 import { toolbox } from './toolbox'
@@ -377,6 +378,21 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
     }
   }
 
+  // 4. Repair purchase blocks — PURCHASE_LIST must match one of the concrete
+  //    contract types derived from the (now-repaired) trade type and contract
+  //    type. A stale or 'both' value can never be purchased, so reset it to
+  //    the first available real option.
+  const purchaseOptions = getPurchaseListOptions(workspace)
+  const validPurchaseValues = new Set(purchaseOptions.map(([, v]) => v))
+  for (const block of allBlocks) {
+    if (block.type !== 'purchase') continue
+    const pl = String(block.getFieldValue('PURCHASE_LIST') || '').trim()
+    if (!pl || !validPurchaseValues.has(pl)) {
+      const v = purchaseOptions[0]?.[1] ?? ''
+      if (v) { block.setFieldValue(v, 'PURCHASE_LIST'); repaired = true; console.warn(`[bot-loader] PURCHASE_LIST was '${pl}' (invalid for current contract type) — reset to '${v}'`) }
+    }
+  }
+
   return repaired
 }
 
@@ -439,4 +455,4 @@ export async function loadBotXmlSafely(
 export { defaultWorkspaceXml } from './defaultWorkspace'
 export { generateBotCode, registerGenerators } from './generators'
 export { createBotApi, type BotApi, type BotApiOptions, type NotificationType, type NotifyData } from './botApi'
-export { setGlobalMarketOptions, type RawSymbol } from './blocks'
+export { setGlobalMarketOptions, getPurchaseListOptions, type RawSymbol } from './blocks'

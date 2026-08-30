@@ -24,11 +24,8 @@ export function registerGenerators(): void {
 
   // ── Purchase conditions ──
   javascriptGenerator.forBlock['purchase'] = function (block: Blockly.Block): string {
-    const contractType = block.getFieldValue('PURCHASE_LIST') || ''
-    if (contractType) {
-      return `await Bot.purchase(${JSON.stringify(contractType)});\n`
-    }
-    return `await Bot.purchase();\n`
+    const purchaseList = block.getFieldValue('PURCHASE_LIST') || ''
+    return `await Bot.purchase(${JSON.stringify(purchaseList)});\n`
   }
 
   javascriptGenerator.forBlock['ask_price'] = function (): [string, number] {

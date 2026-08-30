@@ -103,6 +103,41 @@ function contractTypeMenuOptions(this: any): [string, string][] {
   return contractTypeOptionsByTradeType[tradeType] || [['—', '']]
 }
 
+// Walk the TRADE_OPTIONS statement stack of the workspace's trade_definition
+// root block to read the current trade type and contract type, then return
+// the concrete purchasable contract types. When the contract type is 'both',
+// all real options for that trade type are returned; otherwise only the
+// single matching option. The synthetic 'both' entry is always excluded —
+// only real contract types are ever purchasable.
+export function getPurchaseListOptions(workspace: Blockly.Workspace): [string, string][] {
+  const topBlocks = workspace.getTopBlocks(false)
+  const root = topBlocks.find((b) => b.type === 'trade_definition')
+  if (!root) return [['—', '']]
+  let block: Blockly.Block | null = root.getInputTargetBlock('TRADE_OPTIONS')
+  let tradeType = ''
+  let contractType = ''
+  while (block) {
+    if (block.type === 'trade_definition_tradetype') {
+      tradeType = String(block.getFieldValue('TRADETYPE_LIST') || '')
+    } else if (block.type === 'trade_definition_contracttype') {
+      contractType = String(block.getFieldValue('TYPE_LIST') || '')
+    }
+    block = block.getNextBlock()
+  }
+  const allOptionsForTradeType = contractTypeOptionsByTradeType[tradeType] || []
+  const realOptions = allOptionsForTradeType.filter(([, value]) => value !== 'both')
+  if (contractType && contractType !== 'both') {
+    return realOptions.filter(([, value]) => value === contractType)
+  }
+  return realOptions.length ? realOptions : [['—', '']]
+}
+
+function purchaseListOptions(this: any): [string, string][] {
+  const block = this.getSourceBlock()
+  if (!block) return [['—', '']]
+  return getPurchaseListOptions(block.workspace)
+}
+
 // Accessors for the self-healing pass in loadBotXmlSafely — let it pick
 // the first valid option for a field whose saved value no longer exists.
 export function getFirstMarketValue(): string {
@@ -468,7 +503,7 @@ defineBlock('before_purchase', {
 defineBlock('purchase', {
   definition: () => ({
     message0: 'Purchase %1',
-    args0: [{ type: 'field_dropdown', name: 'PURCHASE_LIST', options: [['', '']] }],
+    args0: [{ type: 'field_dropdown', name: 'PURCHASE_LIST', options: purchaseListOptions }],
     previousStatement: null,
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,
