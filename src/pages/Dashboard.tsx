@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import type { SymbolInfo } from '../lib/types'
-import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2 } from 'lucide-react'
+import { isValidBotXml } from '../blockly'
+import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Pause, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2, Monitor, Cloud, Blocks, Zap as ZapIcon } from 'lucide-react'
 import BotConfigModal from '../components/BotConfigModal'
 import { useMarketData } from '../hooks/useMarketData'
 
@@ -31,11 +32,16 @@ const STRATEGY_ICONS: Record<StrategyType, typeof BotIcon> = {
 
 export default function Dashboard() {
   const { account } = useAuth()
+  const navigate = useNavigate()
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('my-bots')
   const [myBots, setMyBots] = useState<Bot[]>([])
   const [freeBots, setFreeBots] = useState<Bot[]>([])
   const [strategies, setStrategies] = useState<QuickStrategy[]>([])
   const [loading, setLoading] = useState(true)
+  const [showQuickStrategy, setShowQuickStrategy] = useState(false)
+  const [pendingUploadXml, setPendingUploadXml] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadData = useCallback(async () => {
     if (!account) return
@@ -60,6 +66,51 @@ export default function Dashboard() {
     loadData()
   }, [loadData])
 
+  const handleComputerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      if (!text) return
+      if (!isValidBotXml(text)) {
+        showToast('error', "This doesn't look like a valid bot file.")
+        return
+      }
+      setPendingUploadXml(text)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const handleUploadConfirm = async (name: string) => {
+    if (!account || !pendingUploadXml) return
+    const { error: insertError } = await supabase.from('bots').insert({
+      deriv_account_id: account.account_id,
+      name: name.trim(),
+      description: '',
+      strategy_type: 'custom',
+      config: { xml: pendingUploadXml },
+      is_free: false,
+      is_active: false,
+    })
+    setPendingUploadXml(null)
+    if (insertError) {
+      showToast('error', insertError.message)
+      return
+    }
+    showToast('success', `"${name.trim()}" uploaded successfully.`)
+    loadData()
+  }
+
+  const handleBotClick = (bot: Bot) => {
+    const xml = (bot.config as Record<string, unknown>).xml
+    if (typeof xml === 'string' && xml) {
+      sessionStorage.setItem('pending_bot_xml', xml)
+    }
+    navigate('/bot-builder')
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6">
@@ -68,6 +119,15 @@ export default function Dashboard() {
           Manage your trading bots, explore free strategies, build custom bots, and create quick strategies.
         </p>
       </div>
+
+      {/* Shortcut Tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <ShortcutTile icon={Monitor} label="My Computer" onClick={() => fileInputRef.current?.click()} />
+        <ShortcutTile icon={Cloud} label="Google Drive" disabled onClick={() => showToast('info', 'Google Drive import requires additional setup — coming soon.')} />
+        <ShortcutTile icon={Blocks} label="Bot Builder" onClick={() => navigate('/bot-builder')} />
+        <ShortcutTile icon={ZapIcon} label="Quick Strategy" onClick={() => { setActiveTab('strategy'); setShowQuickStrategy(true) }} />
+      </div>
+      <input ref={fileInputRef} type="file" accept=".xml" onChange={handleComputerFile} className="hidden" />
 
       {/* Tab Bar */}
       <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
@@ -83,13 +143,87 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {activeTab === 'my-bots' && <MyBotsTab bots={myBots} onChanged={loadData} />}
+          {activeTab === 'my-bots' && <MyBotsTab bots={myBots} onChanged={loadData} onBotClick={handleBotClick} />}
           {activeTab === 'free-bots' && <FreeBotsTab bots={freeBots} onChanged={loadData} />}
           {activeTab === 'editor' && <BotEditor onChanged={loadData} />}
-          {activeTab === 'strategy' && <QuickStrategyTab strategies={strategies} onChanged={loadData} />}
+          {activeTab === 'strategy' && (
+            <QuickStrategyTab
+              strategies={strategies}
+              onChanged={loadData}
+              externalShowForm={showQuickStrategy}
+              onExternalClose={() => setShowQuickStrategy(false)}
+            />
+          )}
         </>
       )}
+
+      {pendingUploadXml && (
+        <NamePromptModal
+          title="Name your uploaded bot"
+          placeholder="e.g. My Scalper Bot"
+          onCancel={() => setPendingUploadXml(null)}
+          onConfirm={handleUploadConfirm}
+        />
+      )}
     </div>
+  )
+}
+
+function ShortcutTile({ icon: Icon, label, onClick, disabled }: { icon: typeof Monitor; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative flex flex-col items-center gap-2.5 p-4 rounded-xl border transition-all ${
+        disabled
+          ? 'bg-bg-secondary border-border-default opacity-50 cursor-not-allowed'
+          : 'bg-bg-secondary border-border-default hover:border-border-light hover:bg-bg-tertiary cursor-pointer'
+      }`}
+    >
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-bg-tertiary text-text-muted' : 'bg-bg-tertiary text-brand-green'}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <span className={`text-sm font-medium ${disabled ? 'text-text-muted' : 'text-text-primary'}`}>{label}</span>
+      {disabled && (
+        <span className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-bg-tertiary text-text-muted font-medium">
+          Soon
+        </span>
+      )}
+    </button>
+  )
+}
+
+function NamePromptModal({ title, placeholder, onCancel, onConfirm }: { title: string; placeholder: string; onCancel: () => void; onConfirm: (name: string) => void }) {
+  const [name, setName] = useState('')
+  return (
+    <Modal onClose={onCancel} title={title}>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">Bot Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={placeholder}
+            autoFocus
+            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
+          />
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={() => { if (name.trim()) onConfirm(name) }}
+            disabled={!name.trim()}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Bot
+          </button>
+          <button onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -116,10 +250,9 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
 
 /* ===================== MY BOTS TAB ===================== */
 
-function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) {
+function MyBotsTab({ bots, onChanged, onBotClick }: { bots: Bot[]; onChanged: () => void; onBotClick: (bot: Bot) => void }) {
   const { account, ws } = useAuth()
   const { showToast } = useToast()
-  const [showUpload, setShowUpload] = useState(false)
   const [configBot, setConfigBot] = useState<Bot | null>(null)
 
   const toggleActive = async (bot: Bot) => {
@@ -153,144 +286,26 @@ function MyBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }) 
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold">Your Uploaded Bots</h2>
-        <button
-          onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-green text-bg-primary font-medium text-sm hover:bg-brand-green-dim transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          Upload Bot
-        </button>
       </div>
 
       {bots.length === 0 ? (
         <div className="rounded-xl bg-bg-secondary border border-border-default p-12 text-center">
           <BotIcon className="w-10 h-10 text-text-muted mx-auto mb-3" />
           <p className="text-text-secondary mb-1">No bots uploaded yet.</p>
-          <p className="text-sm text-text-muted">Upload a trading bot or copy one from the Free Bots section to get started.</p>
+          <p className="text-sm text-text-muted">Use the shortcuts above to upload a bot from your computer or build one from scratch.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => (
-            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} showControls activating={configBot?.id === bot.id} />
+            <BotCard key={bot.id} bot={bot} onToggle={() => toggleActive(bot)} onDelete={() => deleteBot(bot.id)} onCardClick={() => onBotClick(bot)} showControls activating={configBot?.id === bot.id} />
           ))}
         </div>
-      )}
-
-      {showUpload && account && (
-        <UploadBotModal account={account.account_id} onClose={() => setShowUpload(false)} onUploaded={() => { setShowUpload(false); onChanged() }} />
       )}
 
       {configBot && (
         <BotConfigModal bot={configBot} onClose={() => setConfigBot(null)} onActivated={handleActivated} />
       )}
     </div>
-  )
-}
-
-function UploadBotModal({ account, onClose, onUploaded }: { account: string; onClose: () => void; onUploaded: () => void }) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [strategyType, setStrategyType] = useState<StrategyType>('custom')
-  const [configText, setConfigText] = useState('{}')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  const handleSubmit = async () => {
-    if (!name.trim()) { setError('Bot name is required.'); return }
-    let config: Record<string, unknown> = {}
-    try {
-      config = JSON.parse(configText)
-    } catch {
-      setError('Configuration must be valid JSON.'); return
-    }
-
-    setSaving(true)
-    setError(null)
-    const { error: insertError } = await supabase.from('bots').insert({
-      deriv_account_id: account,
-      name: name.trim(),
-      description: description.trim(),
-      strategy_type: strategyType,
-      config,
-      is_free: false,
-      is_active: false,
-    })
-
-    setSaving(false)
-    if (insertError) { setError(insertError.message); return }
-    onUploaded()
-  }
-
-  return (
-    <Modal onClose={onClose} title="Upload Trading Bot">
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Bot Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. My Scalper Bot"
-            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What does this bot do?"
-            rows={2}
-            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors resize-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Strategy Type</label>
-          <select
-            value={strategyType}
-            onChange={(e) => setStrategyType(e.target.value as StrategyType)}
-            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors"
-          >
-            <option value="martingale">Martingale</option>
-            <option value="grid">Grid</option>
-            <option value="trend_follow">Trend Following</option>
-            <option value="mean_reversion">Mean Reversion</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-text-secondary mb-1.5">Bot Configuration (JSON)</label>
-          <textarea
-            value={configText}
-            onChange={(e) => setConfigText(e.target.value)}
-            rows={6}
-            className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-blue transition-colors resize-none"
-            placeholder='{"initial_stake": 1, "max_steps": 5}'
-          />
-        </div>
-
-        {error && (
-          <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-3 py-2 text-sm text-brand-red">{error}</div>
-        )}
-
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary font-semibold text-sm hover:bg-brand-green-dim transition-colors disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Upload Bot
-          </button>
-          <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-bg-tertiary text-text-secondary text-sm font-medium hover:text-text-primary transition-colors">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </Modal>
   )
 }
 
@@ -625,12 +640,16 @@ function BotEditor({ onChanged }: { onChanged: () => void }) {
 
 /* ===================== QUICK STRATEGY TAB ===================== */
 
-function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy[]; onChanged: () => void }) {
+function QuickStrategyTab({ strategies, onChanged, externalShowForm, onExternalClose }: { strategies: QuickStrategy[]; onChanged: () => void; externalShowForm?: boolean; onExternalClose?: () => void }) {
   const { account, ws, refreshBalance } = useAuth()
   const navigate = useNavigate()
   const { showToast } = useToast()
   const { fetchSymbols } = useMarketData()
-  const [showForm, setShowForm] = useState(false)
+  const [internalShowForm, setInternalShowForm] = useState(false)
+  const showForm = externalShowForm ?? internalShowForm
+  const setShowForm = (v: boolean) => {
+    if (externalShowForm !== undefined) { if (!v) onExternalClose?.() } else setInternalShowForm(v)
+  }
   const [symbols, setSymbols] = useState<{ symbol: string; display_name: string }[]>([])  
   const [loadingSymbols, setLoadingSymbols] = useState(false)
   const [symbolSearch, setSymbolSearch] = useState('')
@@ -667,6 +686,10 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
   }, [fetchSymbols, symbols.length, symbol])
 
   useEffect(() => { loadSymbols() }, [loadSymbols])
+
+  useEffect(() => {
+    if (externalShowForm) resetForm()
+  }, [externalShowForm])
 
   const resetForm = () => {
     setName('')
@@ -974,10 +997,10 @@ function QuickStrategyTab({ strategies, onChanged }: { strategies: QuickStrategy
 
 /* ===================== SHARED COMPONENTS ===================== */
 
-function BotCard({ bot, onToggle, onDelete, showControls, activating }: { bot: Bot; onToggle: () => void; onDelete: () => void; showControls?: boolean; activating?: boolean }) {
+function BotCard({ bot, onToggle, onDelete, onCardClick, showControls, activating }: { bot: Bot; onToggle: () => void; onDelete: () => void; onCardClick?: () => void; showControls?: boolean; activating?: boolean }) {
   const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
   return (
-    <div className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
+    <div onClick={onCardClick} className={`rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col ${onCardClick ? 'cursor-pointer' : ''}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center">
           <Icon className="w-5 h-5 text-brand-green" />
@@ -992,7 +1015,7 @@ function BotCard({ bot, onToggle, onDelete, showControls, activating }: { bot: B
       <h3 className="font-semibold mb-1">{bot.name}</h3>
       <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{bot.description || 'No description provided.'}</p>
       {showControls && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onToggle}
             disabled={activating}

@@ -121,6 +121,15 @@ export function loadFromXml(workspace: Blockly.WorkspaceSvg, xmlText: string): b
   }
 }
 
+export function isValidBotXml(xmlText: string): boolean {
+  try {
+    Blockly.utils.xml.textToDom(xmlText)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export interface TradeParams {
   symbol: string
   contract_type: string

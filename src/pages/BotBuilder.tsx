@@ -9,6 +9,7 @@ import {
   loadFromXml,
   populateMarketDropdowns,
   workspaceToXml,
+  isValidBotXml,
   type BotApi,
   type NotificationType,
 } from '../blockly'
@@ -42,6 +43,14 @@ export default function BotBuilder() {
 
     const onChange = () => setWorkspaceModified(true)
     ws.addChangeListener(onChange)
+
+    const pendingXml = sessionStorage.getItem('pending_bot_xml')
+    if (pendingXml) {
+      sessionStorage.removeItem('pending_bot_xml')
+      if (isValidBotXml(pendingXml)) {
+        loadFromXml(ws, pendingXml)
+      }
+    }
 
     const resize = () => Blockly.svgResize(ws)
     window.addEventListener('resize', resize)
