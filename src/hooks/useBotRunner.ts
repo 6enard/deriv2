@@ -68,6 +68,31 @@ export function useBotRunner(
         amount: 'Trade Definition is missing a Stake Amount — set a number in the Amount field of the Trade Definition block.',
         currency: 'Trade Definition is missing a Currency — select a currency in the Trade Definition block.',
       }
+      // Diagnostic: dump the full current state of the Trade Definition block's
+      // fields so if this error recurs we have real data instead of guessing.
+      const topBlocks = workspace.getTopBlocks(false)
+      const root = topBlocks.find((b) => b.type === 'trade_definition')
+      const tradeOptionsBlock = root?.getInputTargetBlock('TRADE_OPTIONS')
+      let b: Blockly.Block | null = tradeOptionsBlock ?? null
+      const fieldDump: Record<string, string> = {}
+      while (b) {
+        if (b.type === 'trade_definition_market') {
+          fieldDump.MARKET_LIST = String(b.getFieldValue('MARKET_LIST') || '')
+          fieldDump.SUBMARKET_LIST = String(b.getFieldValue('SUBMARKET_LIST') || '')
+          fieldDump.SYMBOL_LIST = String(b.getFieldValue('SYMBOL_LIST') || '')
+        } else if (b.type === 'trade_definition_contracttype') {
+          fieldDump.TYPE_LIST = String(b.getFieldValue('TYPE_LIST') || '')
+        }
+        b = b.getNextBlock()
+      }
+      const paramsBlock = root?.getInputTargetBlock('SUBMARKET')
+      if (paramsBlock && paramsBlock.type === 'trade_definition_tradeoptions') {
+        fieldDump.DURATIONTYPE_LIST = String(paramsBlock.getFieldValue('DURATIONTYPE_LIST') || '')
+        fieldDump.CURRENCY_LIST = String(paramsBlock.getFieldValue('CURRENCY_LIST') || '')
+        fieldDump.DURATION = String(paramsBlock.getInputTargetBlock('DURATION')?.getFieldValue('NUM') || '')
+        fieldDump.AMOUNT = String(paramsBlock.getInputTargetBlock('AMOUNT')?.getFieldValue('NUM') || '')
+      }
+      console.error('[useBotRunner] extractTradeParams failed — missingField:', paramsResult.missingField, 'current Trade Definition fields:', fieldDump)
       showToast('error', messages[paramsResult.missingField] || 'Trade Definition is incomplete — check the Trade parameters block.')
       return
     }

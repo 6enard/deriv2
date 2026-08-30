@@ -84,6 +84,27 @@ export function getFirstContractTypeValue(): string {
   return contractTypeOptions[0]?.[1] ?? ''
 }
 
+// Validators for the self-healing pass — check whether a saved field value
+// still exists in the current market data (a stale value poisons the cascade).
+export function isValidMarketValue(v: string): boolean {
+  return marketOptions.some((opt) => opt[1] === v)
+}
+export function isValidSubmarketValue(market: string, v: string): boolean {
+  return (submarketOptionsByMarket[market] || []).some((opt) => opt[1] === v)
+}
+export function isValidSymbolValue(submarket: string, v: string): boolean {
+  return (symbolOptionsBySubmarket[submarket] || []).some((opt) => opt[1] === v)
+}
+export function isValidTradeTypeCategoryValue(v: string): boolean {
+  return tradeTypeCategoryOptions.some((opt) => opt[1] === v)
+}
+export function isValidTradeTypeValue(v: string): boolean {
+  return tradeTypeOptions.some((opt) => opt[1] === v)
+}
+export function isValidContractTypeValue(v: string): boolean {
+  return contractTypeOptions.some((opt) => opt[1] === v)
+}
+
 function prettifyKey(key: string): string {
   return key
     .split('_')

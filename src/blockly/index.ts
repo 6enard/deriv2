@@ -13,6 +13,12 @@ import {
   getFirstTradeTypeCategoryValue,
   getFirstTradeTypeValue,
   getFirstContractTypeValue,
+  isValidMarketValue,
+  isValidSubmarketValue,
+  isValidSymbolValue,
+  isValidTradeTypeCategoryValue,
+  isValidTradeTypeValue,
+  isValidContractTypeValue,
   type RawSymbol,
 } from './blocks'
 import { toolbox } from './toolbox'
@@ -243,43 +249,45 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
     }
   }
 
-  // 2. Repair empty market/type dropdown fields with the first available option.
+  // 2. Repair empty OR stale/invalid market/type dropdown fields with the first
+  // available valid option. A stale saved value (e.g. a symbol no longer returned
+  // by the current market fetch) poisons the whole Market → Submarket → Symbol
+  // cascade, so we validate against the current options, not just emptiness.
   for (const block of allBlocks) {
     if (block.type === 'trade_definition_market') {
       const market = String(block.getFieldValue('MARKET_LIST') || '').trim()
-      const submarket = String(block.getFieldValue('SUBMARKET_LIST') || '').trim()
-      const symbol = String(block.getFieldValue('SYMBOL_LIST') || '').trim()
-
-      if (!market) {
+      if (!market || !isValidMarketValue(market)) {
         const v = getFirstMarketValue()
-        if (v) { block.setFieldValue(v, 'MARKET_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty MARKET_LIST') }
+        if (v) { block.setFieldValue(v, 'MARKET_LIST'); repaired = true; console.warn(`[bot-loader] MARKET_LIST was '${market}' (not found in current data) — reset to '${v}'`) }
       }
       const effectiveMarket = String(block.getFieldValue('MARKET_LIST') || '').trim()
-      if (!submarket) {
+      const submarket = String(block.getFieldValue('SUBMARKET_LIST') || '').trim()
+      if (!submarket || !isValidSubmarketValue(effectiveMarket, submarket)) {
         const v = getFirstSubmarketValue(effectiveMarket)
-        if (v) { block.setFieldValue(v, 'SUBMARKET_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty SUBMARKET_LIST') }
+        if (v) { block.setFieldValue(v, 'SUBMARKET_LIST'); repaired = true; console.warn(`[bot-loader] SUBMARKET_LIST was '${submarket}' (not found in current data) — reset to '${v}'`) }
       }
       const effectiveSubmarket = String(block.getFieldValue('SUBMARKET_LIST') || '').trim()
-      if (!symbol) {
+      const symbol = String(block.getFieldValue('SYMBOL_LIST') || '').trim()
+      if (!symbol || !isValidSymbolValue(effectiveSubmarket, symbol)) {
         const v = getFirstSymbolValue(effectiveSubmarket)
-        if (v) { block.setFieldValue(v, 'SYMBOL_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty SYMBOL_LIST') }
+        if (v) { block.setFieldValue(v, 'SYMBOL_LIST'); repaired = true; console.warn(`[bot-loader] SYMBOL_LIST was '${symbol}' (not found in current data) — reset to '${v}'`) }
       }
     } else if (block.type === 'trade_definition_tradetype') {
       const cat = String(block.getFieldValue('TRADETYPECAT_LIST') || '').trim()
-      const tt = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
-      if (!cat) {
+      if (!cat || !isValidTradeTypeCategoryValue(cat)) {
         const v = getFirstTradeTypeCategoryValue()
-        if (v) { block.setFieldValue(v, 'TRADETYPECAT_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TRADETYPECAT_LIST') }
+        if (v) { block.setFieldValue(v, 'TRADETYPECAT_LIST'); repaired = true; console.warn(`[bot-loader] TRADETYPECAT_LIST was '${cat}' (invalid) — reset to '${v}'`) }
       }
-      if (!tt) {
+      const tt = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
+      if (!tt || !isValidTradeTypeValue(tt)) {
         const v = getFirstTradeTypeValue()
-        if (v) { block.setFieldValue(v, 'TRADETYPE_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TRADETYPE_LIST') }
+        if (v) { block.setFieldValue(v, 'TRADETYPE_LIST'); repaired = true; console.warn(`[bot-loader] TRADETYPE_LIST was '${tt}' (invalid) — reset to '${v}'`) }
       }
     } else if (block.type === 'trade_definition_contracttype') {
       const ct = String(block.getFieldValue('TYPE_LIST') || '').trim()
-      if (!ct) {
+      if (!ct || !isValidContractTypeValue(ct)) {
         const v = getFirstContractTypeValue()
-        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn('[bot-loader] auto-repaired empty TYPE_LIST') }
+        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn(`[bot-loader] TYPE_LIST was '${ct}' (invalid) — reset to '${v}'`) }
       }
     }
   }
@@ -308,7 +316,38 @@ export async function loadBotXmlSafely(
     return { ok: false, reason: 'This file is not a valid bot.' }
   }
 
+  // Diagnostic: log the raw saved field values before repair so any future
+  // load failure shows exactly what was saved vs. what the repair chose.
+  // Gated behind a debug flag so it can stay in place harmlessly.
+  const BOT_LOADER_DEBUG = true
+  if (BOT_LOADER_DEBUG) {
+    const topBlocks = workspace.getTopBlocks(false)
+    const root = topBlocks.find((b) => b.type === 'trade_definition')
+    const tradeOptionsBlock = root?.getInputTargetBlock('TRADE_OPTIONS')
+    let b: Blockly.Block | null = tradeOptionsBlock ?? null
+    while (b) {
+      if (b.type === 'trade_definition_market') {
+        console.warn('[bot-loader] raw saved fields — MARKET_LIST:', JSON.stringify(b.getFieldValue('MARKET_LIST')), 'SUBMARKET_LIST:', JSON.stringify(b.getFieldValue('SUBMARKET_LIST')), 'SYMBOL_LIST:', JSON.stringify(b.getFieldValue('SYMBOL_LIST')))
+        break
+      }
+      b = b.getNextBlock()
+    }
+  }
+
   const repaired = repairLoadedBot(workspace)
+  if (BOT_LOADER_DEBUG) {
+    const topBlocks = workspace.getTopBlocks(false)
+    const root = topBlocks.find((b) => b.type === 'trade_definition')
+    const tradeOptionsBlock = root?.getInputTargetBlock('TRADE_OPTIONS')
+    let b: Blockly.Block | null = tradeOptionsBlock ?? null
+    while (b) {
+      if (b.type === 'trade_definition_market') {
+        console.warn('[bot-loader] post-repair fields — MARKET_LIST:', JSON.stringify(b.getFieldValue('MARKET_LIST')), 'SUBMARKET_LIST:', JSON.stringify(b.getFieldValue('SUBMARKET_LIST')), 'SYMBOL_LIST:', JSON.stringify(b.getFieldValue('SYMBOL_LIST')))
+        break
+      }
+      b = b.getNextBlock()
+    }
+  }
   return { ok: true, repaired }
 }
 
