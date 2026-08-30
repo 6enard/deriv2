@@ -44,6 +44,17 @@ export interface BotApiOptions {
   shouldStop?: () => boolean
 }
 
+const BOTH_TO_REAL_TYPES: Record<string, string[]> = {
+  risefall: ['CALL', 'PUT'],
+  higherlower: ['CALL', 'PUT'],
+  touchnotouch: ['ONETOUCH', 'NOTOUCH'],
+  endsinout: ['EXPIRYRANGE', 'EXPIRYMISS'],
+  staysinout: ['RANGE', 'UPORDOWN'],
+  matchesdiffers: ['DIGITMATCH', 'DIGITDIFF'],
+  evenodd: ['DIGITEVEN', 'DIGITODD'],
+  overunder: ['DIGITOVER', 'DIGITUNDER'],
+}
+
 export function createBotApi(
   ws: DerivWS,
   account: DerivSessionAccount,
@@ -126,7 +137,13 @@ export function createBotApi(
   return {
     async purchase(contractType?: string): Promise<number> {
       if (options.shouldStop?.()) throw new Error('Bot stopped')
-      const ct = contractType || currentContractType
+      let ct = contractType || currentContractType
+
+      if (ct === 'both') {
+        const realTypes = BOTH_TO_REAL_TYPES[params.trade_type] || []
+        ct = realTypes[0] || 'CALL'
+        notify('info', `"both" contract type expanded to ${ct} for this trade.`)
+      }
 
       const digitContractsRequiringBarrier = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
       const proposalReq: Record<string, unknown> = {

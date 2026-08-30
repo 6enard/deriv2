@@ -202,14 +202,14 @@ export function setGlobalMarketOptions(rawSymbols: RawSymbol[]): boolean {
     ],
   }
   contractTypeOptionsByTradeType = {
-    risefall: [['Rise', 'CALL'], ['Fall', 'PUT']],
-    higherlower: [['Higher', 'CALL'], ['Lower', 'PUT']],
-    touchnotouch: [['Touch', 'TOUCH'], ['No Touch', 'NOTOUCH']],
-    endsinout: [['Ends In', 'EXPIRYRANGE'], ['Ends Out', 'EXPIRYMISS']],
-    staysinout: [['Stays In', 'RANGE'], ['Goes Out', 'MISS']],
-    matchesdiffers: [['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF']],
-    evenodd: [['Even', 'DIGITEVEN'], ['Odd', 'DIGITODD']],
-    overunder: [['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER']],
+    risefall: [['Rise/Fall (both)', 'both'], ['Rise', 'CALL'], ['Fall', 'PUT']],
+    higherlower: [['Higher/Lower (both)', 'both'], ['Higher', 'CALL'], ['Lower', 'PUT']],
+    touchnotouch: [['Touch/No Touch (both)', 'both'], ['Touch', 'ONETOUCH'], ['No Touch', 'NOTOUCH']],
+    endsinout: [['Ends Between/Outside (both)', 'both'], ['Ends Between', 'EXPIRYRANGE'], ['Ends Outside', 'EXPIRYMISS']],
+    staysinout: [['Stays Between/Goes Outside (both)', 'both'], ['Stays Between', 'RANGE'], ['Goes Outside', 'UPORDOWN']],
+    matchesdiffers: [['Matches/Differs (both)', 'both'], ['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF']],
+    evenodd: [['Even/Odd (both)', 'both'], ['Even', 'DIGITEVEN'], ['Odd', 'DIGITODD']],
+    overunder: [['Over/Under (both)', 'both'], ['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER']],
   }
 
   return true

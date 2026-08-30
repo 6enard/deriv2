@@ -149,6 +149,7 @@ export function isValidBotXml(xmlText: string): boolean {
 export interface TradeParams {
   symbol: string
   contract_type: string
+  trade_type: string
   duration: number
   duration_unit: string
   amount: number
@@ -203,11 +204,14 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
 
   let symbol = ''
   let contractType = ''
+  let tradeType = ''
 
   let block: Blockly.Block | null = tradeOptionsBlock
   while (block) {
     if (block.type === 'trade_definition_market') {
       symbol = String(block.getFieldValue('SYMBOL_LIST') || '').trim()
+    } else if (block.type === 'trade_definition_tradetype') {
+      tradeType = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
     } else if (block.type === 'trade_definition_contracttype') {
       contractType = String(block.getFieldValue('TYPE_LIST') || '').trim()
     }
@@ -243,7 +247,7 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
   if (amountResult.repaired) repairedInputs.push('Amount')
   if (predictionResult.repaired) repairedInputs.push('Prediction')
 
-  return { ok: true, params: { symbol, contract_type: contractType, duration: durationResult.value, duration_unit: durationUnit, amount: amountResult.value, currency, prediction: isNaN(prediction) ? undefined : prediction }, repairedInputs }
+  return { ok: true, params: { symbol, contract_type: contractType, trade_type: tradeType, duration: durationResult.value, duration_unit: durationUnit, amount: amountResult.value, currency, prediction: isNaN(prediction) ? undefined : prediction }, repairedInputs }
 }
 
 // Renamed/deprecated block types that may appear in bots saved earlier in
