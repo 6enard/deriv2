@@ -10,6 +10,7 @@ import type { SymbolInfo } from '../lib/types'
 import { isValidBotXml, sanitizeLegacyXml } from '../blockly'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2, Monitor, Cloud, Blocks, Zap as ZapIcon, ArrowRight } from 'lucide-react'
 import { useMarketData } from '../hooks/useMarketData'
+import { DashboardSkeleton } from '../components/Skeleton'
 
 type Tab = 'my-bots' | 'free-bots' | 'editor' | 'strategy'
 
@@ -138,9 +139,7 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           {activeTab === 'my-bots' && <MyBotsTab bots={myBots} onChanged={loadData} onBotClick={handleBotClick} />}

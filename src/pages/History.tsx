@@ -4,6 +4,7 @@ import { useOpenContracts } from '../hooks/useOpenContracts'
 import { errorMessage } from '../lib/error'
 import type { OpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2, ChevronDown, Calendar, ListFilter as Filter } from 'lucide-react'
+import { HistorySkeleton } from '../components/Skeleton'
 
 interface ClosedTrade {
   contract_id: number
@@ -185,11 +186,7 @@ export default function History() {
   const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
-      </div>
-    )
+    return <HistorySkeleton />
   }
 
   return (

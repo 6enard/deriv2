@@ -5,6 +5,7 @@ import { errorMessage } from '../lib/error'
 import { supabase } from '../lib/supabase'
 import type { OpenContract } from '../lib/types'
 import { TrendingUp, TrendingDown, Wallet, Award, ChartBar as BarChart3, RefreshCw, Loader as Loader2 } from 'lucide-react'
+import { PortfolioSkeleton } from '../components/Skeleton'
 
 interface ProfitTableEntry {
   contract_id: number
@@ -82,11 +83,7 @@ export default function Portfolio() {
   const winRate = tradeHistory.length > 0 ? (wins / tradeHistory.length) * 100 : 0
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
-      </div>
-    )
+    return <PortfolioSkeleton />
   }
 
   return (

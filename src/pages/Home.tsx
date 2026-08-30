@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   Shield,
-  Zap,
-  DollarSign,
   Loader as Loader2,
   ArrowRight,
   CheckCircle2,
