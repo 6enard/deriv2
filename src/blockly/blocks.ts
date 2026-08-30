@@ -62,18 +62,45 @@ function tradeTypeMenuOptions(this: any): [string, string][] {
   return tradeTypeOptionsByCategory[category] || [['—', '']]
 }
 
+// Walk backward through the statement stack to find the paired
+// trade_definition_tradetype block. Exported so repairLoadedBot can reuse
+// the same logic instead of duplicating the traversal.
+export function findPairedTradeTypeBlock(block: Blockly.Block): Blockly.Block | null {
+  let cursor: Blockly.Block | null = block
+  while (cursor) {
+    if (cursor.type === 'trade_definition_tradetype') return cursor
+    cursor = cursor.getPreviousBlock()
+  }
+  return null
+}
+
+// Flatten all contract type options across every trade type. Used as a
+// fallback during XML deserialization: Blockly sets a field's value before
+// the block is connected to the statement stack, so getPreviousBlock()
+// returns null at that point. Returning the full superset lets the saved
+// value validate; the dropdown narrows to the correct subset once the
+// block is connected and the options function re-runs.
+function allContractTypeOptions(): [string, string][] {
+  const seen = new Set<string>()
+  const all: [string, string][] = []
+  for (const opts of Object.values(contractTypeOptionsByTradeType)) {
+    for (const [label, value] of opts) {
+      if (!seen.has(value)) {
+        seen.add(value)
+        all.push([label, value])
+      }
+    }
+  }
+  return all
+}
+
 function contractTypeMenuOptions(this: any): [string, string][] {
   const block = this.getSourceBlock()
   if (!block) return [['—', '']]
-  let cursor: any = block
-  while (cursor) {
-    if (cursor.type === 'trade_definition_tradetype') {
-      const tradeType = cursor.getFieldValue('TRADETYPE_LIST')
-      return contractTypeOptionsByTradeType[tradeType] || [['—', '']]
-    }
-    cursor = cursor.getPreviousBlock()
-  }
-  return [['—', '']]
+  const paired = findPairedTradeTypeBlock(block)
+  if (!paired) return allContractTypeOptions()
+  const tradeType = paired.getFieldValue('TRADETYPE_LIST')
+  return contractTypeOptionsByTradeType[tradeType] || [['—', '']]
 }
 
 // Accessors for the self-healing pass in loadBotXmlSafely — let it pick

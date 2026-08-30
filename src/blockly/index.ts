@@ -19,6 +19,7 @@ import {
   isValidTradeTypeCategoryValue,
   isValidTradeTypeValue,
   isValidContractTypeValue,
+  findPairedTradeTypeBlock,
   type RawSymbol,
 } from './blocks'
 import { toolbox } from './toolbox'
@@ -319,20 +320,19 @@ function repairLoadedBot(workspace: Blockly.WorkspaceSvg): boolean {
   }
 
   // 3. Repair contract type — depends on the trade type resolved above.
-  let resolvedTradeType = ''
+  //    Process AFTER the tradetype pass so TRADETYPE_LIST is already valid.
+  //    Each contracttype block reads its paired tradetype block via the
+  //    same backward-walk used by the dropdown function.
   for (const block of allBlocks) {
-    if (block.type === 'trade_definition_tradetype') {
-      resolvedTradeType = String(block.getFieldValue('TRADETYPE_LIST') || '').trim()
-      break
-    }
-  }
-  for (const block of allBlocks) {
-    if (block.type === 'trade_definition_contracttype') {
-      const ct = String(block.getFieldValue('TYPE_LIST') || '').trim()
-      if (!ct || !isValidContractTypeValue(resolvedTradeType, ct)) {
-        const v = getFirstContractTypeValue(resolvedTradeType)
-        if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn(`[bot-loader] TYPE_LIST was '${ct}' (invalid for trade type '${resolvedTradeType}') — reset to '${v}'`) }
-      }
+    if (block.type !== 'trade_definition_contracttype') continue
+    const paired = findPairedTradeTypeBlock(block)
+    const resolvedTradeType = paired
+      ? String(paired.getFieldValue('TRADETYPE_LIST') || '').trim()
+      : ''
+    const ct = String(block.getFieldValue('TYPE_LIST') || '').trim()
+    if (!ct || !isValidContractTypeValue(resolvedTradeType, ct)) {
+      const v = getFirstContractTypeValue(resolvedTradeType)
+      if (v) { block.setFieldValue(v, 'TYPE_LIST'); repaired = true; console.warn(`[bot-loader] TYPE_LIST was '${ct}' (invalid for trade type '${resolvedTradeType}') — reset to '${v}'`) }
     }
   }
 
