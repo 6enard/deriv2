@@ -10,11 +10,18 @@ import {
   ArrowRight,
   CheckCircle2,
   BarChart3,
-  Globe2,
-  Sparkles,
+  Bot,
+  Lock,
+  Activity,
+  ChevronRight,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 import { useDerivAuth } from '../hooks/useDerivAuth'
+
+/* =========================================================
+   START TRADING BUTTON
+   ========================================================= */
 
 function StartTradingButton() {
   const { login, isLoading } = useDerivAuth()
@@ -27,32 +34,53 @@ function StartTradingButton() {
       }}
       disabled={isLoading}
       className="
-        group relative inline-flex items-center justify-center gap-3
-        px-7 py-4 sm:px-8 sm:py-4
-        rounded-2xl
-        bg-brand-red text-white
-        font-semibold text-base sm:text-lg
-        shadow-[0_12px_40px_rgba(255,45,85,0.22)]
-        hover:shadow-[0_16px_50px_rgba(255,45,85,0.35)]
+        group relative inline-flex items-center justify-center
+        gap-3 px-7 sm:px-8 py-4
+        rounded-xl
+        bg-brand-red
+        text-white
+        font-semibold
+        shadow-[0_10px_35px_rgba(255,45,85,0.18)]
+        hover:shadow-[0_14px_45px_rgba(255,45,85,0.30)]
         hover:-translate-y-0.5
         active:translate-y-0
         transition-all duration-300
-        disabled:opacity-60 disabled:cursor-not-allowed
+        disabled:opacity-60
+        disabled:cursor-not-allowed
         overflow-hidden
       "
     >
-      <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+      <span
+        className="
+          absolute inset-0
+          bg-gradient-to-r
+          from-transparent
+          via-white/15
+          to-transparent
+          -translate-x-full
+          group-hover:translate-x-full
+          transition-transform duration-700
+        "
+      />
 
       <span className="relative">
         {isLoading ? 'Connecting...' : 'Start Trading'}
       </span>
 
       <ArrowRight
-        className="relative w-5 h-5 group-hover:translate-x-1 transition-transform"
+        className="
+          relative w-5 h-5
+          group-hover:translate-x-1
+          transition-transform
+        "
       />
     </button>
   )
 }
+
+/* =========================================================
+   HOME
+   ========================================================= */
 
 export default function Home() {
   const { isAuthenticated, isLoading, error } = useAuth()
@@ -65,34 +93,166 @@ export default function Home() {
   }, [isAuthenticated, navigate])
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Background atmosphere */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-[-300px] h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-brand-red/10 blur-[140px]" />
-        <div className="absolute right-[-200px] top-[25%] h-[400px] w-[400px] rounded-full bg-brand-red/5 blur-[120px]" />
-        <div className="absolute left-[-200px] bottom-[10%] h-[350px] w-[350px] rounded-full bg-purple-500/5 blur-[120px]" />
+    <div
+      className="
+        relative min-h-screen overflow-hidden
+        bg-[#f8f9fb]
+        text-slate-950
+        dark:bg-transparent
+        dark:text-text-primary
+      "
+    >
+      {/* =====================================================
+          LIGHT MODE BACKGROUND
+          ===================================================== */}
+
+      <div className="pointer-events-none absolute inset-0 dark:hidden">
+        <div
+          className="
+            absolute
+            -top-[320px]
+            left-1/2
+            -translate-x-1/2
+            w-[900px]
+            h-[650px]
+            rounded-full
+            bg-brand-red/[0.035]
+            blur-[130px]
+          "
+        />
+
+        <div
+          className="
+            absolute
+            right-[-250px]
+            top-[25%]
+            w-[550px]
+            h-[550px]
+            rounded-full
+            bg-slate-200/50
+            blur-[130px]
+          "
+        />
+
+        <div
+          className="
+            absolute
+            left-[-250px]
+            bottom-[10%]
+            w-[500px]
+            h-[500px]
+            rounded-full
+            bg-slate-200/40
+            blur-[130px]
+          "
+        />
+
+        <div
+          className="absolute inset-0 opacity-50"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(15,23,42,0.025) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(15,23,42,0.025) 1px, transparent 1px)
+            `,
+            backgroundSize: '64px 64px',
+          }}
+        />
       </div>
 
-      {/* Subtle grid */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.025]"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }}
-      />
+      {/* =====================================================
+          DARK MODE BACKGROUND
+          ===================================================== */}
 
-      <main className="relative max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 py-16 sm:py-24 lg:py-28">
+      <div className="pointer-events-none absolute inset-0 hidden dark:block">
+        <div
+          className="
+            absolute
+            left-1/2
+            -top-[300px]
+            h-[600px]
+            w-[900px]
+            -translate-x-1/2
+            rounded-full
+            bg-brand-red/10
+            blur-[140px]
+          "
+        />
 
-        {/* HERO */}
-        <section className="text-center max-w-5xl mx-auto">
+        <div
+          className="
+            absolute
+            right-[-200px]
+            top-[25%]
+            h-[400px]
+            w-[400px]
+            rounded-full
+            bg-brand-red/5
+            blur-[120px]
+          "
+        />
 
-          {/* Powered by badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.035] border border-white/[0.08] backdrop-blur-xl text-sm text-text-secondary shadow-lg mb-8">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-red opacity-50" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-red" />
+        <div
+          className="
+            absolute
+            left-[-200px]
+            bottom-[10%]
+            h-[350px]
+            w-[350px]
+            rounded-full
+            bg-purple-500/5
+            blur-[120px]
+          "
+        />
+      </div>
+
+      <main
+        className="
+          relative
+          max-w-7xl
+          mx-auto
+          px-5 sm:px-8 lg:px-10
+          py-12 sm:py-20 lg:py-24
+        "
+      >
+        {/* ===================================================
+            HERO
+            =================================================== */}
+
+        <section className="max-w-5xl mx-auto text-center">
+          {/* Deriv status */}
+
+          <div
+            className="
+              inline-flex items-center gap-2.5
+              px-4 py-2
+              rounded-full
+              border
+              border-slate-200
+              bg-white/80
+              shadow-[0_8px_30px_rgba(15,23,42,0.05)]
+              backdrop-blur-xl
+              text-xs sm:text-sm
+              text-slate-500
+              dark:border-white/[0.08]
+              dark:bg-white/[0.035]
+              dark:text-text-secondary
+              dark:shadow-lg
+            "
+          >
+            <span className="relative flex w-2 h-2">
+              <span
+                className="
+                  absolute
+                  inline-flex
+                  w-full h-full
+                  rounded-full
+                  bg-brand-red
+                  opacity-40
+                  animate-ping
+                "
+              />
+
+              <span className="relative w-2 h-2 rounded-full bg-brand-red" />
             </span>
 
             <img
@@ -102,36 +262,111 @@ export default function Home() {
             />
 
             <span>
-              Powered by <span className="text-text-primary font-medium">Deriv</span>
+              Powered by{' '}
+              <span className="font-semibold text-slate-900 dark:text-text-primary">
+                Deriv
+              </span>
             </span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-[-0.045em] leading-[0.98] mb-7">
-            <span className="block text-text-primary">
-              Your Markets.
+          {/* Eyebrow */}
+
+          <div
+            className="
+              flex
+              items-center
+              justify-center
+              gap-3
+              mt-8
+              mb-5
+              text-[10px]
+              sm:text-xs
+              uppercase
+              tracking-[0.28em]
+              font-semibold
+              text-slate-400
+              dark:text-text-secondary
+            "
+          >
+            <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
+
+            Next generation trading
+
+            <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
+          </div>
+
+          {/* Main headline */}
+
+          <h1
+            className="
+              text-5xl
+              sm:text-6xl
+              lg:text-7xl
+              xl:text-[88px]
+              font-bold
+              tracking-[-0.055em]
+              leading-[0.94]
+            "
+          >
+            <span className="block text-slate-950 dark:text-text-primary">
+              Trade smarter.
             </span>
 
-            <span className="block bg-gradient-to-r from-brand-red via-brand-red to-red-400 bg-clip-text text-transparent">
-              Your Moment.
+            <span className="block text-brand-red">
+              Move faster.
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-base sm:text-lg lg:text-xl text-text-secondary leading-relaxed mb-10">
-            Trade global markets with a powerful, modern platform built
-            around speed, flexibility, and real-time access to Deriv.
+          <p
+            className="
+              max-w-2xl
+              mx-auto
+              mt-7
+              text-base
+              sm:text-lg
+              leading-relaxed
+              text-slate-500
+              dark:text-text-secondary
+            "
+          >
+            Access global markets through a powerful trading
+            platform connected directly to your Deriv account.
           </p>
 
           {/* CTA */}
-          <div className="flex flex-col items-center gap-5">
+
+          <div className="mt-10 flex flex-col items-center gap-5">
             {isLoading ? (
-              <div className="flex items-center gap-3 text-text-secondary py-4">
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  py-4
+                  text-slate-500
+                  dark:text-text-secondary
+                "
+              >
                 <Loader2 className="w-5 h-5 animate-spin text-brand-red" />
+
                 <span>Connecting to Deriv...</span>
               </div>
             ) : error ? (
-              <div className="w-full max-w-md space-y-4">
-                <div className="rounded-2xl bg-brand-red/10 border border-brand-red/20 px-5 py-4 text-sm text-brand-red backdrop-blur-xl">
+              <div className="max-w-md w-full space-y-4">
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-red-200
+                    bg-red-50
+                    px-5 py-4
+                    text-sm
+                    text-red-600
+                    dark:border-brand-red/20
+                    dark:bg-brand-red/10
+                    dark:text-brand-red
+                  "
+                >
                   {error}
                 </div>
 
@@ -141,323 +376,1320 @@ export default function Home() {
               <StartTradingButton />
             )}
 
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm text-text-secondary">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-brand-red" />
-                Secure authentication
-              </div>
+            <div
+              className="
+                flex
+                flex-wrap
+                justify-center
+                items-center
+                gap-x-5
+                gap-y-2
+                text-xs
+                text-slate-400
+                dark:text-text-secondary
+              "
+            >
+              <TrustItem text="Secure authentication" />
 
-              <div className="hidden sm:block w-1 h-1 rounded-full bg-text-secondary/40" />
+              <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300 dark:bg-white/20" />
 
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-brand-red" />
-                Real-time markets
-              </div>
+              <TrustItem text="Real-time markets" />
 
-              <div className="hidden sm:block w-1 h-1 rounded-full bg-text-secondary/40" />
+              <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300 dark:bg-white/20" />
 
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-brand-red" />
-                Built for traders
-              </div>
+              <TrustItem text="Built for traders" />
             </div>
           </div>
         </section>
 
-        {/* MARKET PREVIEW */}
-        <section className="relative mt-20 sm:mt-24 max-w-5xl mx-auto">
-          <div className="relative rounded-3xl border border-white/[0.08] bg-white/[0.025] backdrop-blur-xl p-2 shadow-2xl">
+        {/* ===================================================
+            MARKET TICKER
+            =================================================== */}
 
-            {/* Glow */}
-            <div className="absolute inset-x-20 -bottom-10 h-24 bg-brand-red/10 blur-3xl" />
+        <section className="mt-20 sm:mt-24">
+          <SectionHeading
+            eyebrow="Markets"
+            title="Markets at a glance"
+            description="Explore instruments available through your connected Deriv account."
+          />
 
-            <div className="relative rounded-[22px] border border-white/[0.06] bg-bg-secondary/80 overflow-hidden">
+          <div
+            className="
+              mt-8
+              overflow-hidden
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              shadow-[0_15px_50px_rgba(15,23,42,0.05)]
+              dark:border-white/[0.07]
+              dark:bg-white/[0.025]
+              dark:shadow-none
+            "
+          >
+            <div
+              className="
+                flex
+                min-w-max
+                divide-x
+                divide-slate-200
+                dark:divide-white/[0.07]
+              "
+            >
+              <MarketTicker
+                symbol="R_100"
+                type="Synthetic Index"
+                change="+2.41%"
+                positive
+              />
 
-              {/* Fake terminal header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
-                  </div>
+              <MarketTicker
+                symbol="R_75"
+                type="Synthetic Index"
+                change="+1.82%"
+                positive
+              />
 
-                  <div className="h-4 w-px bg-white/10" />
+              <MarketTicker
+                symbol="R_50"
+                type="Synthetic Index"
+                change="-0.64%"
+              />
 
-                  <span className="text-xs text-text-secondary">
-                    Trading Terminal
+              <MarketTicker
+                symbol="BOOM 500"
+                type="Synthetic"
+                change="+0.91%"
+                positive
+              />
+
+              <MarketTicker
+                symbol="CRASH 500"
+                type="Synthetic"
+                change="-1.12%"
+              />
+            </div>
+          </div>
+
+          <p className="mt-3 text-[10px] text-slate-400 dark:text-text-secondary/50">
+            Illustrative market data — values shown are examples only.
+          </p>
+        </section>
+
+        {/* ===================================================
+            MARKET TABLE
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28">
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              overflow-hidden
+              shadow-[0_15px_50px_rgba(15,23,42,0.04)]
+              dark:border-white/[0.07]
+              dark:bg-white/[0.025]
+              dark:shadow-none
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                px-5 sm:px-7
+                py-5
+                border-b
+                border-slate-200
+                dark:border-white/[0.07]
+              "
+            >
+              <div>
+                <div
+                  className="
+                    text-[10px]
+                    uppercase
+                    tracking-[0.22em]
+                    font-semibold
+                    text-brand-red
+                    mb-1.5
+                  "
+                >
+                  Market discovery
+                </div>
+
+                <h2
+                  className="
+                    text-xl
+                    sm:text-2xl
+                    font-bold
+                    tracking-tight
+                    text-slate-950
+                    dark:text-text-primary
+                  "
+                >
+                  Available markets
+                </h2>
+              </div>
+
+              <Activity className="w-5 h-5 text-slate-300 dark:text-text-secondary/40" />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr
+                    className="
+                      border-b
+                      border-slate-100
+                      dark:border-white/[0.05]
+                      text-left
+                      text-[10px]
+                      uppercase
+                      tracking-[0.16em]
+                      text-slate-400
+                    "
+                  >
+                    <th className="px-5 sm:px-7 py-4 font-medium">
+                      Market
+                    </th>
+
+                    <th className="px-5 sm:px-7 py-4 font-medium">
+                      Type
+                    </th>
+
+                    <th className="px-5 sm:px-7 py-4 font-medium">
+                      Status
+                    </th>
+
+                    <th className="px-5 sm:px-7 py-4" />
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <MarketRow
+                    symbol="R_100"
+                    type="Synthetic Index"
+                  />
+
+                  <MarketRow
+                    symbol="R_75"
+                    type="Synthetic Index"
+                  />
+
+                  <MarketRow
+                    symbol="R_50"
+                    type="Synthetic Index"
+                  />
+
+                  <MarketRow
+                    symbol="Boom 500"
+                    type="Synthetic Index"
+                  />
+
+                  <MarketRow
+                    symbol="Crash 500"
+                    type="Synthetic Index"
+                    last
+                  />
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* ===================================================
+            PRODUCT SECTION
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28">
+          <SectionHeading
+            eyebrow="Products"
+            title="Built for every trading style"
+            description="Choose the tools that match the way you trade."
+          />
+
+          <div className="grid md:grid-cols-3 gap-5 mt-8">
+            <ProductCard
+              icon={BarChart3}
+              title="Manual Trading"
+              description="Trade directly through a focused interface designed for fast execution."
+              label="Trading terminal"
+            />
+
+            <ProductCard
+              icon={Bot}
+              title="Bot Builder"
+              description="Build automated strategies visually using powerful block-based logic."
+              label="Automation"
+              featured
+            />
+
+            <ProductCard
+              icon={TrendingUp}
+              title="Smart Trading"
+              description="Combine market access and automation in one modern platform."
+              label="Strategy"
+            />
+          </div>
+        </section>
+
+        {/* ===================================================
+            BOT BUILDER SHOWCASE
+            =================================================== */}
+
+        <section
+          className="
+            relative
+            mt-20 sm:mt-28
+            overflow-hidden
+            rounded-3xl
+            border
+            border-slate-200
+            bg-white
+            shadow-[0_25px_80px_rgba(15,23,42,0.07)]
+            dark:border-white/[0.07]
+            dark:bg-white/[0.025]
+            dark:shadow-none
+          "
+        >
+          <div
+            className="
+              absolute
+              right-[-160px]
+              top-[-160px]
+              w-[450px]
+              h-[450px]
+              rounded-full
+              bg-brand-red/[0.035]
+              blur-3xl
+              dark:bg-brand-red/5
+            "
+          />
+
+          <div
+            className="
+              relative
+              grid
+              lg:grid-cols-[0.85fr_1.15fr]
+              gap-12
+              p-7
+              sm:p-10
+              lg:p-14
+            "
+          >
+            <div className="flex flex-col justify-center">
+              <div
+                className="
+                  text-[10px]
+                  uppercase
+                  tracking-[0.24em]
+                  font-semibold
+                  text-brand-red
+                  mb-5
+                "
+              >
+                Automated strategies
+              </div>
+
+              <h2
+                className="
+                  text-3xl
+                  sm:text-4xl
+                  lg:text-5xl
+                  font-bold
+                  tracking-[-0.045em]
+                  leading-[1]
+                  text-slate-950
+                  dark:text-text-primary
+                "
+              >
+                Automate
+                <br />
+                your strategy.
+              </h2>
+
+              <p
+                className="
+                  mt-5
+                  max-w-md
+                  text-sm
+                  sm:text-base
+                  leading-relaxed
+                  text-slate-500
+                  dark:text-text-secondary
+                "
+              >
+                Build, test, and execute trading logic visually
+                with the platform's powerful Bot Builder.
+              </p>
+
+              <div
+                className="
+                  mt-7
+                  inline-flex
+                  items-center
+                  gap-2
+                  text-sm
+                  font-semibold
+                  text-slate-900
+                  dark:text-text-primary
+                "
+              >
+                Explore Bot Builder
+
+                <ArrowRight className="w-4 h-4 text-brand-red" />
+              </div>
+            </div>
+
+            {/* Bot visual */}
+
+            <div
+              className="
+                relative
+                min-h-[350px]
+                rounded-2xl
+                border
+                border-slate-200
+                bg-slate-50
+                p-5
+                overflow-hidden
+                dark:border-white/[0.07]
+                dark:bg-black/20
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  pb-4
+                  border-b
+                  border-slate-200
+                  dark:border-white/[0.06]
+                "
+              >
+                <div className="flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-brand-red" />
+
+                  <span
+                    className="
+                      text-[10px]
+                      uppercase
+                      tracking-[0.16em]
+                      font-semibold
+                      text-slate-600
+                      dark:text-text-secondary
+                    "
+                  >
+                    Bot Builder
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-text-secondary">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  Markets Open
-                </div>
+                <span
+                  className="
+                    flex
+                    items-center
+                    gap-1.5
+                    text-[9px]
+                    uppercase
+                    tracking-[0.12em]
+                    text-emerald-500
+                  "
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Ready
+                </span>
               </div>
 
-              {/* Chart area */}
-              <div className="relative h-64 sm:h-80 p-5">
-
-                {/* Chart grid */}
-                <div
-                  className="absolute inset-0 opacity-[0.035]"
-                  style={{
-                    backgroundImage:
-                      'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
-                    backgroundSize: '50px 50px',
-                  }}
+              <div className="mt-5 space-y-3">
+                <BotBlock
+                  title="TRADE PARAMETERS"
+                  detail="Market · Contract · Duration"
+                  active
                 />
 
-                {/* Fake chart */}
-                <svg
-                  className="absolute inset-x-5 top-10 bottom-8 w-[calc(100%-40px)] h-[calc(100%-72px)]"
-                  viewBox="0 0 1000 300"
-                  preserveAspectRatio="none"
-                >
-                  <defs>
-                    <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
-                      <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
+                <Connector />
 
-                  <path
-                    d="M0 240 L60 225 L110 235 L160 190 L210 205 L260 170 L310 185 L360 130 L410 150 L460 115 L510 140 L560 100 L610 120 L660 80 L710 105 L760 65 L810 90 L860 50 L920 70 L1000 35 L1000 300 L0 300 Z"
-                    fill="url(#chartFill)"
-                    className="text-brand-red"
-                  />
+                <BotBlock
+                  title="PURCHASE CONDITIONS"
+                  detail="IF condition → Purchase"
+                />
 
-                  <path
-                    d="M0 240 L60 225 L110 235 L160 190 L210 205 L260 170 L310 185 L360 130 L410 150 L460 115 L510 140 L560 100 L610 120 L660 80 L710 105 L760 65 L810 90 L860 50 L920 70 L1000 35"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    vectorEffect="non-scaling-stroke"
-                    className="text-brand-red"
-                  />
-                </svg>
+                <Connector />
 
-                {/* Chart labels */}
-                <div className="absolute top-5 left-5">
-                  <div className="text-xs text-text-secondary mb-1">
-                    Synthetic Index
-                  </div>
-                  <div className="text-xl font-semibold text-text-primary">
-                    R_100
-                  </div>
-                </div>
-
-                <div className="absolute top-5 right-5 text-right">
-                  <div className="text-xl font-semibold text-text-primary">
-                    1,842.36
-                  </div>
-                  <div className="text-xs text-green-400">
-                    +2.41%
-                  </div>
-                </div>
-
-                <div className="absolute bottom-4 left-5 flex items-center gap-4 text-[10px] text-text-secondary">
-                  <span>1H</span>
-                  <span className="text-brand-red font-medium">4H</span>
-                  <span>1D</span>
-                  <span>1W</span>
-                </div>
+                <BotBlock
+                  title="TRADE RESULTS"
+                  detail="Profit · Loss · Result"
+                />
               </div>
             </div>
           </div>
         </section>
 
-        {/* FEATURES */}
-        <section className="mt-24 sm:mt-32">
+        {/* ===================================================
+            CAPABILITY STATS
+            =================================================== */}
 
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-brand-red font-semibold mb-3">
-              <Sparkles className="w-4 h-4" />
-              Built for modern trading
+        <section className="mt-20 sm:mt-28">
+          <div
+            className="
+              border-y
+              border-slate-200
+              dark:border-white/[0.07]
+            "
+          >
+            <div className="grid grid-cols-2 lg:grid-cols-4">
+              <Capability
+                value="24/7"
+                label="Market access"
+              />
+
+              <Capability
+                value="REAL-TIME"
+                label="Trading"
+              />
+
+              <Capability
+                value="MULTI-ASSET"
+                label="Markets"
+              />
+
+              <Capability
+                value="AUTOMATED"
+                label="Strategies"
+                last
+              />
             </div>
-
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Everything you need to trade
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-            <FeatureCard
-              icon={Shield}
-              title="Secure Deriv Login"
-              description="Your credentials stay with Deriv. Authentication happens through Deriv's official authorization flow."
-            />
-
-            <FeatureCard
-              icon={Zap}
-              title="Real-Time Trading"
-              description="Access live markets and execute trades through your connected Deriv account."
-            />
-
-            <FeatureCard
-              icon={DollarSign}
-              title="Transparent Pricing"
-              description="A clearly configured 3% markup is applied to trades executed through the platform."
-            />
-
           </div>
         </section>
 
-        {/* HOW IT WORKS */}
-        <section className="relative mt-16 sm:mt-20 rounded-3xl border border-white/[0.07] bg-white/[0.025] backdrop-blur-xl overflow-hidden">
+        {/* ===================================================
+            SECURITY
+            =================================================== */}
 
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-brand-red/10 blur-3xl" />
-
-          <div className="relative p-6 sm:p-10 lg:p-12">
-
-            <div className="max-w-xl mb-10">
-              <div className="text-xs uppercase tracking-[0.2em] text-brand-red font-semibold mb-3">
-                Simple by design
+        <section className="mt-20 sm:mt-28">
+          <div
+            className="
+              grid
+              lg:grid-cols-[0.7fr_1.3fr]
+              gap-12
+              items-start
+            "
+          >
+            <div>
+              <div
+                className="
+                  text-[10px]
+                  uppercase
+                  tracking-[0.24em]
+                  font-semibold
+                  text-brand-red
+                  mb-4
+                "
+              >
+                Security
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
-                Start trading in minutes
+              <h2
+                className="
+                  text-3xl
+                  sm:text-4xl
+                  font-bold
+                  tracking-[-0.04em]
+                  text-slate-950
+                  dark:text-text-primary
+                "
+              >
+                Built with
+                <br />
+                security in mind.
               </h2>
-
-              <p className="text-sm sm:text-base text-text-secondary leading-relaxed">
-                Connect your Deriv account, approve access, and you're ready
-                to explore the markets.
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div
+              className="
+                border-t
+                border-slate-200
+                dark:border-white/[0.07]
+              "
+            >
+              <SecurityRow
+                icon={Lock}
+                title="Deriv Authentication"
+                description="Authenticate through Deriv's official authorization flow."
+              />
 
-              <Step
-                number="01"
+              <SecurityRow
                 icon={Shield}
-                title="Sign in"
-                description="Connect securely through Deriv's official authorization page."
+                title="Protected Access"
+                description="The platform does not ask users for their Deriv password directly."
               />
 
-              <Step
-                number="02"
+              <SecurityRow
                 icon={CheckCircle2}
-                title="Approve"
-                description="Review the requested permissions and approve access."
+                title="Controlled Trading"
+                description="Trading access is granted through your connected Deriv account."
+                last
               />
-
-              <Step
-                number="03"
-                icon={BarChart3}
-                title="Trade"
-                description="Explore markets and place trades through the platform."
-              />
-
-              <Step
-                number="04"
-                icon={Globe2}
-                title="Go anywhere"
-                description="Access your trading experience wherever you are."
-              />
-
             </div>
           </div>
         </section>
 
-        {/* FINAL CTA */}
-        <section className="text-center mt-20 sm:mt-28 pb-8">
+        {/* ===================================================
+            HOW IT WORKS
+            =================================================== */}
 
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-red/10 border border-brand-red/20 mb-5">
-            <Zap className="w-5 h-5 text-brand-red" />
+        <section className="mt-20 sm:mt-28">
+          <SectionHeading
+            eyebrow="Getting started"
+            title="Start trading in minutes."
+            description="Connect your Deriv account and get straight to the markets."
+          />
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+            <Step
+              number="01"
+              title="Sign in"
+              description="Connect securely through Deriv's official authorization page."
+            />
+
+            <Step
+              number="02"
+              title="Approve"
+              description="Review the requested permissions and approve access."
+            />
+
+            <Step
+              number="03"
+              title="Trade"
+              description="Explore markets and place trades through the platform."
+            />
+
+            <Step
+              number="04"
+              title="Build"
+              description="Create automated strategies using the Bot Builder."
+            />
           </div>
-
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-            Ready to trade?
-          </h2>
-
-          <p className="text-text-secondary max-w-lg mx-auto mb-7">
-            Connect your Deriv account and start exploring the markets.
-          </p>
-
-          <StartTradingButton />
         </section>
 
+        {/* ===================================================
+            FINAL CTA
+            =================================================== */}
+
+        <section
+          className="
+            relative
+            mt-24
+            sm:mt-36
+            pb-10
+            text-center
+          "
+        >
+          <div
+            className="
+              absolute
+              left-1/2
+              top-1/2
+              -translate-x-1/2
+              -translate-y-1/2
+              w-96
+              h-48
+              rounded-full
+              bg-brand-red/[0.035]
+              blur-3xl
+              dark:bg-brand-red/5
+            "
+          />
+
+          <div className="relative">
+            <div
+              className="
+                text-[10px]
+                uppercase
+                tracking-[0.26em]
+                font-semibold
+                text-slate-400
+                dark:text-text-secondary
+                mb-5
+              "
+            >
+              Your next move
+            </div>
+
+            <h2
+              className="
+                text-4xl
+                sm:text-5xl
+                lg:text-6xl
+                font-bold
+                tracking-[-0.05em]
+                text-slate-950
+                dark:text-text-primary
+              "
+            >
+              Your next trade
+              <br />
+              <span className="text-brand-red">
+                starts here.
+              </span>
+            </h2>
+
+            <p
+              className="
+                max-w-md
+                mx-auto
+                mt-5
+                mb-8
+                text-sm
+                sm:text-base
+                leading-relaxed
+                text-slate-500
+                dark:text-text-secondary
+              "
+            >
+              Connect your Deriv account and enter the markets
+              through a modern trading experience.
+            </p>
+
+            <StartTradingButton />
+          </div>
+        </section>
       </main>
     </div>
   )
 }
 
-function FeatureCard({
-  icon: Icon,
+/* =========================================================
+   TRUST ITEM
+   ========================================================= */
+
+function TrustItem({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <CheckCircle2 className="w-3.5 h-3.5 text-brand-red" />
+      <span>{text}</span>
+    </div>
+  )
+}
+
+/* =========================================================
+   SECTION HEADING
+   ========================================================= */
+
+function SectionHeading({
+  eyebrow,
   title,
   description,
 }: {
-  icon: LucideIcon
+  eyebrow: string
   title: string
   description: string
 }) {
   return (
+    <div className="max-w-2xl">
+      <div
+        className="
+          text-[10px]
+          uppercase
+          tracking-[0.24em]
+          font-semibold
+          text-brand-red
+          mb-3
+        "
+      >
+        {eyebrow}
+      </div>
+
+      <h2
+        className="
+          text-3xl
+          sm:text-4xl
+          font-bold
+          tracking-[-0.04em]
+          text-slate-950
+          dark:text-text-primary
+        "
+      >
+        {title}
+      </h2>
+
+      <p
+        className="
+          mt-3
+          text-sm
+          sm:text-base
+          leading-relaxed
+          text-slate-500
+          dark:text-text-secondary
+        "
+      >
+        {description}
+      </p>
+    </div>
+  )
+}
+
+/* =========================================================
+   MARKET TICKER
+   ========================================================= */
+
+function MarketTicker({
+  symbol,
+  type,
+  change,
+  positive = false,
+}: {
+  symbol: string
+  type: string
+  change: string
+  positive?: boolean
+}) {
+  return (
     <div
       className="
-        group relative rounded-2xl
-        bg-white/[0.025]
-        border border-white/[0.07]
-        p-6 sm:p-7
-        hover:bg-white/[0.045]
-        hover:border-brand-red/20
-        hover:-translate-y-1
-        transition-all duration-300
+        min-w-[190px]
+        sm:min-w-[210px]
+        px-5
+        py-5
       "
     >
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-red/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex items-center justify-between gap-5">
+        <div>
+          <div
+            className="
+              text-sm
+              font-semibold
+              text-slate-900
+              dark:text-text-primary
+            "
+          >
+            {symbol}
+          </div>
 
-      <div className="relative">
-
-        <div className="w-11 h-11 rounded-xl bg-brand-red/10 border border-brand-red/15 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-          <Icon className="w-5 h-5 text-brand-red" />
+          <div
+            className="
+              mt-1
+              text-[10px]
+              text-slate-400
+              dark:text-text-secondary
+            "
+          >
+            {type}
+          </div>
         </div>
 
-        <h3 className="font-semibold text-base mb-2">
-          {title}
-        </h3>
-
-        <p className="text-sm text-text-secondary leading-relaxed">
-          {description}
-        </p>
-
+        <span
+          className={`
+            text-xs font-semibold
+            ${positive ? 'text-emerald-500' : 'text-red-500'}
+          `}
+        >
+          {change}
+        </span>
       </div>
     </div>
   )
 }
 
+/* =========================================================
+   MARKET ROW
+   ========================================================= */
+
+function MarketRow({
+  symbol,
+  type,
+  last = false,
+}: {
+  symbol: string
+  type: string
+  last?: boolean
+}) {
+  return (
+    <tr
+      className={`
+        group
+        hover:bg-slate-50
+        dark:hover:bg-white/[0.025]
+        transition-colors
+        ${!last ? 'border-b border-slate-100 dark:border-white/[0.05]' : ''}
+      `}
+    >
+      <td className="px-5 sm:px-7 py-5">
+        <div className="flex items-center gap-3">
+          <div
+            className="
+              flex
+              items-center
+              justify-center
+              w-8
+              h-8
+              rounded-lg
+              bg-slate-100
+              dark:bg-white/[0.04]
+            "
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-brand-red" />
+          </div>
+
+          <span
+            className="
+              text-sm
+              font-semibold
+              text-slate-900
+              dark:text-text-primary
+            "
+          >
+            {symbol}
+          </span>
+        </div>
+      </td>
+
+      <td
+        className="
+          px-5 sm:px-7
+          py-5
+          text-sm
+          text-slate-500
+          dark:text-text-secondary
+        "
+      >
+        {type}
+      </td>
+
+      <td className="px-5 sm:px-7 py-5">
+        <span
+          className="
+            inline-flex
+            items-center
+            gap-1.5
+            text-xs
+            text-emerald-500
+          "
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Available
+        </span>
+      </td>
+
+      <td className="px-5 sm:px-7 py-5 text-right">
+        <ChevronRight
+          className="
+            inline-block
+            w-4
+            h-4
+            text-slate-300
+            group-hover:text-brand-red
+            group-hover:translate-x-1
+            transition-all
+            dark:text-text-secondary/30
+          "
+        />
+      </td>
+    </tr>
+  )
+}
+
+/* =========================================================
+   PRODUCT CARD
+   ========================================================= */
+
+function ProductCard({
+  icon: Icon,
+  title,
+  description,
+  label,
+  featured = false,
+}: {
+  icon: LucideIcon
+  title: string
+  description: string
+  label: string
+  featured?: boolean
+}) {
+  return (
+    <div
+      className={`
+        group
+        relative
+        overflow-hidden
+        rounded-2xl
+        border
+        p-6
+        sm:p-7
+        transition-all
+        duration-300
+        hover:-translate-y-1
+
+        ${
+          featured
+            ? `
+              border-brand-red/20
+              bg-brand-red/[0.035]
+              dark:bg-brand-red/[0.045]
+            `
+            : `
+              border-slate-200
+              bg-white
+              hover:border-slate-300
+              dark:border-white/[0.07]
+              dark:bg-white/[0.025]
+              dark:hover:border-white/[0.12]
+            `
+        }
+      `}
+    >
+      <div
+        className="
+          flex
+          items-center
+          justify-between
+          mb-8
+        "
+      >
+        <div
+          className="
+            flex
+            items-center
+            justify-center
+            w-11
+            h-11
+            rounded-xl
+            bg-slate-100
+            border
+            border-slate-200
+            dark:bg-white/[0.04]
+            dark:border-white/[0.07]
+          "
+        >
+          <Icon className="w-5 h-5 text-brand-red" />
+        </div>
+
+        <span
+          className="
+            text-[9px]
+            uppercase
+            tracking-[0.16em]
+            text-slate-400
+            dark:text-text-secondary
+          "
+        >
+          {label}
+        </span>
+      </div>
+
+      <h3
+        className="
+          text-lg
+          font-semibold
+          text-slate-900
+          dark:text-text-primary
+          mb-2
+        "
+      >
+        {title}
+      </h3>
+
+      <p
+        className="
+          text-sm
+          leading-relaxed
+          text-slate-500
+          dark:text-text-secondary
+        "
+      >
+        {description}
+      </p>
+
+      <div
+        className="
+          flex
+          items-center
+          gap-2
+          mt-6
+          text-xs
+          font-semibold
+          text-slate-700
+          dark:text-text-primary
+        "
+      >
+        Explore
+        <ArrowRight
+          className="
+            w-3.5
+            h-3.5
+            text-brand-red
+            group-hover:translate-x-1
+            transition-transform
+          "
+        />
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   BOT BLOCK
+   ========================================================= */
+
+function BotBlock({
+  title,
+  detail,
+  active = false,
+}: {
+  title: string
+  detail: string
+  active?: boolean
+}) {
+  return (
+    <div
+      className={`
+        rounded-xl
+        border
+        p-4
+        ${
+          active
+            ? `
+              border-brand-red/20
+              bg-brand-red/[0.045]
+              dark:bg-brand-red/[0.06]
+            `
+            : `
+              border-slate-200
+              bg-white
+              dark:border-white/[0.07]
+              dark:bg-white/[0.025]
+            `
+        }
+      `}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <div
+            className="
+              text-[9px]
+              font-bold
+              tracking-[0.14em]
+              text-slate-700
+              dark:text-text-primary
+            "
+          >
+            {title}
+          </div>
+
+          <div
+            className="
+              mt-1.5
+              text-[10px]
+              text-slate-400
+              dark:text-text-secondary
+            "
+          >
+            {detail}
+          </div>
+        </div>
+
+        <span className="w-2 h-2 rounded-full bg-brand-red" />
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   CONNECTOR
+   ========================================================= */
+
+function Connector() {
+  return (
+    <div className="flex justify-center">
+      <div className="w-px h-3 bg-slate-200 dark:bg-white/10" />
+    </div>
+  )
+}
+
+/* =========================================================
+   CAPABILITY
+   ========================================================= */
+
+function Capability({
+  value,
+  label,
+  last = false,
+}: {
+  value: string
+  label: string
+  last?: boolean
+}) {
+  return (
+    <div
+      className={`
+        px-5
+        sm:px-7
+        py-7
+        ${
+          !last
+            ? 'border-r border-slate-200 dark:border-white/[0.07]'
+            : ''
+        }
+      `}
+    >
+      <div
+        className="
+          text-xl
+          sm:text-2xl
+          font-bold
+          tracking-tight
+          text-slate-900
+          dark:text-text-primary
+        "
+      >
+        {value}
+      </div>
+
+      <div
+        className="
+          mt-2
+          text-[9px]
+          uppercase
+          tracking-[0.16em]
+          text-slate-400
+          dark:text-text-secondary
+        "
+      >
+        {label}
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   SECURITY ROW
+   ========================================================= */
+
+function SecurityRow({
+  icon: Icon,
+  title,
+  description,
+  last = false,
+}: {
+  icon: LucideIcon
+  title: string
+  description: string
+  last?: boolean
+}) {
+  return (
+    <div
+      className={`
+        flex
+        gap-4
+        py-6
+        ${
+          !last
+            ? 'border-b border-slate-200 dark:border-white/[0.07]'
+            : ''
+        }
+      `}
+    >
+      <div
+        className="
+          flex
+          items-center
+          justify-center
+          w-9
+          h-9
+          shrink-0
+          rounded-lg
+          bg-slate-100
+          border
+          border-slate-200
+          dark:bg-white/[0.04]
+          dark:border-white/[0.07]
+        "
+      >
+        <Icon className="w-4 h-4 text-brand-red" />
+      </div>
+
+      <div>
+        <h3
+          className="
+            text-sm
+            font-semibold
+            text-slate-900
+            dark:text-text-primary
+          "
+        >
+          {title}
+        </h3>
+
+        <p
+          className="
+            mt-1.5
+            text-sm
+            leading-relaxed
+            text-slate-500
+            dark:text-text-secondary
+          "
+        >
+          {description}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   STEP
+   ========================================================= */
+
 function Step({
   number,
-  icon: Icon,
   title,
   description,
 }: {
   number: string
-  icon: LucideIcon
   title: string
   description: string
 }) {
   return (
-    <div className="relative">
-
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20">
-          <Icon className="w-4 h-4 text-brand-red" />
-        </div>
-
-        <span className="text-xs font-mono text-text-secondary/60">
-          {number}
-        </span>
+    <div>
+      <div
+        className="
+          text-2xl
+          font-mono
+          font-medium
+          text-brand-red
+          mb-5
+        "
+      >
+        {number}
       </div>
 
-      <h3 className="font-semibold text-sm mb-2">
+      <h3
+        className="
+          text-sm
+          font-semibold
+          text-slate-900
+          dark:text-text-primary
+          mb-2
+        "
+      >
         {title}
       </h3>
 
-      <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          leading-relaxed
+          text-slate-500
+          dark:text-text-secondary
+        "
+      >
         {description}
       </p>
-
     </div>
   )
 }
