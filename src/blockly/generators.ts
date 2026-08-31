@@ -209,6 +209,7 @@ export function registerGenerators(): void {
 
 export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null {
   registerGenerators()
+  javascriptGenerator.init(workspace)
 
   const topBlocks = workspace.getTopBlocks(false)
   const tradeDef = topBlocks.find((b) => b.type === 'trade_definition')
@@ -239,7 +240,7 @@ export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null 
     )
   }
 
-  return `${initCode}
+  const code = `${initCode}
 while (true) {
 ${beforeCode}
   while (Bot.isContractOpen()) {
@@ -251,4 +252,6 @@ ${afterCode}
   })();
   if (_action !== 'restart') break;
 }`
+  javascriptGenerator.finish('')
+  return code
 }
