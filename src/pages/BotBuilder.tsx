@@ -24,7 +24,6 @@ import {
   ChevronDown,
   Blocks as BlocksIcon,
   X,
-  PanelRight,
   Save,
   FolderOpen,
 } from 'lucide-react'
@@ -270,6 +269,12 @@ export default function BotBuilder() {
     }
   }, [journal, resultsTab])
 
+  useEffect(() => {
+    if (isRunning || trades.length > 0 || journal.length > 0) {
+      setShowResultsMobile(true)
+    }
+  }, [isRunning, trades.length, journal.length])
+
   const toggleToolbox = useCallback(() => {
     setToolboxOpen((prev) => {
       const next = !prev
@@ -297,9 +302,9 @@ export default function BotBuilder() {
   const hasResults = hasRunOnce || trades.length > 0 || journal.length > 0
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)] overflow-hidden">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden">
       {/* Left: toolbar + canvas */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:min-h-0">
         {/* ── Desktop Toolbar ── */}
         <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-bg-secondary border-b border-border-default shrink-0">
           <ToolbarButton
@@ -406,19 +411,6 @@ export default function BotBuilder() {
             )}
           </div>
 
-          {/* Results toggle */}
-          <button
-            onClick={() => setShowResultsMobile(!showResultsMobile)}
-            className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-              showResultsMobile ? 'bg-brand-red text-white' : 'bg-bg-tertiary text-text-primary border border-border-light'
-            }`}
-          >
-            <PanelRight className="w-4 h-4" />
-            {hasResults && (
-              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${totalProfit >= 0 ? 'bg-brand-green' : 'bg-brand-red'} border-2 border-bg-secondary`} />
-            )}
-          </button>
-
           <input
             ref={fileInputRef}
             type="file"
@@ -442,7 +434,7 @@ export default function BotBuilder() {
         {/* Blockly workspace */}
         <div
           ref={containerRef}
-          className={`flex-1 w-full relative min-h-0 overflow-hidden ${toolboxOpen ? 'toolbox-open' : ''}`}
+          className={`h-[50vh] lg:h-auto lg:flex-1 w-full relative lg:min-h-0 overflow-hidden ${toolboxOpen ? 'toolbox-open' : ''}`}
           id="blockly-container"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -474,54 +466,38 @@ export default function BotBuilder() {
         />
       </div>
 
-      {/* ── Mobile Results Bottom Sheet ── */}
-      {showResultsMobile && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="lg:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowResultsMobile(false)}
-          />
-          {/* Sheet */}
-          <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[72vh] max-h-[640px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl slide-up">
-            {/* Drag handle */}
-            <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-border-light" />
-            </div>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border-default shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Run Results</span>
-                {hasResults && (
-                  <span className={`text-xs font-bold tabular px-2 py-0.5 rounded-full ${totalProfit >= 0 ? 'bg-brand-green/15 text-brand-green' : 'bg-brand-red/15 text-brand-red'}`}>
-                    {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} {account?.currency || ''}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => setShowResultsMobile(false)}
-                className="text-text-secondary hover:text-text-primary p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors"
-              >
-                <ChevronDown className="w-5 h-5" />
-              </button>
-            </div>
-            {/* Content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <RunResultsPanel
-                tab={resultsTab}
-                onTabChange={setResultsTab}
-                runStats={runStats}
-                journal={journal}
-                journalEndRef={journalEndRef}
-                trades={trades}
-                currency={account?.currency || 'USD'}
-                onClearJournal={handleClearJournal}
-                onResetStats={handleResetStats}
-              />
-            </div>
+      {/* ── Mobile Inline Results ── */}
+      <div className="lg:hidden border-t border-border-default bg-bg-secondary">
+        <button
+          onClick={() => setShowResultsMobile(!showResultsMobile)}
+          className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-bg-tertiary transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">Run Results</span>
+            {hasResults && (
+              <span className={`text-xs font-bold tabular px-2 py-0.5 rounded-full ${totalProfit >= 0 ? 'bg-brand-green/15 text-brand-green' : 'bg-brand-red/15 text-brand-red'}`}>
+                {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} {account?.currency || ''}
+              </span>
+            )}
           </div>
-        </>
-      )}
+          <ChevronDown className={`w-5 h-5 text-text-secondary transition-transform ${showResultsMobile ? 'rotate-180' : ''}`} />
+        </button>
+        {showResultsMobile && (
+          <div className="h-[55vh] border-t border-border-default">
+            <RunResultsPanel
+              tab={resultsTab}
+              onTabChange={setResultsTab}
+              runStats={runStats}
+              journal={journal}
+              journalEndRef={journalEndRef}
+              trades={trades}
+              currency={account?.currency || 'USD'}
+              onClearJournal={handleClearJournal}
+              onResetStats={handleResetStats}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Load confirmation modal */}
       {confirmLoad && (
