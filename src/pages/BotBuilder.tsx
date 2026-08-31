@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown, ChevronDown } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown, ChevronDown, Blocks as BlocksIcon, X } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -31,6 +31,7 @@ export default function BotBuilder() {
   const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showResultsMobile, setShowResultsMobile] = useState(false)
+  const [toolboxOpen, setToolboxOpen] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -252,6 +253,16 @@ export default function BotBuilder() {
     }
   }, [journal, resultsTab])
 
+  const toggleToolbox = useCallback(() => {
+    setToolboxOpen((prev) => {
+      const next = !prev
+      requestAnimationFrame(() => {
+        if (workspaceRef.current) Blockly.svgResize(workspaceRef.current)
+      })
+      return next
+    })
+  }, [])
+
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)] overflow-hidden">
       {/* Left: toolbar + canvas */}
@@ -272,6 +283,16 @@ export default function BotBuilder() {
           label="Stop"
           variant="danger"
         />
+        {/* Mobile toolbox toggle */}
+        <button
+          onClick={toggleToolbox}
+          className={`lg:hidden flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+            toolboxOpen ? 'bg-brand-red text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover border border-border-light'
+          }`}
+        >
+          {toolboxOpen ? <X className="w-4 h-4" /> : <BlocksIcon className="w-4 h-4" />}
+          <span>{toolboxOpen ? 'Close' : 'Blocks'}</span>
+        </button>
         <div className="w-px h-6 bg-border-light mx-0.5 hidden sm:block" />
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <input
@@ -323,7 +344,7 @@ export default function BotBuilder() {
       {/* Blockly workspace */}
       <div
         ref={containerRef}
-        className="flex-1 w-full relative min-h-0 overflow-hidden"
+        className={`flex-1 w-full relative min-h-0 overflow-hidden ${toolboxOpen ? 'toolbox-open' : ''}`}
         id="blockly-container"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -339,63 +360,59 @@ export default function BotBuilder() {
         )}
       </div>
 
-      {/* Mobile results toggle bar */}
-      {hasRunOnce && (
-        <button
-          onClick={() => setShowResultsMobile(!showResultsMobile)}
-          className="lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 bg-bg-secondary border-t border-border-default text-sm font-medium text-text-primary shrink-0"
-        >
-          {showResultsMobile ? 'Hide results' : 'Show results'}
-          <ChevronDown className={`w-4 h-4 transition-transform ${showResultsMobile ? 'rotate-180' : ''}`} />
-        </button>
-      )}
+      {/* Mobile results toggle bar — always visible on mobile */}
+      <button
+        onClick={() => setShowResultsMobile(!showResultsMobile)}
+        className="lg:hidden flex items-center justify-center gap-2 px-4 py-3 bg-brand-red text-white text-sm font-semibold shrink-0 transition-colors"
+      >
+        {showResultsMobile ? 'Hide results' : (hasRunOnce ? 'Show results' : 'View results')}
+        <ChevronDown className={`w-4 h-4 transition-transform ${showResultsMobile ? 'rotate-180' : ''}`} />
+      </button>
 
       </div>
 
       {/* Run Results Panel — right sidebar on large screens, collapsible drawer on small */}
-      {hasRunOnce && (
-        <>
-          {/* Desktop sidebar */}
-          <div className="hidden lg:flex lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0 flex-col">
-            <RunResultsPanel
-              tab={resultsTab}
-              onTabChange={setResultsTab}
-              runStats={runStats}
-              journal={journal}
-              journalEndRef={journalEndRef}
-              trades={trades}
-              currency={account?.currency || 'USD'}
-              onClearJournal={handleClearJournal}
-              onResetStats={handleResetStats}
-            />
-          </div>
+      <>
+        {/* Desktop sidebar */}
+        <div className="hidden lg:flex lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0 flex-col">
+          <RunResultsPanel
+            tab={resultsTab}
+            onTabChange={setResultsTab}
+            runStats={runStats}
+            journal={journal}
+            journalEndRef={journalEndRef}
+            trades={trades}
+            currency={account?.currency || 'USD'}
+            onClearJournal={handleClearJournal}
+            onResetStats={handleResetStats}
+          />
+        </div>
 
-          {/* Mobile drawer — slides up from bottom */}
-          {showResultsMobile && (
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[65vh] max-h-[600px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
-                <span className="text-sm font-semibold">Run Results</span>
-                <button onClick={() => setShowResultsMobile(false)} className="text-text-secondary hover:text-text-primary p-1">
-                  <ChevronDown className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <RunResultsPanel
-                  tab={resultsTab}
-                  onTabChange={setResultsTab}
-                  runStats={runStats}
-                  journal={journal}
-                  journalEndRef={journalEndRef}
-                  trades={trades}
-                  currency={account?.currency || 'USD'}
-                  onClearJournal={handleClearJournal}
-                  onResetStats={handleResetStats}
-                />
-              </div>
+        {/* Mobile drawer — slides up from bottom */}
+        {showResultsMobile && (
+          <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[65vh] max-h-[600px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
+              <span className="text-sm font-semibold">Run Results</span>
+              <button onClick={() => setShowResultsMobile(false)} className="text-text-secondary hover:text-text-primary p-1">
+                <ChevronDown className="w-5 h-5" />
+              </button>
             </div>
-          )}
-        </>
-      )}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <RunResultsPanel
+                tab={resultsTab}
+                onTabChange={setResultsTab}
+                runStats={runStats}
+                journal={journal}
+                journalEndRef={journalEndRef}
+                trades={trades}
+                currency={account?.currency || 'USD'}
+                onClearJournal={handleClearJournal}
+                onResetStats={handleResetStats}
+              />
+            </div>
+          </div>
+        )}
+      </>
 
       {/* Load confirmation modal */}
       {confirmLoad && (
