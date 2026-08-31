@@ -184,6 +184,27 @@ export function registerGenerators(): void {
   javascriptGenerator.forBlock['read_ohlc_obj'] = function (): [string, number] {
     return [`null`, javascriptGenerator.ORDER_ATOMIC]
   }
+
+  // ── Custom Text blocks (bot.deriv.com compatibility) ──
+  javascriptGenerator.forBlock['text_join'] = function (block: Blockly.Block): string {
+    const varName = javascriptGenerator.nameDB_.getName(
+      block.getFieldValue('VARIABLE'), Blockly.Names.NameType.VARIABLE,
+    )
+    const stackBlocks = block.getInputTargetBlock('STACK')
+    const parts: string[] = []
+    let b = stackBlocks
+    while (b) {
+      const code = javascriptGenerator.blockToCode(b)
+      parts.push(Array.isArray(code) ? code[0] : code)
+      b = b.getNextBlock()
+    }
+    return `${varName} = [${parts.join(', ')}].join(" ");\n`
+  }
+
+  javascriptGenerator.forBlock['text_statement'] = function (block: Blockly.Block): [string, number] {
+    const text = javascriptGenerator.valueToCode(block, 'TEXT', javascriptGenerator.ORDER_ATOMIC) || '""'
+    return [`String(${text})`, javascriptGenerator.ORDER_ATOMIC]
+  }
 }
 
 export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null {

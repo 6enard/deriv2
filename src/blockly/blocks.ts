@@ -1074,4 +1074,38 @@ defineBlock('read_ohlc_obj', {
   }),
 })
 
+// ── 10. Custom Text blocks (bot.deriv.com compatibility) ───
+// These override Blockly's built-in text_join with the statement-based
+// variable-assigning variant used by real bot.deriv.com bots, and add the
+// text_statement wrapper block that each item inside STACK uses.
+
+defineBlock('text_join', {
+  definition: () => ({
+    message0: 'set %1 to create text with',
+    args0: [{ type: 'field_variable', name: 'VARIABLE', variable: 'text' }],
+    message1: '%1',
+    args1: [{ type: 'input_statement', name: 'STACK' }],
+    inputsInline: true,
+    previousStatement: null,
+    nextStatement: null,
+    colour: Colours.Base.colour,
+    colourSecondary: Colours.Base.colourSecondary,
+    colourTertiary: Colours.Base.colourTertiary,
+    tooltip: 'Text join',
+    category: Categories.Text,
+  }),
+})
+
+defineBlock('text_statement', {
+  definition: () => ({
+    message0: '%1',
+    args0: [{ type: 'input_value', name: 'TEXT' }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: Colours.Base.colour,
+    colourSecondary: Colours.Base.colourSecondary,
+    colourTertiary: Colours.Base.colourTertiary,
+    category: Categories.Text,
+  }),
+})
 

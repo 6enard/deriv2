@@ -154,6 +154,7 @@ export const toolbox: ToolboxInfo = {
       contents: [
         { kind: 'block', type: 'text' },
         { kind: 'block', type: 'text_join' },
+        { kind: 'block', type: 'text_statement' },
         { kind: 'block', type: 'text_append' },
         { kind: 'block', type: 'text_length' },
         { kind: 'block', type: 'text_isEmpty' },
