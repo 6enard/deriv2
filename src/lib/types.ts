@@ -70,6 +70,8 @@ export interface OpenContract {
   is_expired: boolean;
   longcode: string;
   current_spot: number;
+  entry_spot: number | null;
+  exit_spot: number | null;
 }
 export function mapOpenContract(raw: any): OpenContract {
   return {
@@ -88,6 +90,8 @@ export function mapOpenContract(raw: any): OpenContract {
     is_expired: Boolean(raw.is_expired),
     longcode: raw.longcode ?? '',
     current_spot: parseFloat(raw.current_spot ?? '0'),
+    entry_spot: raw.entry_spot != null ? parseFloat(raw.entry_spot) : null,
+    exit_spot: raw.exit_spot != null ? parseFloat(raw.exit_spot) : null,
   };
 }
 

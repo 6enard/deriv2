@@ -117,7 +117,6 @@ export function useBotRunner(
 
     const botApi: BotApi = createBotApi(ws, account, params, {
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
-        showToast(type === 'warn' ? 'error' : type, message)
         setJournal((prev) => [...prev, { time: new Date(), type, message }])
         if (data?.event === 'trade_won' || data?.event === 'trade_lost' || data?.event === 'trade_sold') {
           setRunStats((prev) => ({
