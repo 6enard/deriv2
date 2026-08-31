@@ -24,6 +24,7 @@ export interface BotApi {
   getTotalRuns(): number
   setStake(amount: number): void
   getStake(): number
+  shouldStop(): boolean
   notify(type: NotificationType, message: string): void
   console(type: string, message: unknown): void
   sleep(ms: number): Promise<void>
@@ -270,6 +271,10 @@ export function createBotApi(
 
     getStake(): number {
       return currentStake
+    },
+
+    shouldStop(): boolean {
+      return options.shouldStop?.() ?? false
     },
 
     notify,

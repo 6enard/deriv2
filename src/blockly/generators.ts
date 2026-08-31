@@ -241,16 +241,20 @@ export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null 
   }
 
   const code = `${initCode}
-while (true) {
+while (!Bot.shouldStop()) {
 ${beforeCode}
+  if (Bot.shouldStop()) break;
   while (Bot.isContractOpen()) {
+    if (Bot.shouldStop()) break;
 ${duringCode}
     await Bot.sleep(100);
   }
+  if (Bot.shouldStop()) break;
   const _action = await (async () => {
 ${afterCode}
   })();
-  if (_action !== 'restart') break;
+  if (_action === 'stop') break;
+  await Bot.sleep(250);
 }`
   javascriptGenerator.finish('')
   return code
