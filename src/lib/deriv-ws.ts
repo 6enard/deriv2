@@ -4,6 +4,7 @@ type PendingRequest = {
   subscribe?: (data: any) => void
   resolved?: boolean
   timer?: ReturnType<typeof setTimeout>
+  subscriptionId?: string
 }
 
 const REQUEST_TIMEOUT_MS = 15000
@@ -129,6 +130,7 @@ export class DerivWS {
       }
 
       if (data.subscription && req.subscribe) {
+        req.subscriptionId = data.subscription.id
         req.subscribe(data)
         if (!req.resolved) {
           req.resolved = true
@@ -178,7 +180,7 @@ export class DerivWS {
   async subscribe(
     request: Record<string, unknown>,
     callback: (data: any) => void,
-  ): Promise<any> {
+  ): Promise<{ reqId: number; data: any }> {
     await this.ensureConnected()
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket not connected')
@@ -190,7 +192,12 @@ export class DerivWS {
         this.pending.delete(id)
         reject(new Error('Subscription request timed out'))
       }, REQUEST_TIMEOUT_MS)
-      this.pending.set(id, { resolve, reject, subscribe: callback, timer })
+      this.pending.set(id, {
+        resolve: (data: any) => resolve({ reqId: id, data }),
+        reject,
+        subscribe: callback,
+        timer,
+      })
       this.ws!.send(msg)
     })
   }
@@ -201,6 +208,19 @@ export class DerivWS {
 
   forgetAll(type: string): Promise<any> {
     return this.send({ forget_all: type })
+  }
+
+  // Remove a subscription from the pending map and tell the server to stop
+  // sending updates. Prevents subscription leaks that stall the bot after a
+  // few trades — each settled contract's subscription must be cleaned up.
+  unsubscribe(reqId: number): void {
+    const req = this.pending.get(reqId)
+    if (!req) return
+    if (req.subscriptionId) {
+      this.send({ forget: req.subscriptionId }).catch(() => {})
+    }
+    if (req.timer) clearTimeout(req.timer)
+    this.pending.delete(reqId)
   }
 
   disconnect(): void {

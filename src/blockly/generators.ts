@@ -242,18 +242,24 @@ export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null 
 
   const code = `${initCode}
 while (!Bot.shouldStop()) {
+  try {
 ${beforeCode}
-  if (Bot.shouldStop()) break;
-  while (Bot.isContractOpen()) {
     if (Bot.shouldStop()) break;
+    while (Bot.isContractOpen()) {
+      if (Bot.shouldStop()) break;
 ${duringCode}
-    await Bot.sleep(100);
-  }
-  if (Bot.shouldStop()) break;
-  const _action = await (async () => {
+      await Bot.sleep(100);
+    }
+    if (Bot.shouldStop()) break;
+    const _action = await (async () => {
 ${afterCode}
-  })();
-  if (_action === 'stop') break;
+    })();
+    if (_action === 'stop') break;
+  } catch (e) {
+    if (Bot.shouldStop()) break;
+    Bot.notify('error', 'Trade error: ' + (e && e.message ? e.message : String(e)));
+    await Bot.sleep(2000);
+  }
   await Bot.sleep(250);
 }`
   javascriptGenerator.finish('')

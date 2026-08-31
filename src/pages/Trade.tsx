@@ -234,10 +234,10 @@ export default function Trade() {
         prevPriceRef.current = quote
       }).then((res: any) => {
         if (cancelled) {
-          if (res.subscription?.id) ws.forget(res.subscription.id).catch(() => {})
+          if (res.data?.subscription?.id) ws.forget(res.data.subscription.id).catch(() => {})
           return
         }
-        tickSubIdRef.current = res.subscription?.id || null
+        tickSubIdRef.current = res.data?.subscription?.id || null
       }).catch(() => {
         showToastCallback('error', 'Failed to subscribe to price feed')
       })

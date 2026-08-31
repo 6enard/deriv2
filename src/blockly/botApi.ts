@@ -81,51 +81,87 @@ export function createBotApi(
   const waitForContractSettlement = (contractId: number): Promise<void> => {
     return new Promise((resolve) => {
       let settled = false
+      let pollTimer: ReturnType<typeof setTimeout> | null = null
+      let subReqId: number | null = null
 
+      const cleanup = () => {
+        if (pollTimer) clearTimeout(pollTimer)
+        if (subReqId !== null) ws.unsubscribe(subReqId)
+      }
+
+      const finish = () => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve()
+      }
+
+      const handleContract = (c: any) => {
+        sellAvailable = !c.is_sold && !c.is_expired
+        currentSellPrice = c.sell_price ? parseFloat(c.sell_price) : 0
+
+        if (c.is_sold || c.is_expired) {
+          const profit = parseFloat(c.profit || '0')
+          lastProfit = profit
+          totalProfit += profit
+          totalRuns++
+          lastContractType = c.contract_type || currentContractType
+          if (c.entry_tick_time != null) lastEntryTickTime = Number(c.entry_tick_time)
+          if (c.entry_tick != null) lastEntryTick = parseFloat(c.entry_tick)
+          if (c.exit_tick_time != null) lastExitTickTime = Number(c.exit_tick_time)
+          if (c.exit_tick != null) lastExitTick = parseFloat(c.exit_tick)
+          if (c.barrier != null) lastBarrier = String(c.barrier)
+
+          if (c.status === 'won') {
+            lastResult = 'win'
+            notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+          } else if (c.status === 'lost') {
+            lastResult = 'loss'
+            notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+          } else {
+            lastResult = 'sold'
+            notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+          }
+
+          openContractId = null
+          finish()
+        }
+      }
+
+      // Primary: subscribe to proposal_open_contract for live updates
       ws.subscribe(
         { proposal_open_contract: 1, contract_id: contractId },
         (data: any) => {
           if (settled) return
           const c = data.proposal_open_contract
-          if (!c) return
-
-          sellAvailable = !c.is_sold && !c.is_expired
-          currentSellPrice = c.sell_price ? parseFloat(c.sell_price) : 0
-
-          if (c.is_sold || c.is_expired) {
-            settled = true
-            const profit = parseFloat(c.profit || '0')
-            lastProfit = profit
-            totalProfit += profit
-            totalRuns++
-            lastContractType = c.contract_type || currentContractType
-            if (c.entry_tick_time != null) lastEntryTickTime = Number(c.entry_tick_time)
-            if (c.entry_tick != null) lastEntryTick = parseFloat(c.entry_tick)
-            if (c.exit_tick_time != null) lastExitTickTime = Number(c.exit_tick_time)
-            if (c.exit_tick != null) lastExitTick = parseFloat(c.exit_tick)
-            if (c.barrier != null) lastBarrier = String(c.barrier)
-
-            if (c.status === 'won') {
-              lastResult = 'win'
-              notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
-            } else if (c.status === 'lost') {
-              lastResult = 'loss'
-              notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
-            } else {
-              lastResult = 'sold'
-              notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
-            }
-
-            openContractId = null
-            resolve()
-          }
+          if (c) handleContract(c)
         },
-      ).catch(() => {
-        if (!settled) {
-          settled = true
-          resolve()
-        }
+      ).then(({ reqId }) => {
+        subReqId = reqId
+        if (settled) ws.unsubscribe(reqId)
+      }).catch(() => {
+        // Subscription failed — fall back to polling below
       })
+
+      // Fallback: poll every 2 seconds in case subscription updates stop
+      // arriving (this is what causes bots to stall after a few trades)
+      const poll = async () => {
+        if (settled) return
+        if (options.shouldStop?.()) { finish(); return }
+        try {
+          const res = await ws.send({ proposal_open_contract: 1, contract_id: contractId })
+          if (settled) return
+          if (res.proposal_open_contract) {
+            handleContract(res.proposal_open_contract)
+          }
+        } catch {
+          // ignore poll errors — will retry
+        }
+        if (!settled) {
+          pollTimer = setTimeout(poll, 2000)
+        }
+      }
+      pollTimer = setTimeout(poll, 2000)
     })
   }
 
@@ -157,24 +193,44 @@ export function createBotApi(
         proposalReq.barrier = String(params.prediction)
       }
 
-      const proposalRes = await ws.send(proposalReq)
+      // Retry the proposal+buy up to 3 times — a transient API error or
+      // rate-limit should not kill the bot loop.
+      let lastError: unknown = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (options.shouldStop?.()) throw new Error('Bot stopped')
+        try {
+          const proposalRes = await ws.send(proposalReq)
+          const proposal = proposalRes.proposal
+          if (!proposal) throw new Error(proposalRes.error?.message || 'No proposal returned')
 
-      const proposal = proposalRes.proposal
-      lastAskPrice = parseFloat(proposal.ask_price)
-      lastProposalPayout = parseFloat(proposal.payout)
+          lastAskPrice = parseFloat(proposal.ask_price)
+          lastProposalPayout = parseFloat(proposal.payout)
 
-      const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
-      const buyData = buyRes.buy
-      const contractId = buyData.contract_id
-      openContractId = contractId
-      lastBuyPrice = parseFloat(buyData.buy_price)
-      lastPayout = lastProposalPayout
+          const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
+          const buyData = buyRes.buy
+          if (!buyData) throw new Error(buyRes.error?.message || 'Buy failed')
 
-      options.onTrade?.(contractId)
-      notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`, { event: 'purchased', stake: parseFloat(buyData.buy_price), contractId, symbol: params.symbol, contractType: ct })
+          const contractId = buyData.contract_id
+          openContractId = contractId
+          lastBuyPrice = parseFloat(buyData.buy_price)
+          lastPayout = lastProposalPayout
 
-      await waitForContractSettlement(contractId)
-      return contractId
+          options.onTrade?.(contractId)
+          notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`, { event: 'purchased', stake: parseFloat(buyData.buy_price), contractId, symbol: params.symbol, contractType: ct })
+
+          await waitForContractSettlement(contractId)
+          return contractId
+        } catch (err) {
+          lastError = err
+          if (options.shouldStop?.()) throw new Error('Bot stopped')
+          const msg = err instanceof Error ? err.message : String(err)
+          if (attempt < 2) {
+            notify('warn', `Trade attempt ${attempt + 1} failed: ${msg}. Retrying...`)
+            await new Promise((r) => setTimeout(r, 1000))
+          }
+        }
+      }
+      throw lastError instanceof Error ? lastError : new Error('Purchase failed after retries')
     },
 
     async sellAtMarket(): Promise<void> {
