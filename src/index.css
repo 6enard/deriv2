@@ -188,6 +188,58 @@ body {
   background: #444;
   border-radius: 2px;
 }
+
+/* ===== Mobile Blockly layout (compact toolbox, no page overflow) ===== */
+@media (max-width: 1023px) {
+  /* The workspace container must never push the page wider than the viewport */
+  #blockly-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow: hidden !important;
+  }
+  /* Compact vertical toolbox — narrow but scrollable */
+  .blocklyToolboxDiv {
+    width: 130px !important;
+    max-width: 130px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .blocklyTreeRow {
+    padding: 5px 8px !important;
+    line-height: 20px !important;
+  }
+  .blocklyTreeLabel {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  /* Flyout gets the remaining space and scrolls horizontally if needed */
+  .blocklyFlyout {
+    max-width: calc(100vw - 130px) !important;
+  }
+  /* Prevent the SVG from expanding beyond the container */
+  .blocklySvg {
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+}
+@media (max-width: 640px) {
+  .blocklyToolboxDiv {
+    width: 110px !important;
+    max-width: 110px !important;
+  }
+  .blocklyTreeRow {
+    padding: 4px 6px !important;
+  }
+  .blocklyTreeLabel {
+    font-size: 11px !important;
+  }
+  .blocklyFlyout {
+    max-width: calc(100vw - 110px) !important;
+  }
+}
 /* Light theme Blockly overrides */
 :root.light .blocklySvg {
   background-color: #f8f8f8 !important;

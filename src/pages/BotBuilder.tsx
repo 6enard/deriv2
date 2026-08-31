@@ -253,11 +253,11 @@ export default function BotBuilder() {
   }, [journal, resultsTab])
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)]">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)] overflow-hidden">
       {/* Left: toolbar + canvas */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
       {/* Toolbar */}
-      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border-b border-border-default overflow-x-auto shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 bg-bg-secondary border-b border-border-default overflow-x-auto shrink-0 scrollbar-thin">
         <ToolbarButton
           onClick={handleRun}
           disabled={isRunning || marketsLoading || !marketsLoaded}
@@ -323,7 +323,7 @@ export default function BotBuilder() {
       {/* Blockly workspace */}
       <div
         ref={containerRef}
-        className="flex-1 w-full relative min-h-0"
+        className="flex-1 w-full relative min-h-0 overflow-hidden"
         id="blockly-container"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -370,16 +370,16 @@ export default function BotBuilder() {
             />
           </div>
 
-          {/* Mobile drawer */}
+          {/* Mobile drawer — slides up from bottom */}
           {showResultsMobile && (
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[55vh] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border-default shrink-0">
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[65vh] max-h-[600px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
                 <span className="text-sm font-semibold">Run Results</span>
                 <button onClick={() => setShowResultsMobile(false)} className="text-text-secondary hover:text-text-primary p-1">
                   <ChevronDown className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-hidden">
                 <RunResultsPanel
                   tab={resultsTab}
                   onTabChange={setResultsTab}
@@ -457,8 +457,8 @@ function ToolbarButton({
   }
   return (
     <button onClick={onClick} disabled={disabled} className={`${base} ${styles[variant]}`}>
-      <Icon className={`w-4 h-4 ${label === 'Loading...' ? 'animate-spin' : ''}`} />
-      <span className="hidden sm:inline">{label}</span>
+      <Icon className={`w-4 h-4 shrink-0 ${label === 'Loading...' ? 'animate-spin' : ''}`} />
+      <span className="hidden xs:inline sm:inline">{label}</span>
     </button>
   )
 }

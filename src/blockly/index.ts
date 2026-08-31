@@ -86,6 +86,8 @@ export function ensureRegistered() {
 export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
   ensureRegistered()
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024
+
   const workspace = Blockly.inject(container, {
     toolbox,
     theme: 'dbot_dark',
@@ -99,9 +101,9 @@ export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
     zoom: {
       controls: true,
       wheel: true,
-      startScale: 0.95,
+      startScale: isMobile ? 0.75 : 0.95,
       maxScale: 2,
-      minScale: 0.5,
+      minScale: 0.4,
       scaleSpeed: 1.2,
     },
     trashcan: true,
