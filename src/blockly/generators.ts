@@ -190,12 +190,12 @@ export function registerGenerators(): void {
     const varName = javascriptGenerator.nameDB_.getName(
       block.getFieldValue('VARIABLE'), Blockly.Names.NameType.VARIABLE,
     )
-    const stackBlocks = block.getInputTargetBlock('STACK')
     const parts: string[] = []
-    let b = stackBlocks
+    let b = block.getInputTargetBlock('STACK')
     while (b) {
-      const code = javascriptGenerator.blockToCode(b)
-      parts.push(Array.isArray(code) ? code[0] : code)
+      const generatorFn = (javascriptGenerator.forBlock as Record<string, (b: Blockly.Block) => unknown>)[b.type]
+      const value = generatorFn ? generatorFn(b) : ''
+      parts.push(Array.isArray(value) ? value[0] : value)
       b = b.getNextBlock()
     }
     return `${varName} = [${parts.join(', ')}].join(" ");\n`
