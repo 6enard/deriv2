@@ -627,7 +627,7 @@ defineBlock('after_purchase', {
   },
 })
 
-defineBlock('check_result', {
+defineBlock('contract_check_result', {
   definition: () => ({
     message0: 'Result is %1',
     args0: [
@@ -656,7 +656,7 @@ defineBlock('read_details', {
     args0: [
       {
         type: 'field_dropdown',
-        name: 'DETAILS',
+        name: 'DETAIL_INDEX',
         options: [
           ['deal reference id', '1'],
           ['purchase price', '2'],

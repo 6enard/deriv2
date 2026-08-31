@@ -257,12 +257,48 @@ export function extractTradeParams(workspace: Blockly.WorkspaceSvg): TradeParams
 const DEPRECATED_BLOCK_RENAMES: Record<string, string> = {
   // math_number_positive was used before being replaced by the standard math_number block.
   math_number_positive: 'math_number',
+  // check_result was the original name; real bot.deriv.com XML uses contract_check_result.
+  check_result: 'contract_check_result',
 }
+
+// Renamed field names that may appear in bots saved earlier in this
+// project's history. Scoped to specific block types so we don't accidentally
+// rename a field that happens to share a name on an unrelated block.
+const DEPRECATED_FIELD_RENAMES: { blockType: string; oldName: string; newName: string }[] = [
+  // read_details used 'DETAILS' before being aligned to real bot.deriv.com XML ('DETAIL_INDEX').
+  { blockType: 'read_details', oldName: 'DETAILS', newName: 'DETAIL_INDEX' },
+]
 
 export function sanitizeLegacyXml(xml: string): string {
   let sanitized = xml
   for (const [oldType, newType] of Object.entries(DEPRECATED_BLOCK_RENAMES)) {
     sanitized = sanitized.replaceAll(`type="${oldType}"`, `type="${newType}"`)
+  }
+  for (const { blockType, oldName, newName } of DEPRECATED_FIELD_RENAMES) {
+    // Field elements look like <field name="DETAILS">5</field>. Only rename
+    // when the enclosing block is blockType. We do a lightweight scan: split
+    // on block boundaries and rewrite matching field names within.
+    const blockOpen = `<block type="${blockType}"`
+    const blockClose = `</block>`
+    let result = ''
+    let cursor = 0
+    while (cursor < sanitized.length) {
+      const openIdx = sanitized.indexOf(blockOpen, cursor)
+      if (openIdx === -1) {
+        result += sanitized.slice(cursor)
+        break
+      }
+      result += sanitized.slice(cursor, openIdx)
+      const closeIdx = sanitized.indexOf(blockClose, openIdx)
+      if (closeIdx === -1) {
+        result += sanitized.slice(openIdx)
+        break
+      }
+      const blockSegment = sanitized.slice(openIdx, closeIdx + blockClose.length)
+      result += blockSegment.replaceAll(`name="${oldName}"`, `name="${newName}"`)
+      cursor = closeIdx + blockClose.length
+    }
+    sanitized = result
   }
   return sanitized
 }

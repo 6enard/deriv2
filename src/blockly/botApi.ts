@@ -59,6 +59,12 @@ export function createBotApi(
   let lastPayout = 0
   let lastAskPrice = 0
   let lastProposalPayout = 0
+  let lastContractType = ''
+  let lastEntryTickTime: number | null = null
+  let lastEntryTick: number | null = null
+  let lastExitTickTime: number | null = null
+  let lastExitTick: number | null = null
+  let lastBarrier: string | null = null
   let totalProfit = 0
   let totalRuns = 0
   let lastTick = 0
@@ -90,6 +96,12 @@ export function createBotApi(
             lastProfit = profit
             totalProfit += profit
             totalRuns++
+            lastContractType = c.contract_type || currentContractType
+            if (c.entry_tick_time != null) lastEntryTickTime = Number(c.entry_tick_time)
+            if (c.entry_tick != null) lastEntryTick = parseFloat(c.entry_tick)
+            if (c.exit_tick_time != null) lastExitTickTime = Number(c.exit_tick_time)
+            if (c.exit_tick != null) lastExitTick = parseFloat(c.exit_tick)
+            if (c.barrier != null) lastBarrier = String(c.barrier)
 
             if (c.status === 'won') {
               lastResult = 'win'
@@ -232,6 +244,12 @@ export function createBotApi(
         case '2': return lastBuyPrice
         case '3': return lastPayout
         case '4': return lastProfit
+        case '5': return lastContractType
+        case '6': return lastEntryTickTime ?? ''
+        case '7': return lastEntryTick ?? ''
+        case '8': return lastExitTickTime ?? ''
+        case '9': return lastExitTick ?? ''
+        case '10': return lastBarrier ?? ''
         case '11': return lastResult
         default: return ''
       }

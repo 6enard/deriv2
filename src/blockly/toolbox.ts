@@ -43,7 +43,7 @@ export const toolbox: ToolboxInfo = {
       categorystyle: 'trade_results',
       contents: [
         { kind: 'block', type: 'after_purchase' },
-        { kind: 'block', type: 'check_result' },
+        { kind: 'block', type: 'contract_check_result' },
         { kind: 'block', type: 'read_details' },
         { kind: 'block', type: 'trade_again' },
       ],

@@ -50,13 +50,13 @@ export function registerGenerators(): void {
   }
 
   // ── Trade results ──
-  javascriptGenerator.forBlock['check_result'] = function (block: Blockly.Block): [string, number] {
+  javascriptGenerator.forBlock['contract_check_result'] = function (block: Blockly.Block): [string, number] {
     const result = block.getFieldValue('CHECK_RESULT')
     return [`Bot.getLastResult() === ${JSON.stringify(result)}`, javascriptGenerator.ORDER_ATOMIC]
   }
 
   javascriptGenerator.forBlock['read_details'] = function (block: Blockly.Block): [string, number] {
-    const detail = block.getFieldValue('DETAILS')
+    const detail = block.getFieldValue('DETAIL_INDEX')
     return [`Bot.getDetails(${JSON.stringify(detail)})`, javascriptGenerator.ORDER_ATOMIC]
   }
 
