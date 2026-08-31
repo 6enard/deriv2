@@ -269,6 +269,17 @@ const DEPRECATED_FIELD_RENAMES: { blockType: string; oldName: string; newName: s
   { blockType: 'read_details', oldName: 'DETAILS', newName: 'DETAIL_INDEX' },
 ]
 
+// Field-value normalizations for fields whose type changed. When a field
+// was a dropdown and becomes a checkbox, old bots may contain the dropdown's
+// value (e.g. 'TRUE'/'FALSE') instead of the checkbox's lowercase 'true'/'false'.
+// Scoped to block type + field name so we only touch the right field.
+const FIELD_VALUE_NORMALIZATIONS: { blockType: string; fieldName: string; valueMap: Record<string, string> }[] = [
+  // trade_definition_restartbuysell: dropdown → checkbox
+  { blockType: 'trade_definition_restartbuysell', fieldName: 'TIME_MACHINE_ENABLED', valueMap: { TRUE: 'true', FALSE: 'false' } },
+  // trade_definition_restartonerror: dropdown → checkbox
+  { blockType: 'trade_definition_restartonerror', fieldName: 'RESTARTONERROR', valueMap: { TRUE: 'true', FALSE: 'false' } },
+]
+
 export function sanitizeLegacyXml(xml: string): string {
   let sanitized = xml
   for (const [oldType, newType] of Object.entries(DEPRECATED_BLOCK_RENAMES)) {
@@ -296,6 +307,34 @@ export function sanitizeLegacyXml(xml: string): string {
       }
       const blockSegment = sanitized.slice(openIdx, closeIdx + blockClose.length)
       result += blockSegment.replaceAll(`name="${oldName}"`, `name="${newName}"`)
+      cursor = closeIdx + blockClose.length
+    }
+    sanitized = result
+  }
+  for (const { blockType, fieldName, valueMap } of FIELD_VALUE_NORMALIZATIONS) {
+    // Rewrite field *values* for a specific field on a specific block type.
+    // Field elements look like <field name="TIME_MACHINE_ENABLED">TRUE</field>.
+    const blockOpen = `<block type="${blockType}"`
+    const blockClose = `</block>`
+    let result = ''
+    let cursor = 0
+    while (cursor < sanitized.length) {
+      const openIdx = sanitized.indexOf(blockOpen, cursor)
+      if (openIdx === -1) {
+        result += sanitized.slice(cursor)
+        break
+      }
+      result += sanitized.slice(cursor, openIdx)
+      const closeIdx = sanitized.indexOf(blockClose, openIdx)
+      if (closeIdx === -1) {
+        result += sanitized.slice(openIdx)
+        break
+      }
+      let blockSegment = sanitized.slice(openIdx, closeIdx + blockClose.length)
+      for (const [oldVal, newVal] of Object.entries(valueMap)) {
+        blockSegment = blockSegment.replaceAll(`name="${fieldName}">${oldVal}</field>`, `name="${fieldName}">${newVal}</field>`)
+      }
+      result += blockSegment
       cursor = closeIdx + blockClose.length
     }
     sanitized = result

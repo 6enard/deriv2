@@ -369,9 +369,17 @@ defineBlock('trade_definition_candleinterval', {
         name: 'CANDLEINTERVAL_LIST',
         options: [
           ['1 minute', '60'],
+          ['2 minutes', '120'],
+          ['3 minutes', '180'],
           ['5 minutes', '300'],
+          ['10 minutes', '600'],
           ['15 minutes', '900'],
+          ['30 minutes', '1800'],
           ['1 hour', '3600'],
+          ['2 hours', '7200'],
+          ['4 hours', '14400'],
+          ['8 hours', '28800'],
+          ['1 day', '86400'],
         ],
       },
     ],
@@ -392,14 +400,7 @@ defineBlock('trade_definition_restartbuysell', {
   definition: () => ({
     message0: 'Restart buy/sell on error: %1',
     args0: [
-      {
-        type: 'field_dropdown',
-        name: 'TIME_MACHINE_ENABLED',
-        options: [
-          ['False', 'FALSE'],
-          ['True', 'TRUE'],
-        ],
-      },
+      { type: 'field_checkbox', name: 'TIME_MACHINE_ENABLED', checked: false },
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,
@@ -418,14 +419,7 @@ defineBlock('trade_definition_restartonerror', {
   definition: () => ({
     message0: 'Restart on error: %1',
     args0: [
-      {
-        type: 'field_dropdown',
-        name: 'RESTARTONERROR',
-        options: [
-          ['True', 'TRUE'],
-          ['False', 'FALSE'],
-        ],
-      },
+      { type: 'field_checkbox', name: 'RESTARTONERROR', checked: true }
     ],
     colour: Colours.Special1.colour,
     colourSecondary: Colours.Special1.colourSecondary,

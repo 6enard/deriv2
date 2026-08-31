@@ -20,10 +20,10 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
                     <field name="CANDLEINTERVAL_LIST">60</field>
                     <next>
                       <block type="trade_definition_restartbuysell" deletable="false" movable="false">
-                        <field name="TIME_MACHINE_ENABLED">FALSE</field>
+                        <field name="TIME_MACHINE_ENABLED">false</field>
                         <next>
                           <block type="trade_definition_restartonerror" deletable="false" movable="false">
-                            <field name="RESTARTONERROR">TRUE</field>
+                            <field name="RESTARTONERROR">true</field>
                           </block>
                         </next>
                       </block>
