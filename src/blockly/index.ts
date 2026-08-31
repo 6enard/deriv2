@@ -133,12 +133,108 @@ export function loadFromXml(workspace: Blockly.WorkspaceSvg, xmlText: string): b
   try {
     workspace.clear()
     const dom = Blockly.utils.xml.textToDom(xmlText)
+    migrateLegacyTradeBlocks(dom)
     console.warn(`[bot-loader] domToWorkspace — xmlText.length=${xmlText.length}, first 200 chars:`, xmlText.slice(0, 200))
     Blockly.Xml.domToWorkspace(dom, workspace)
     return true
   } catch (err) {
     console.error('[bot-loader] loadFromXml failed:', err)
     return false
+  }
+}
+
+// ── Legacy "trade" block migration ──────────────────────────────────
+// Older bot.deriv.com exports use a single monolithic `trade` block
+// holding all Market/TradeType/ContractType/CandleInterval/Restart
+// fields flat, plus a `tradeOptions` child (instead of today's split
+// trade_definition_market / trade_definition_tradetype /
+// trade_definition_contracttype / trade_definition_candleinterval /
+// trade_definition_restartbuysell / trade_definition_restartonerror /
+// trade_definition_tradeoptions blocks). This rewrites the parsed DOM
+// into the modern structure before Blockly ever sees it.
+function migrateLegacyTradeBlocks(root: Document | Element): void {
+  const doc = 'createElement' in root ? (root as Document) : root.ownerDocument!
+  const legacyTradeBlocks = Array.from(root.querySelectorAll('block[type="trade"]'))
+
+  for (const tradeBlock of legacyTradeBlocks) {
+    const getField = (name: string): string | null => {
+      const el = Array.from(tradeBlock.children).find(
+        (c) => c.tagName === 'field' && c.getAttribute('name') === name,
+      )
+      return el ? (el.textContent ?? '') : null
+    }
+
+    const marketList = getField('MARKET_LIST') ?? ''
+    const submarketList = getField('SUBMARKET_LIST') ?? ''
+    const symbolList = getField('SYMBOL_LIST') ?? ''
+    const tradeTypeCat = getField('TRADETYPECAT_LIST') ?? ''
+    const tradeTypeList = getField('TRADETYPE_LIST') ?? ''
+    const typeList = getField('TYPE_LIST') ?? ''
+    const candleInterval = getField('CANDLEINTERVAL_LIST') ?? '60'
+    const timeMachineEnabled = getField('TIME_MACHINE_ENABLED') ?? 'FALSE'
+    const restartOnError = getField('RESTARTONERROR') ?? 'TRUE'
+
+    const makeField = (name: string, value: string) => {
+      const f = doc.createElement('field')
+      f.setAttribute('name', name)
+      f.textContent = value
+      return f
+    }
+    const makeBlock = (type: string, fields: [string, string][]) => {
+      const b = doc.createElement('block')
+      b.setAttribute('type', type)
+      for (const [n, v] of fields) b.appendChild(makeField(n, v))
+      return b
+    }
+    const wrapNext = (block: Element, child: Element) => {
+      const next = doc.createElement('next')
+      next.appendChild(child)
+      block.appendChild(next)
+      return child
+    }
+
+    const marketBlock = makeBlock('trade_definition_market', [
+      ['MARKET_LIST', marketList],
+      ['SUBMARKET_LIST', submarketList],
+      ['SYMBOL_LIST', symbolList],
+    ])
+    const tradeTypeBlock = makeBlock('trade_definition_tradetype', [
+      ['TRADETYPECAT_LIST', tradeTypeCat],
+      ['TRADETYPE_LIST', tradeTypeList],
+    ])
+    const contractTypeBlock = makeBlock('trade_definition_contracttype', [
+      ['TYPE_LIST', typeList],
+    ])
+    const candleBlock = makeBlock('trade_definition_candleinterval', [
+      ['CANDLEINTERVAL_LIST', candleInterval],
+    ])
+    const restartBuySellBlock = makeBlock('trade_definition_restartbuysell', [
+      ['TIME_MACHINE_ENABLED', timeMachineEnabled],
+    ])
+    const restartOnErrorBlock = makeBlock('trade_definition_restartonerror', [
+      ['RESTARTONERROR', restartOnError],
+    ])
+
+    wrapNext(marketBlock, tradeTypeBlock)
+    wrapNext(tradeTypeBlock, contractTypeBlock)
+    wrapNext(contractTypeBlock, candleBlock)
+    wrapNext(candleBlock, restartBuySellBlock)
+    wrapNext(restartBuySellBlock, restartOnErrorBlock)
+
+    const tradeOptionsStatement = doc.createElement('statement')
+    tradeOptionsStatement.setAttribute('name', 'TRADE_OPTIONS')
+    tradeOptionsStatement.appendChild(marketBlock)
+
+    const legacyTradeOptions = tradeBlock.querySelector('block[type="tradeOptions"]')
+    if (legacyTradeOptions) {
+      legacyTradeOptions.setAttribute('type', 'trade_definition_tradeoptions')
+    }
+
+    tradeBlock.setAttribute('type', 'trade_definition')
+    for (const child of Array.from(tradeBlock.children)) {
+      if (child.tagName === 'field') tradeBlock.removeChild(child)
+    }
+    tradeBlock.appendChild(tradeOptionsStatement)
   }
 }
 
