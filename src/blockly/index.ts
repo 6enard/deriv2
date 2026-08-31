@@ -47,6 +47,8 @@ function registerTheme() {
       purchase_conditions: { colour: Colours.RootBlock.colour },
       sell_conditions: { colour: Colours.RootBlock.colour },
       trade_results: { colour: Colours.RootBlock.colour },
+      analysis: { colour: Colours.Base.colour },
+      utility: { colour: Colours.Base.colour },
       technical_analysis: { colour: Colours.Base.colour },
       indicators: { colour: Colours.Base.colour },
       time: { colour: Colours.Base.colour },
