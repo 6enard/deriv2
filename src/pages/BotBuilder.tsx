@@ -13,7 +13,21 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown, ChevronDown, Blocks as BlocksIcon, X } from 'lucide-react'
+import {
+  Play,
+  Square,
+  RotateCcw,
+  Download,
+  Upload,
+  Loader as Loader2,
+  FileDown,
+  ChevronDown,
+  Blocks as BlocksIcon,
+  X,
+  PanelRight,
+  Save,
+  FolderOpen,
+} from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -32,6 +46,7 @@ export default function BotBuilder() {
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showResultsMobile, setShowResultsMobile] = useState(false)
   const [toolboxOpen, setToolboxOpen] = useState(false)
+  const [showMoreActions, setShowMoreActions] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -163,10 +178,12 @@ export default function BotBuilder() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     showToast('success', 'Bot saved as XML file.')
+    setShowMoreActions(false)
   }, [showToast, botName])
 
   const handleLoadClick = useCallback(() => {
     fileInputRef.current?.click()
+    setShowMoreActions(false)
   }, [])
 
   const checkLoadedFields = useCallback((w: Blockly.WorkspaceSvg) => {
@@ -263,140 +280,232 @@ export default function BotBuilder() {
     })
   }, [])
 
+  // Close more-actions menu when clicking outside
+  const moreActionsRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!showMoreActions) return
+    const handler = (e: MouseEvent) => {
+      if (moreActionsRef.current && !moreActionsRef.current.contains(e.target as Node)) {
+        setShowMoreActions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showMoreActions])
+
+  const totalProfit = runStats.totalProfit
+  const hasResults = hasRunOnce || trades.length > 0 || journal.length > 0
+
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)] overflow-hidden">
       {/* Left: toolbar + canvas */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 bg-bg-secondary border-b border-border-default overflow-x-auto shrink-0 scrollbar-thin">
-        <ToolbarButton
-          onClick={handleRun}
-          disabled={isRunning || marketsLoading || !marketsLoaded}
-          icon={marketsLoading ? Loader2 : Play}
-          label={marketsLoading ? 'Loading...' : 'Run'}
-          variant="success"
-        />
-        <ToolbarButton
-          onClick={handleStop}
-          disabled={!isRunning}
-          icon={Square}
-          label="Stop"
-          variant="danger"
-        />
-        {/* Mobile toolbox toggle */}
-        <button
-          onClick={toggleToolbox}
-          className={`lg:hidden flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-            toolboxOpen ? 'bg-brand-red text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover border border-border-light'
-          }`}
-        >
-          {toolboxOpen ? <X className="w-4 h-4" /> : <BlocksIcon className="w-4 h-4" />}
-          <span>{toolboxOpen ? 'Close' : 'Blocks'}</span>
-        </button>
-        <div className="w-px h-6 bg-border-light mx-0.5 hidden sm:block" />
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <input
-            type="text"
-            value={botName}
-            onChange={(e) => setBotName(e.target.value)}
-            placeholder="Bot name"
-            className="w-20 sm:w-32 px-2 sm:px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+        {/* ── Desktop Toolbar ── */}
+        <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-bg-secondary border-b border-border-default shrink-0">
+          <ToolbarButton
+            onClick={handleRun}
+            disabled={isRunning || marketsLoading || !marketsLoaded}
+            icon={marketsLoading ? Loader2 : Play}
+            label={marketsLoading ? 'Loading...' : 'Run'}
+            variant="success"
           />
-          <ToolbarButton onClick={handleDownload} icon={FileDown} label="Save" />
+          <ToolbarButton
+            onClick={handleStop}
+            disabled={!isRunning}
+            icon={Square}
+            label="Stop"
+            variant="danger"
+          />
+          <div className="w-px h-6 bg-border-light mx-0.5" />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={botName}
+              onChange={(e) => setBotName(e.target.value)}
+              placeholder="Bot name"
+              className="w-36 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+            />
+            <ToolbarButton onClick={handleDownload} icon={FileDown} label="Save" />
+            <ToolbarButton onClick={handleLoadClick} icon={Upload} label="Load" />
+          </div>
+          <div className="w-px h-6 bg-border-light mx-0.5" />
+          <ToolbarButton onClick={handleReset} icon={RotateCcw} label="Reset" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xml"
+            onChange={handleFileLoad}
+            className="hidden"
+          />
+          <div className="ml-auto flex items-center gap-2 text-xs text-text-muted shrink-0 pl-1">
+            <StatusIndicator
+              isRunning={isRunning}
+              marketsLoading={marketsLoading}
+              marketsLoaded={marketsLoaded}
+              isLoaded={isLoaded}
+            />
+          </div>
         </div>
-        <ToolbarButton onClick={handleLoadClick} icon={Upload} label="Load" />
-        <div className="w-px h-6 bg-border-light mx-0.5 hidden sm:block" />
-        <ToolbarButton onClick={handleReset} icon={RotateCcw} label="Reset" />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xml"
-          onChange={handleFileLoad}
-          className="hidden"
-        />
-        <div className="ml-auto flex items-center gap-2 text-xs text-text-muted shrink-0 pl-1">
+
+        {/* ── Mobile Toolbar ── */}
+        <div className="lg:hidden flex items-center gap-1.5 px-2 py-2 bg-bg-secondary border-b border-border-default shrink-0">
+          {/* Run / Stop primary button */}
           {isRunning ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
-              <span className="hidden md:inline">Running</span>
-            </>
-          ) : marketsLoading ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="hidden md:inline">Loading markets...</span>
-            </>
-          ) : marketsLoaded ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-brand-red" />
-              <span className="hidden md:inline">Ready</span>
-            </>
-          ) : isLoaded ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-text-muted" />
-              <span className="hidden md:inline">Ready</span>
-            </>
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-red text-white text-sm font-semibold shrink-0 active:scale-95 transition-transform"
+            >
+              <Square className="w-4 h-4" />
+              Stop
+            </button>
           ) : (
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <button
+              onClick={handleRun}
+              disabled={marketsLoading || !marketsLoaded}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-red text-white text-sm font-semibold shrink-0 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {marketsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {marketsLoading ? 'Loading' : 'Run'}
+            </button>
+          )}
+
+          {/* Toolbox toggle */}
+          <button
+            onClick={toggleToolbox}
+            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+              toolboxOpen ? 'bg-brand-red text-white' : 'bg-bg-tertiary text-text-primary border border-border-light'
+            }`}
+          >
+            {toolboxOpen ? <X className="w-4 h-4" /> : <BlocksIcon className="w-4 h-4" />}
+            <span className="hidden xs:inline">Blocks</span>
+          </button>
+
+          {/* More actions dropdown */}
+          <div className="relative ml-auto" ref={moreActionsRef}>
+            <button
+              onClick={() => setShowMoreActions(!showMoreActions)}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-bg-tertiary text-text-primary border border-border-light text-sm font-medium shrink-0"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMoreActions ? 'rotate-180' : ''}`} />
+            </button>
+            {showMoreActions && (
+              <div className="absolute right-0 top-full mt-1.5 w-52 bg-bg-secondary border border-border-light rounded-xl shadow-xl py-1.5 z-50 slide-in">
+                <div className="px-3 py-2 border-b border-border-default">
+                  <input
+                    type="text"
+                    value={botName}
+                    onChange={(e) => setBotName(e.target.value)}
+                    placeholder="Bot name"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                </div>
+                <MobileMenuItem onClick={handleDownload} icon={Save} label="Save bot" />
+                <MobileMenuItem onClick={handleLoadClick} icon={FolderOpen} label="Load bot" />
+                <MobileMenuItem onClick={handleReset} icon={RotateCcw} label="Reset workspace" />
+              </div>
+            )}
+          </div>
+
+          {/* Results toggle */}
+          <button
+            onClick={() => setShowResultsMobile(!showResultsMobile)}
+            className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+              showResultsMobile ? 'bg-brand-red text-white' : 'bg-bg-tertiary text-text-primary border border-border-light'
+            }`}
+          >
+            <PanelRight className="w-4 h-4" />
+            {hasResults && (
+              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${totalProfit >= 0 ? 'bg-brand-green' : 'bg-brand-red'} border-2 border-bg-secondary`} />
+            )}
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xml"
+            onChange={handleFileLoad}
+            className="hidden"
+          />
+        </div>
+
+        {/* ── Mobile status bar ── */}
+        <div className="lg:hidden flex items-center justify-center gap-2 px-3 py-1.5 bg-bg-tertiary border-b border-border-default text-xs text-text-muted shrink-0">
+          <StatusIndicator
+            isRunning={isRunning}
+            marketsLoading={marketsLoading}
+            marketsLoaded={marketsLoaded}
+            isLoaded={isLoaded}
+            compact
+          />
+        </div>
+
+        {/* Blockly workspace */}
+        <div
+          ref={containerRef}
+          className={`flex-1 w-full relative min-h-0 overflow-hidden ${toolboxOpen ? 'toolbox-open' : ''}`}
+          id="blockly-container"
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          {dragOver && (
+            <div className="absolute inset-0 z-50 bg-brand-red/10 border-2 border-dashed border-brand-red rounded-xl flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-2 text-brand-red font-medium">
+                <Download className="w-6 h-6" />
+                Drop .xml file to load bot
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Blockly workspace */}
-      <div
-        ref={containerRef}
-        className={`flex-1 w-full relative min-h-0 overflow-hidden ${toolboxOpen ? 'toolbox-open' : ''}`}
-        id="blockly-container"
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-      >
-        {dragOver && (
-          <div className="absolute inset-0 z-50 bg-brand-red/10 border-2 border-dashed border-brand-red rounded-xl flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-2 text-brand-red font-medium">
-              <Download className="w-6 h-6" />
-              Drop .xml file to load bot
-            </div>
-          </div>
-        )}
+      {/* ── Desktop Results Sidebar ── */}
+      <div className="hidden lg:flex lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0 flex-col">
+        <RunResultsPanel
+          tab={resultsTab}
+          onTabChange={setResultsTab}
+          runStats={runStats}
+          journal={journal}
+          journalEndRef={journalEndRef}
+          trades={trades}
+          currency={account?.currency || 'USD'}
+          onClearJournal={handleClearJournal}
+          onResetStats={handleResetStats}
+        />
       </div>
 
-      {/* Mobile results toggle bar — always visible on mobile */}
-      <button
-        onClick={() => setShowResultsMobile(!showResultsMobile)}
-        className="lg:hidden flex items-center justify-center gap-2 px-4 py-3 bg-brand-red text-white text-sm font-semibold shrink-0 transition-colors"
-      >
-        {showResultsMobile ? 'Hide results' : (hasRunOnce ? 'Show results' : 'View results')}
-        <ChevronDown className={`w-4 h-4 transition-transform ${showResultsMobile ? 'rotate-180' : ''}`} />
-      </button>
-
-      </div>
-
-      {/* Run Results Panel — right sidebar on large screens, collapsible drawer on small */}
-      <>
-        {/* Desktop sidebar */}
-        <div className="hidden lg:flex lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0 flex-col">
-          <RunResultsPanel
-            tab={resultsTab}
-            onTabChange={setResultsTab}
-            runStats={runStats}
-            journal={journal}
-            journalEndRef={journalEndRef}
-            trades={trades}
-            currency={account?.currency || 'USD'}
-            onClearJournal={handleClearJournal}
-            onResetStats={handleResetStats}
+      {/* ── Mobile Results Bottom Sheet ── */}
+      {showResultsMobile && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="lg:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowResultsMobile(false)}
           />
-        </div>
-
-        {/* Mobile drawer — slides up from bottom */}
-        {showResultsMobile && (
-          <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[65vh] max-h-[600px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
-              <span className="text-sm font-semibold">Run Results</span>
-              <button onClick={() => setShowResultsMobile(false)} className="text-text-secondary hover:text-text-primary p-1">
+          {/* Sheet */}
+          <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[72vh] max-h-[640px] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl slide-up">
+            {/* Drag handle */}
+            <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-border-light" />
+            </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border-default shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">Run Results</span>
+                {hasResults && (
+                  <span className={`text-xs font-bold tabular px-2 py-0.5 rounded-full ${totalProfit >= 0 ? 'bg-brand-green/15 text-brand-green' : 'bg-brand-red/15 text-brand-red'}`}>
+                    {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} {account?.currency || ''}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowResultsMobile(false)}
+                className="text-text-secondary hover:text-text-primary p-1.5 rounded-lg hover:bg-bg-tertiary transition-colors"
+              >
                 <ChevronDown className="w-5 h-5" />
               </button>
             </div>
+            {/* Content */}
             <div className="flex-1 min-h-0 overflow-hidden">
               <RunResultsPanel
                 tab={resultsTab}
@@ -411,8 +520,8 @@ export default function BotBuilder() {
               />
             </div>
           </div>
-        )}
-      </>
+        </>
+      )}
 
       {/* Load confirmation modal */}
       {confirmLoad && (
@@ -452,6 +561,66 @@ export default function BotBuilder() {
   )
 }
 
+function StatusIndicator({
+  isRunning,
+  marketsLoading,
+  marketsLoaded,
+  isLoaded,
+  compact = false,
+}: {
+  isRunning: boolean
+  marketsLoading: boolean
+  marketsLoaded: boolean
+  isLoaded: boolean
+  compact?: boolean
+}) {
+  if (isRunning) {
+    return (
+      <>
+        <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
+        {!compact && <span>Running</span>}
+      </>
+    )
+  }
+  if (marketsLoading) {
+    return (
+      <>
+        <Loader2 className="w-3 h-3 animate-spin" />
+        {!compact && <span>Loading markets...</span>}
+      </>
+    )
+  }
+  if (marketsLoaded) {
+    return (
+      <>
+        <span className="w-2 h-2 rounded-full bg-brand-green" />
+        {!compact && <span>Ready</span>}
+      </>
+    )
+  }
+  if (isLoaded) {
+    return (
+      <>
+        <span className="w-2 h-2 rounded-full bg-text-muted" />
+        {!compact && <span>Ready</span>}
+      </>
+    )
+  }
+  return <Loader2 className="w-3 h-3 animate-spin" />
+}
+
+function MobileMenuItem({ onClick, icon: Icon, label }: { onClick: () => void; icon: typeof Play; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text-primary hover:bg-bg-tertiary transition-colors"
+    >
+      <Icon className="w-4 h-4 text-text-secondary" />
+      {label}
+    </button>
+  )
+}
+
 function ToolbarButton({
   onClick,
   icon: Icon,
@@ -466,7 +635,7 @@ function ToolbarButton({
   disabled?: boolean
 }) {
   const base =
-    'flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0'
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0'
   const styles = {
     default: 'bg-bg-tertiary text-text-primary hover:bg-bg-hover border border-border-light',
     success: 'bg-brand-red text-white hover:bg-brand-red-dim',
@@ -475,7 +644,7 @@ function ToolbarButton({
   return (
     <button onClick={onClick} disabled={disabled} className={`${base} ${styles[variant]}`}>
       <Icon className={`w-4 h-4 shrink-0 ${label === 'Loading...' ? 'animate-spin' : ''}`} />
-      <span className="hidden xs:inline sm:inline">{label}</span>
+      <span>{label}</span>
     </button>
   )
 }
