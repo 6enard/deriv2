@@ -19,6 +19,7 @@ export interface RunStats {
   losses: number
   totalProfit: number
   totalStake: number
+  totalPayout: number
 }
 
 export interface JournalEntry {
@@ -40,7 +41,7 @@ export function useBotRunner(
   const { showToast } = useToast()
   const { subscribeToContract } = useOpenContracts()
   const [isRunning, setIsRunning] = useState(false)
-  const [runStats, setRunStats] = useState<RunStats>({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0 })
+  const [runStats, setRunStats] = useState<RunStats>({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 })
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [hasRunOnce, setHasRunOnce] = useState(false)
   const stopRef = useRef(false)
@@ -118,13 +119,14 @@ export function useBotRunner(
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
         showToast(type === 'warn' ? 'error' : type, message)
         setJournal((prev) => [...prev, { time: new Date(), type, message }])
-        if (data?.event === 'trade_won' || data?.event === 'trade_lost') {
+        if (data?.event === 'trade_won' || data?.event === 'trade_lost' || data?.event === 'trade_sold') {
           setRunStats((prev) => ({
             totalRuns: prev.totalRuns + 1,
             wins: prev.wins + (data.event === 'trade_won' ? 1 : 0),
             losses: prev.losses + (data.event === 'trade_lost' ? 1 : 0),
             totalProfit: prev.totalProfit + (data.profit ?? 0),
             totalStake: prev.totalStake + (data.stake ?? 0),
+            totalPayout: prev.totalPayout + (data.payout ?? 0),
           }))
         }
       },
@@ -158,7 +160,7 @@ export function useBotRunner(
   }, [showToast])
 
   const handleResetStats = useCallback(() => {
-    setRunStats({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0 })
+    setRunStats({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 })
     setJournal([])
     setHasRunOnce(false)
   }, [])

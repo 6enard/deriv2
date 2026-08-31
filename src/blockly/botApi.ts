@@ -35,6 +35,7 @@ export interface NotifyData {
   event?: 'trade_won' | 'trade_lost' | 'trade_sold' | 'purchased'
   profit?: number
   stake?: number
+  payout?: number
   contractId?: number
   symbol?: string
   contractType?: string
@@ -114,13 +115,13 @@ export function createBotApi(
 
           if (c.status === 'won') {
             lastResult = 'win'
-            notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+            notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
           } else if (c.status === 'lost') {
             lastResult = 'loss'
-            notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+            notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
           } else {
             lastResult = 'sold'
-            notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, contractId, symbol: params.symbol, contractType: currentContractType })
+            notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
           }
 
           openContractId = null
