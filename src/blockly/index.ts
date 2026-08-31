@@ -131,9 +131,11 @@ export function loadFromXml(workspace: Blockly.WorkspaceSvg, xmlText: string): b
   try {
     workspace.clear()
     const dom = Blockly.utils.xml.textToDom(xmlText)
+    console.warn(`[bot-loader] domToWorkspace — xmlText.length=${xmlText.length}, first 200 chars:`, xmlText.slice(0, 200))
     Blockly.Xml.domToWorkspace(dom, workspace)
     return true
-  } catch {
+  } catch (err) {
+    console.error('[bot-loader] loadFromXml failed:', err)
     return false
   }
 }
@@ -496,8 +498,10 @@ export async function loadBotXmlSafely(
 
   setGlobalMarketOptions(symbols)
   const sanitized = sanitizeLegacyXml(xml)
+  console.warn(`[bot-loader] loadBotXmlSafely — raw xml.length=${xml.length}, sanitized.length=${sanitized.length}, sanitized first 200 chars:`, sanitized.slice(0, 200))
   const loaded = loadFromXml(workspace, sanitized)
   if (!loaded) {
+    console.error('[bot-loader] loadBotXmlSafely: loadFromXml returned false — see the loadFromXml failed log above for the real error.')
     return { ok: false, reason: 'This file is not a valid bot.' }
   }
 
