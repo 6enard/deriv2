@@ -11,7 +11,7 @@ export function RunResultsPanel({
   runStats,
   journal,
   journalEndRef,
-  openContractList,
+  trades,
   currency,
   onClearJournal,
   onResetStats,
@@ -21,7 +21,7 @@ export function RunResultsPanel({
   runStats: RunStats
   journal: JournalEntry[]
   journalEndRef: RefObject<HTMLDivElement | null>
-  openContractList: OpenContract[]
+  trades: OpenContract[]
   currency: string
   onClearJournal: () => void
   onResetStats: () => void
@@ -32,7 +32,7 @@ export function RunResultsPanel({
 
   const downloadTransactionsCsv = () => {
     const headers = ['Symbol', 'Type', 'Entry Spot', 'Exit Spot', 'Buy Price', 'P/L', 'Status']
-    const rows = openContractList.map((c) => [
+    const rows = trades.map((c) => [
       c.display_name || c.symbol,
       c.contract_type || '—',
       c.entry_spot != null ? String(c.entry_spot) : '—',
@@ -61,7 +61,7 @@ export function RunResultsPanel({
         <ResultsTabButton active={tab === 'transactions'} onClick={() => onTabChange('transactions')} icon={List} label="Transactions" />
         <ResultsTabButton active={tab === 'journal'} onClick={() => onTabChange('journal')} icon={ScrollText} label="Journal" />
         <div className="ml-auto flex items-center gap-2 pr-1">
-          {tab === 'transactions' && openContractList.length > 0 && (
+          {tab === 'transactions' && trades.length > 0 && (
             <button onClick={downloadTransactionsCsv} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
               <Download className="w-3 h-3" />
               <span className="hidden sm:inline">Download</span>
@@ -72,14 +72,6 @@ export function RunResultsPanel({
               <button onClick={downloadJournalTxt} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
                 <Download className="w-3 h-3" />
                 <span className="hidden sm:inline">Download</span>
-              </button>
-              <button onClick={onResetStats} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-                <RotateCcw className="w-3 h-3" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-              <button onClick={onClearJournal} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-                <Trash2 className="w-3 h-3" />
-                <span className="hidden sm:inline">Clear</span>
               </button>
             </>
           )}
@@ -153,11 +145,11 @@ export function RunResultsPanel({
 
         {tab === 'transactions' && (
           <div className="p-4">
-            {openContractList.length === 0 ? (
-              <div className="text-center text-sm text-text-muted py-8">No open contracts.</div>
+            {trades.length === 0 ? (
+              <div className="text-center text-sm text-text-muted py-8">No trades yet. Run your bot to see transactions here.</div>
             ) : (
               <div className="space-y-3">
-                {openContractList.map((c) => {
+                {trades.map((c) => {
                   const profit = c.profit
                   const isPos = profit >= 0
                   return (
@@ -177,7 +169,24 @@ export function RunResultsPanel({
                           {c.is_sold ? c.status : 'Open'}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs mb-2.5">
+                      <div className="flex items-center justify-end gap-2 mb-2.5">
+                        <button
+                          onClick={() => setDetailContract(c)}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View detail
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-text-muted">Type</span>
+                          <span className="tabular font-medium">{c.contract_type || '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-text-muted">Buy price</span>
+                          <span className="tabular font-medium">{c.buy_price.toFixed(2)} {currency}</span>
+                        </div>
                         <div className="flex items-center justify-between">
                           <span className="text-text-muted">Entry spot</span>
                           <span className="tabular font-medium">{c.entry_spot != null ? c.entry_spot.toFixed(c.entry_spot % 1 === 0 ? 0 : 2) : '—'}</span>
@@ -186,25 +195,12 @@ export function RunResultsPanel({
                           <span className="text-text-muted">Exit spot</span>
                           <span className="tabular font-medium">{c.exit_spot != null ? c.exit_spot.toFixed(c.exit_spot % 1 === 0 ? 0 : 2) : '—'}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-text-muted">Buy price</span>
-                          <span className="tabular font-medium">{c.buy_price.toFixed(2)} {currency}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between col-span-2 pt-1 border-t border-border-default">
                           <span className="text-text-muted">P/L</span>
                           <span className={`tabular font-bold ${isPos ? 'text-brand-green' : 'text-brand-red'}`}>
                             {isPos ? '+' : ''}{profit.toFixed(2)} {currency}
                           </span>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setDetailContract(c)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          View detail
-                        </button>
                       </div>
                     </div>
                   )
@@ -231,6 +227,18 @@ export function RunResultsPanel({
                   <span className="text-text-secondary">{entry.message}</span>
                 </div>
               ))
+            )}
+            {journal.length > 0 && (
+              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-border-default">
+                <button onClick={onResetStats} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+                <button onClick={onClearJournal} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                  Clear
+                </button>
+              </div>
             )}
             <div ref={journalEndRef} />
           </div>

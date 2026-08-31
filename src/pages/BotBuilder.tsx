@@ -10,7 +10,6 @@ import {
 } from '../blockly'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
-import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
@@ -64,10 +63,9 @@ export default function BotBuilder() {
   }, [])
 
   const { account } = useAuth()
-  const { openContractList } = useOpenContracts()
   const { fetchSymbols, symbols } = useMarketData()
 
-  const { handleRun, handleStop, isRunning, runStats, journal, hasRunOnce, handleResetStats, handleClearJournal } =
+  const { handleRun, handleStop, isRunning, runStats, journal, trades, hasRunOnce, handleResetStats, handleClearJournal } =
     useBotRunner(workspaceRef, { marketsLoaded })
 
   // Load market data into dropdowns via the public (no-auth) WebSocket — with retry
@@ -365,7 +363,7 @@ export default function BotBuilder() {
               runStats={runStats}
               journal={journal}
               journalEndRef={journalEndRef}
-              openContractList={openContractList}
+              trades={trades}
               currency={account?.currency || 'USD'}
               onClearJournal={handleClearJournal}
               onResetStats={handleResetStats}
@@ -388,7 +386,7 @@ export default function BotBuilder() {
                   runStats={runStats}
                   journal={journal}
                   journalEndRef={journalEndRef}
-                  openContractList={openContractList}
+                  trades={trades}
                   currency={account?.currency || 'USD'}
                   onClearJournal={handleClearJournal}
                   onResetStats={handleResetStats}

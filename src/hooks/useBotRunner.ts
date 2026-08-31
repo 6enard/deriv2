@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from './useOpenContracts'
+import { mapOpenContract, type OpenContract } from '../lib/types'
 
 export interface RunStats {
   totalRuns: number
@@ -43,6 +44,7 @@ export function useBotRunner(
   const [isRunning, setIsRunning] = useState(false)
   const [runStats, setRunStats] = useState<RunStats>({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 })
   const [journal, setJournal] = useState<JournalEntry[]>([])
+  const [trades, setTrades] = useState<OpenContract[]>([])
   const [hasRunOnce, setHasRunOnce] = useState(false)
   const stopRef = useRef(false)
 
@@ -131,6 +133,23 @@ export function useBotRunner(
       },
       onTrade: (contractId: number) => {
         subscribeToContract(contractId)
+        ws.subscribe(
+          { proposal_open_contract: 1, contract_id: contractId },
+          (data: any) => {
+            if (data.proposal_open_contract) {
+              const contract = mapOpenContract(data.proposal_open_contract)
+              setTrades((prev) => {
+                const idx = prev.findIndex((t) => t.contract_id === contract.contract_id)
+                if (idx >= 0) {
+                  const next = [...prev]
+                  next[idx] = contract
+                  return next
+                }
+                return [contract, ...prev]
+              })
+            }
+          },
+        ).catch(() => {})
       },
       shouldStop: () => stopRef.current,
     })
@@ -161,6 +180,7 @@ export function useBotRunner(
   const handleResetStats = useCallback(() => {
     setRunStats({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 })
     setJournal([])
+    setTrades([])
     setHasRunOnce(false)
   }, [])
 
@@ -174,6 +194,7 @@ export function useBotRunner(
     isRunning,
     runStats,
     journal,
+    trades,
     hasRunOnce,
     handleResetStats,
     handleClearJournal,
