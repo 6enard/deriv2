@@ -1,35 +1,37 @@
-// Colour system ported from deriv-com/bot's scratch/hooks/colours.js
-// and the block definitions that reference Blockly.Colours.* / Blockly.Categories.*
+// Colour system for Blockly blocks, adapted for dark-theme visibility.
+// The original deriv-com/bot palette used light-grey (#e5e5e5) block fills
+// with dark text on a light workspace. Our workspace is dark, so we use
+// darker, saturated block colours that keep white text readable.
 
 export const Colours = {
   RootBlock: {
-    colour: '#064e72',
-    colourSecondary: '#064e72',
+    colour: '#0e7490',
+    colourSecondary: '#0e7490',
     colourTertiary: '#6d7278',
   },
   Base: {
-    colour: '#e5e5e5',
-    colourSecondary: '#ffffff',
+    colour: '#3b5266',
+    colourSecondary: '#4a6378',
     colourTertiary: '#6d7278',
   },
   Special1: {
-    colour: '#e5e5e5',
-    colourSecondary: '#ffffff',
+    colour: '#2d6a8e',
+    colourSecondary: '#3a82a8',
     colourTertiary: '#6d7278',
   },
   Special2: {
-    colour: '#e5e5e5',
-    colourSecondary: '#ffffff',
+    colour: '#3b5266',
+    colourSecondary: '#4a6378',
     colourTertiary: '#6d7278',
   },
   Special3: {
-    colour: '#e5e5e5',
-    colourSecondary: '#ffffff',
+    colour: '#3b5266',
+    colourSecondary: '#4a6378',
     colourTertiary: '#6d7278',
   },
   Special4: {
-    colour: '#e5e5e5',
-    colourSecondary: '#000000',
+    colour: '#2a2a2a',
+    colourSecondary: '#1a1a1a',
     colourTertiary: '#0e0e0e',
   },
 }

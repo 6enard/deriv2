@@ -165,6 +165,29 @@ body {
 .blocklyResizeHandle {
   fill: #444 !important;
 }
+.blocklySelected {
+  stroke: #e53935 !important;
+  stroke-width: 3px !important;
+  stroke-opacity: 0.8 !important;
+}
+.blocklyPath {
+  stroke-width: 1.5px !important;
+  stroke-opacity: 0.6 !important;
+}
+.blocklyPathDark {
+  stroke-opacity: 0.4 !important;
+}
+.blocklyPathLight {
+  stroke-opacity: 0.3 !important;
+}
+/* Mobile toolbox scrollbar */
+.blocklyToolboxDiv::-webkit-scrollbar {
+  width: 4px;
+}
+.blocklyToolboxDiv::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 2px;
+}
 /* Light theme Blockly overrides */
 :root.light .blocklySvg {
   background-color: #f8f8f8 !important;

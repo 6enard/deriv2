@@ -14,7 +14,7 @@ import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, FileDown, ChevronDown } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -31,6 +31,7 @@ export default function BotBuilder() {
   const pendingXmlRef = useRef<string | null>(null)
   const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
+  const [showResultsMobile, setShowResultsMobile] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -256,9 +257,9 @@ export default function BotBuilder() {
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-68px)]">
       {/* Left: toolbar + canvas */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2.5 bg-bg-secondary border-b border-border-default">
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 bg-bg-secondary border-b border-border-default overflow-x-auto shrink-0">
         <ToolbarButton
           onClick={handleRun}
           disabled={isRunning || marketsLoading || !marketsLoaded}
@@ -273,19 +274,19 @@ export default function BotBuilder() {
           label="Stop"
           variant="danger"
         />
-        <div className="w-px h-6 bg-border-light mx-1 hidden sm:block" />
-        <div className="flex items-center gap-2">
+        <div className="w-px h-6 bg-border-light mx-0.5 hidden sm:block" />
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <input
             type="text"
             value={botName}
             onChange={(e) => setBotName(e.target.value)}
             placeholder="Bot name"
-            className="w-24 sm:w-32 px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+            className="w-20 sm:w-32 px-2 sm:px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
           />
           <ToolbarButton onClick={handleDownload} icon={FileDown} label="Save" />
         </div>
         <ToolbarButton onClick={handleLoadClick} icon={Upload} label="Load" />
-        <div className="w-px h-6 bg-border-light mx-1 hidden sm:block" />
+        <div className="w-px h-6 bg-border-light mx-0.5 hidden sm:block" />
         <ToolbarButton onClick={handleReset} icon={RotateCcw} label="Reset" />
         <input
           ref={fileInputRef}
@@ -294,26 +295,26 @@ export default function BotBuilder() {
           onChange={handleFileLoad}
           className="hidden"
         />
-        <div className="ml-auto flex items-center gap-2 text-xs text-text-muted">
+        <div className="ml-auto flex items-center gap-2 text-xs text-text-muted shrink-0 pl-1">
           {isRunning ? (
             <>
               <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
-              <span className="hidden sm:inline">Running</span>
+              <span className="hidden md:inline">Running</span>
             </>
           ) : marketsLoading ? (
             <>
               <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="hidden sm:inline">Loading markets...</span>
+              <span className="hidden md:inline">Loading markets...</span>
             </>
           ) : marketsLoaded ? (
             <>
               <span className="w-2 h-2 rounded-full bg-brand-red" />
-              <span className="hidden sm:inline">Ready</span>
+              <span className="hidden md:inline">Ready</span>
             </>
           ) : isLoaded ? (
             <>
               <span className="w-2 h-2 rounded-full bg-text-muted" />
-              <span className="hidden sm:inline">Ready</span>
+              <span className="hidden md:inline">Ready</span>
             </>
           ) : (
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -324,7 +325,7 @@ export default function BotBuilder() {
       {/* Blockly workspace */}
       <div
         ref={containerRef}
-        className="flex-1 w-full relative min-h-[400px]"
+        className="flex-1 w-full relative min-h-0"
         id="blockly-container"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -340,23 +341,62 @@ export default function BotBuilder() {
         )}
       </div>
 
+      {/* Mobile results toggle bar */}
+      {hasRunOnce && (
+        <button
+          onClick={() => setShowResultsMobile(!showResultsMobile)}
+          className="lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 bg-bg-secondary border-t border-border-default text-sm font-medium text-text-primary shrink-0"
+        >
+          {showResultsMobile ? 'Hide results' : 'Show results'}
+          <ChevronDown className={`w-4 h-4 transition-transform ${showResultsMobile ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+
       </div>
 
-      {/* Run Results Panel — right sidebar on large screens, below on small */}
+      {/* Run Results Panel — right sidebar on large screens, collapsible drawer on small */}
       {hasRunOnce && (
-        <div className="lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0">
-        <RunResultsPanel
-          tab={resultsTab}
-          onTabChange={setResultsTab}
-          runStats={runStats}
-          journal={journal}
-          journalEndRef={journalEndRef}
-          openContractList={openContractList}
-          currency={account?.currency || 'USD'}
-          onClearJournal={handleClearJournal}
-          onResetStats={handleResetStats}
-        />
-        </div>
+        <>
+          {/* Desktop sidebar */}
+          <div className="hidden lg:flex lg:w-[380px] lg:border-l lg:border-t-0 border-t border-border-default flex-shrink-0 flex-col">
+            <RunResultsPanel
+              tab={resultsTab}
+              onTabChange={setResultsTab}
+              runStats={runStats}
+              journal={journal}
+              journalEndRef={journalEndRef}
+              openContractList={openContractList}
+              currency={account?.currency || 'USD'}
+              onClearJournal={handleClearJournal}
+              onResetStats={handleResetStats}
+            />
+          </div>
+
+          {/* Mobile drawer */}
+          {showResultsMobile && (
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[55vh] bg-bg-secondary border-t border-border-light rounded-t-2xl flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border-default shrink-0">
+                <span className="text-sm font-semibold">Run Results</span>
+                <button onClick={() => setShowResultsMobile(false)} className="text-text-secondary hover:text-text-primary p-1">
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
+                <RunResultsPanel
+                  tab={resultsTab}
+                  onTabChange={setResultsTab}
+                  runStats={runStats}
+                  journal={journal}
+                  journalEndRef={journalEndRef}
+                  openContractList={openContractList}
+                  currency={account?.currency || 'USD'}
+                  onClearJournal={handleClearJournal}
+                  onResetStats={handleResetStats}
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Load confirmation modal */}
@@ -411,7 +451,7 @@ function ToolbarButton({
   disabled?: boolean
 }) {
   const base =
-    'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+    'flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0'
   const styles = {
     default: 'bg-bg-tertiary text-text-primary hover:bg-bg-hover border border-border-light',
     success: 'bg-brand-red text-white hover:bg-brand-red-dim',
