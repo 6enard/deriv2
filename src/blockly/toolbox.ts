@@ -83,7 +83,7 @@ export const toolbox: ToolboxInfo = {
       contents: [
         { kind: 'block', type: 'epoch' },
         { kind: 'block', type: 'timeout' },
-        { kind: 'block', type: 'tickdelay' },
+        { kind: 'block', type: 'tick_delay' },
         { kind: 'block', type: 'todatetime' },
         { kind: 'block', type: 'totimestamp' },
       ],

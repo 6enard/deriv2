@@ -25,6 +25,7 @@ export interface BotApi {
   setStake(amount: number): void
   getStake(): number
   notify(type: NotificationType, message: string): void
+  console(type: string, message: unknown): void
   sleep(ms: number): Promise<void>
   tickDelay(count: number): Promise<void>
 }
@@ -272,6 +273,12 @@ export function createBotApi(
     },
 
     notify,
+
+    console(type: string, message: unknown): void {
+      const msg = typeof message === 'string' ? message : String(message)
+      const journalType: NotificationType = type === 'warn' ? 'warn' : type === 'error' ? 'error' : 'info'
+      notify(journalType, msg)
+    },
 
     async sleep(ms: number): Promise<void> {
       return new Promise((resolve) => setTimeout(resolve, ms))

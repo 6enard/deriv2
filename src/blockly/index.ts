@@ -259,6 +259,8 @@ const DEPRECATED_BLOCK_RENAMES: Record<string, string> = {
   math_number_positive: 'math_number',
   // check_result was the original name; real bot.deriv.com XML uses contract_check_result.
   check_result: 'contract_check_result',
+  // tickdelay was the original name; real bot.deriv.com XML uses tick_delay.
+  tickdelay: 'tick_delay',
 }
 
 // Renamed field names that may appear in bots saved earlier in this
@@ -267,6 +269,13 @@ const DEPRECATED_BLOCK_RENAMES: Record<string, string> = {
 const DEPRECATED_FIELD_RENAMES: { blockType: string; oldName: string; newName: string }[] = [
   // read_details used 'DETAILS' before being aligned to real bot.deriv.com XML ('DETAIL_INDEX').
   { blockType: 'read_details', oldName: 'DETAILS', newName: 'DETAIL_INDEX' },
+  // tick_delay: TICKS → TICKDELAYVALUE (value input renamed to match real XML).
+  { blockType: 'tick_delay', oldName: 'TICKS', newName: 'TICKDELAYVALUE' },
+  // tick_delay: TIMEOUTSTACK → TICKDELAYSTACK (statement input renamed; was
+  // incorrectly reusing the timeout block's stack name).
+  { blockType: 'tick_delay', oldName: 'TIMEOUTSTACK', newName: 'TICKDELAYSTACK' },
+  // console: VALUE → MESSAGE (value input renamed to match real XML).
+  { blockType: 'console', oldName: 'VALUE', newName: 'MESSAGE' },
 ]
 
 // Field-value normalizations for fields whose type changed. When a field

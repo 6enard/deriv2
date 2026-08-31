@@ -120,8 +120,9 @@ export function registerGenerators(): void {
   }
 
   javascriptGenerator.forBlock['console'] = function (block: Blockly.Block): string {
-    const value = javascriptGenerator.valueToCode(block, 'VALUE', javascriptGenerator.ORDER_NONE) || '""'
-    return `console.log(${value});\n`
+    const type = block.getFieldValue('CONSOLE_TYPE') || 'log'
+    const message = javascriptGenerator.valueToCode(block, 'MESSAGE', javascriptGenerator.ORDER_NONE) || '""'
+    return `Bot.console(${JSON.stringify(type)}, ${message});\n`
   }
 
   javascriptGenerator.forBlock['total_profit'] = function (): [string, number] {
@@ -157,9 +158,9 @@ export function registerGenerators(): void {
     return `await (async () => { await Bot.sleep((${seconds}) * 1000); ${stack} })();\n`
   }
 
-  javascriptGenerator.forBlock['tickdelay'] = function (block: Blockly.Block): string {
-    const ticks = javascriptGenerator.valueToCode(block, 'TICKS', javascriptGenerator.ORDER_NONE) || '0'
-    const stack = javascriptGenerator.statementToCode(block, 'TIMEOUTSTACK')
+  javascriptGenerator.forBlock['tick_delay'] = function (block: Blockly.Block): string {
+    const ticks = javascriptGenerator.valueToCode(block, 'TICKDELAYVALUE', javascriptGenerator.ORDER_NONE) || '0'
+    const stack = javascriptGenerator.statementToCode(block, 'TICKDELAYSTACK')
     return `await (async () => { await Bot.tickDelay((${ticks})); ${stack} })();\n`
   }
 

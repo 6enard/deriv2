@@ -866,8 +866,20 @@ defineBlock('notify', {
 
 defineBlock('console', {
   definition: () => ({
-    message0: 'Print to console: %1',
-    args0: [{ type: 'input_value', name: 'VALUE' }],
+    message0: 'Print to console: %1 %2',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'CONSOLE_TYPE',
+        options: [
+          ['Log', 'log'],
+          ['Warn', 'warn'],
+          ['Error', 'error'],
+          ['Table', 'table'],
+        ],
+      },
+      { type: 'input_value', name: 'MESSAGE' },
+    ],
     previousStatement: null,
     nextStatement: null,
     colour: Colours.Base.colour,
@@ -976,13 +988,13 @@ defineBlock('timeout', {
   }),
 })
 
-defineBlock('tickdelay', {
+defineBlock('tick_delay', {
   definition: () => ({
     message0: '%1 %2 Run after %3 tick(s)',
     args0: [
       { type: 'input_dummy' },
-      { type: 'input_statement', name: 'TIMEOUTSTACK' },
-      { type: 'input_value', name: 'TICKS' },
+      { type: 'input_statement', name: 'TICKDELAYSTACK' },
+      { type: 'input_value', name: 'TICKDELAYVALUE' },
     ],
     previousStatement: null,
     nextStatement: null,
