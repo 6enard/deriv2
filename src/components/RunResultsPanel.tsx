@@ -1,64 +1,129 @@
-import { useState, type RefObject } from 'react'
-import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Trophy, Target, Wallet, Activity, DollarSign, Download, Eye, X, ChevronUp } from 'lucide-react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
+import {
+  ChartBar as BarChart3,
+  List,
+  ScrollText,
+  Trash2,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Trophy,
+  Target,
+  Wallet,
+  Activity,
+  DollarSign,
+  Download,
+  Eye,
+  X,
+  ChevronUp,
+  ChevronDown,
+  Clock3,
+  CircleDollarSign,
+  ArrowUpRight,
+} from 'lucide-react'
 import type { OpenContract } from '../lib/types'
 import type { RunStats, JournalEntry } from '../hooks/useBotRunner'
-import { useEffect, useRef } from 'react'
 
 export type ResultsTab = 'summary' | 'transactions' | 'journal'
 
-const TAB_DEFS: { id: ResultsTab; label: string; icon: typeof BarChart3 }[] = [
-  { id: 'summary', label: 'Summary', icon: BarChart3 },
-  { id: 'transactions', label: 'Transactions', icon: List },
-  { id: 'journal', label: 'Journal', icon: ScrollText },
+const TAB_DEFS: {
+  id: ResultsTab
+  label: string
+  icon: typeof BarChart3
+}[] = [
+  {
+    id: 'summary',
+    label: 'Summary',
+    icon: BarChart3,
+  },
+  {
+    id: 'transactions',
+    label: 'Transactions',
+    icon: List,
+  },
+  {
+    id: 'journal',
+    label: 'Journal',
+    icon: ScrollText,
+  },
 ]
 
 function DropUpTabSelector({
   tab,
   onTabChange,
-  compact = false,
 }: {
   tab: ResultsTab
-  onTabChange: (t: ResultsTab) => void
-  compact?: boolean
+  onTabChange: (tab: ResultsTab) => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
-  const activeDef = TAB_DEFS.find((t) => t.id === tab) || TAB_DEFS[0]
+
+  const activeDef =
+    TAB_DEFS.find((item) => item.id === tab) || TAB_DEFS[0]
+
   const ActiveIcon = activeDef.icon
 
   useEffect(() => {
     if (!open) return
+
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (
+        ref.current &&
+        !ref.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+
+    return () => {
+      document.removeEventListener('mousedown', handler)
+    }
   }, [open])
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-text-primary bg-bg-tertiary border border-border-light hover:bg-bg-hover transition-colors w-full"
+        onClick={() => setOpen((value) => !value)}
+        className="w-full h-10 flex items-center gap-2 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-semibold text-text-primary hover:bg-bg-hover transition-colors"
       >
-        <ActiveIcon className="w-4 h-4 shrink-0" />
-        <span className="truncate">{activeDef.label}</span>
-        <ChevronUp className={`w-4 h-4 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ActiveIcon className="w-4 h-4 text-text-secondary" />
+
+        <span>{activeDef.label}</span>
+
+        <ChevronUp
+          className={`w-4 h-4 ml-auto transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+        />
       </button>
+
       {open && (
-        <div className={`absolute z-50 w-full bg-bg-secondary border border-border-light rounded-lg shadow-xl py-1 slide-in ${compact ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
-          {TAB_DEFS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => { onTabChange(id); setOpen(false) }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                tab === id ? 'text-brand-green bg-brand-green/10' : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </button>
-          ))}
+        <div className="absolute bottom-full left-0 right-0 mb-2 z-[70] overflow-hidden rounded-2xl bg-bg-secondary border border-border-light shadow-2xl">
+          {TAB_DEFS.map(
+            ({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  onTabChange(id)
+                  setOpen(false)
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                  tab === id
+                    ? 'bg-brand-green/10 text-brand-green'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+
+                {tab === id && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-green" />
+                )}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>
@@ -77,7 +142,7 @@ export function RunResultsPanel({
   onResetStats,
 }: {
   tab: ResultsTab
-  onTabChange: (t: ResultsTab) => void
+  onTabChange: (tab: ResultsTab) => void
   runStats: RunStats
   journal: JournalEntry[]
   journalEndRef: RefObject<HTMLDivElement | null>
@@ -86,199 +151,527 @@ export function RunResultsPanel({
   onClearJournal: () => void
   onResetStats: () => void
 }) {
-  const winRate = runStats.totalRuns > 0 ? (runStats.wins / runStats.totalRuns) * 100 : 0
+  const winRate =
+    runStats.totalRuns > 0
+      ? (runStats.wins / runStats.totalRuns) * 100
+      : 0
+
   const isProfit = runStats.totalProfit >= 0
-  const [detailContract, setDetailContract] = useState<OpenContract | null>(null)
+
+  const [detailContract, setDetailContract] =
+    useState<OpenContract | null>(null)
 
   const downloadTransactionsCsv = () => {
-    const headers = ['Symbol', 'Type', 'Entry Spot', 'Exit Spot', 'Buy Price', 'P/L', 'Status']
-    const rows = trades.map((c) => [
-      c.display_name || c.symbol,
-      c.contract_type || '—',
-      c.entry_spot != null ? String(c.entry_spot) : '—',
-      c.exit_spot != null ? String(c.exit_spot) : '—',
-      c.buy_price.toFixed(2),
-      c.profit.toFixed(2),
-      c.is_sold ? c.status : 'Open',
+    const headers = [
+      'Symbol',
+      'Type',
+      'Entry Spot',
+      'Exit Spot',
+      'Buy Price',
+      'P/L',
+      'Status',
+    ]
+
+    const rows = trades.map((contract) => [
+      contract.display_name || contract.symbol,
+      contract.contract_type || '—',
+      contract.entry_spot != null
+        ? String(contract.entry_spot)
+        : '—',
+      contract.exit_spot != null
+        ? String(contract.exit_spot)
+        : '—',
+      contract.buy_price.toFixed(2),
+      contract.profit.toFixed(2),
+      contract.is_sold
+        ? contract.status
+        : 'Open',
     ])
+
     const csv = [headers, ...rows]
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .map((row) =>
+        row
+          .map(
+            (value) =>
+              `"${String(value).replace(/"/g, '""')}"`,
+          )
+          .join(','),
+      )
       .join('\n')
-    triggerDownload(csv, `transactions-${new Date().toISOString().slice(0, 10)}.csv`)
+
+    triggerDownload(
+      csv,
+      `transactions-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`,
+    )
   }
 
   const downloadJournalTxt = () => {
     const text = journal
-      .map((e) => `[${e.time.toLocaleString()}] ${e.type.toUpperCase()} — ${e.message}`)
+      .map(
+        (entry) =>
+          `[${entry.time.toLocaleString()}] ${entry.type.toUpperCase()} — ${entry.message}`,
+      )
       .join('\n')
-    triggerDownload(text, `journal-${new Date().toISOString().slice(0, 10)}.txt`)
+
+    triggerDownload(
+      text,
+      `journal-${new Date()
+        .toISOString()
+        .slice(0, 10)}.txt`,
+    )
   }
 
   return (
-    <div className="bg-bg-secondary flex flex-col h-full">
-      {/* Desktop: inline tabs */}
-      <div className="hidden sm:flex items-center gap-1 px-3 pt-2.5 border-b border-border-default shrink-0">
-        {TAB_DEFS.map(({ id, label, icon: Icon }) => (
-          <ResultsTabButton key={id} active={tab === id} onClick={() => onTabChange(id)} icon={Icon} label={label} />
-        ))}
-        <div className="ml-auto flex items-center gap-2 pr-1">
-          {tab === 'transactions' && trades.length > 0 && (
-            <button onClick={downloadTransactionsCsv} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-              <Download className="w-3 h-3" />
-              <span className="hidden lg:inline">Download</span>
+    <div className="bg-bg-secondary flex flex-col h-full min-h-0">
+      {/* ======================================================
+          TABS
+      ======================================================= */}
+
+      <div className="hidden sm:flex items-center gap-1 px-3 pt-2 border-b border-border-default shrink-0">
+        {TAB_DEFS.map(
+          ({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => onTabChange(id)}
+              className={`relative flex items-center gap-2 px-3 py-2.5 text-xs font-semibold transition-colors ${
+                tab === id
+                  ? 'text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+
+              {label}
+
+              {tab === id && (
+                <span className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full bg-brand-green" />
+              )}
             </button>
-          )}
-          {tab === 'journal' && journal.length > 0 && (
-            <button onClick={downloadJournalTxt} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-              <Download className="w-3 h-3" />
-              <span className="hidden lg:inline">Download</span>
-            </button>
-          )}
+          ),
+        )}
+
+        <div className="ml-auto flex items-center gap-1 pr-1">
+          {tab === 'transactions' &&
+            trades.length > 0 && (
+              <button
+                onClick={downloadTransactionsCsv}
+                title="Download transactions"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+          {tab === 'journal' &&
+            journal.length > 0 && (
+              <button
+                onClick={downloadJournalTxt}
+                title="Download journal"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
         </div>
       </div>
 
-      {/* Mobile: drop-up selector + actions row */}
-      <div className="sm:hidden px-3 pt-2.5 pb-2 border-b border-border-default shrink-0 space-y-2">
-        <DropUpTabSelector tab={tab} onTabChange={onTabChange} compact />
-        <div className="flex items-center gap-2">
-          {tab === 'transactions' && trades.length > 0 && (
-            <button onClick={downloadTransactionsCsv} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-              <Download className="w-3.5 h-3.5" />
-              Download
-            </button>
-          )}
-          {tab === 'journal' && journal.length > 0 && (
-            <button onClick={downloadJournalTxt} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-              <Download className="w-3.5 h-3.5" />
-              Download
-            </button>
-          )}
+      {/* Mobile tab selector */}
+      <div className="sm:hidden px-3 pt-3 pb-2 border-b border-border-default shrink-0">
+        <DropUpTabSelector
+          tab={tab}
+          onTabChange={onTabChange}
+        />
+
+        <div className="flex items-center gap-2 mt-2">
+          {tab === 'transactions' &&
+            trades.length > 0 && (
+              <button
+                onClick={downloadTransactionsCsv}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-text-secondary bg-bg-tertiary border border-border-light hover:text-text-primary transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download CSV
+              </button>
+            )}
+
+          {tab === 'journal' &&
+            journal.length > 0 && (
+              <button
+                onClick={downloadJournalTxt}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-text-secondary bg-bg-tertiary border border-border-light hover:text-text-primary transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </button>
+            )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {/* ======================================================
+          CONTENT
+      ======================================================= */}
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* ====================================================
+            SUMMARY
+        ===================================================== */}
+
         {tab === 'summary' && (
           <div className="p-4 space-y-4">
-            {/* Highlighted P/L card */}
-            <div className={`rounded-xl border p-4 ${isProfit ? 'bg-brand-green/10 border-brand-green/30' : 'bg-brand-red/10 border-brand-red/30'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                {isProfit ? <TrendingUp className="w-4 h-4 text-brand-green" /> : <TrendingDown className="w-4 h-4 text-brand-red" />}
-                <span className="text-xs text-text-muted font-medium">Total Profit / Loss</span>
+            {/* P/L hero */}
+            <div
+              className={`relative overflow-hidden rounded-2xl border p-5 ${
+                isProfit
+                  ? 'bg-brand-green/10 border-brand-green/25'
+                  : 'bg-brand-red/10 border-brand-red/25'
+              }`}
+            >
+              <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-current opacity-[0.035]" />
+
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        isProfit
+                          ? 'bg-brand-green/15'
+                          : 'bg-brand-red/15'
+                      }`}
+                    >
+                      {isProfit ? (
+                        <TrendingUp className="w-4 h-4 text-brand-green" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-brand-red" />
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.12em] font-bold text-text-muted">
+                        Total P/L
+                      </div>
+
+                      <div className="text-[10px] text-text-muted mt-0.5">
+                        Across all bot runs
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-lg ${
+                    isProfit
+                      ? 'bg-brand-green/15 text-brand-green'
+                      : 'bg-brand-red/15 text-brand-red'
+                  }`}
+                >
+                  {isProfit ? 'Profit' : 'Loss'}
+                </span>
               </div>
-              <div className={`text-2xl font-bold tabular ${isProfit ? 'text-brand-green' : 'text-brand-red'}`}>
-                {isProfit ? '+' : ''}{runStats.totalProfit.toFixed(2)} {currency}
+
+              <div
+                className={`mt-5 text-3xl font-bold tracking-tight tabular ${
+                  isProfit
+                    ? 'text-brand-green'
+                    : 'text-brand-red'
+                }`}
+              >
+                {isProfit ? '+' : ''}
+                {runStats.totalProfit.toFixed(2)}
+                <span className="text-sm ml-1.5 font-semibold">
+                  {currency}
+                </span>
               </div>
             </div>
 
-            {/* Run stats grid */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Main metrics */}
+            <div className="grid grid-cols-2 gap-2.5">
               <SummaryStatCard
                 icon={Activity}
-                label="No. of Runs"
+                label="Runs"
                 value={String(runStats.totalRuns)}
-                color="text-text-primary"
               />
-              <SummaryStatCard
-                icon={Trophy}
-                label="Contracts Won"
-                value={String(runStats.wins)}
-                color="text-brand-green"
-              />
-              <SummaryStatCard
-                icon={TrendingDown}
-                label="Contracts Lost"
-                value={String(runStats.losses)}
-                color="text-brand-red"
-              />
+
               <SummaryStatCard
                 icon={Target}
-                label="Win Rate"
+                label="Win rate"
                 value={`${winRate.toFixed(1)}%`}
-                color={winRate >= 50 ? 'text-brand-green' : 'text-text-primary'}
+                valueClass={
+                  winRate >= 50
+                    ? 'text-brand-green'
+                    : 'text-text-primary'
+                }
               />
+
               <SummaryStatCard
-                icon={Wallet}
-                label="Total Stake"
-                value={`${runStats.totalStake.toFixed(2)} ${currency}`}
-                color="text-text-primary"
+                icon={Trophy}
+                label="Won"
+                value={String(runStats.wins)}
+                valueClass="text-brand-green"
               />
+
               <SummaryStatCard
-                icon={DollarSign}
-                label="Total Payout"
-                value={`${runStats.totalPayout.toFixed(2)} ${currency}`}
-                color="text-text-primary"
+                icon={TrendingDown}
+                label="Lost"
+                value={String(runStats.losses)}
+                valueClass="text-brand-red"
               />
             </div>
 
-            {/* Reset button */}
+            {/* Financial metrics */}
+            <div className="rounded-2xl border border-border-light bg-bg-tertiary overflow-hidden">
+              <div className="px-4 py-3 border-b border-border-default flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CircleDollarSign className="w-4 h-4 text-text-muted" />
+
+                  <span className="text-xs font-bold text-text-primary">
+                    Financial overview
+                  </span>
+                </div>
+
+                <span className="text-[10px] text-text-muted uppercase tracking-wider">
+                  {currency}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 divide-x divide-border-default">
+                <MetricBlock
+                  label="Total stake"
+                  value={`${runStats.totalStake.toFixed(2)} ${currency}`}
+                  icon={Wallet}
+                />
+
+                <MetricBlock
+                  label="Total payout"
+                  value={`${runStats.totalPayout.toFixed(2)} ${currency}`}
+                  icon={DollarSign}
+                />
+              </div>
+            </div>
+
+            {/* Win rate bar */}
+            <div className="rounded-2xl border border-border-light bg-bg-tertiary p-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-semibold text-text-primary">
+                  Win / loss performance
+                </span>
+
+                <span className="text-xs font-bold tabular text-text-secondary">
+                  {runStats.wins} / {runStats.losses}
+                </span>
+              </div>
+
+              <div className="h-2 rounded-full bg-bg-hover overflow-hidden flex">
+                {runStats.totalRuns > 0 && (
+                  <>
+                    <div
+                      className="h-full bg-brand-green transition-all"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          winRate,
+                        )}%`,
+                      }}
+                    />
+
+                    <div
+                      className="h-full bg-brand-red transition-all"
+                      style={{
+                        width: `${Math.max(
+                          0,
+                          100 - winRate,
+                        )}%`,
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between mt-2 text-[10px] text-text-muted">
+                <span>
+                  {winRate.toFixed(1)}% won
+                </span>
+
+                <span>
+                  {(100 - winRate).toFixed(1)}% lost
+                </span>
+              </div>
+            </div>
+
+            {/* Reset */}
             <button
               onClick={onResetStats}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+              className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-bg-tertiary border border-border-light text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
             >
-              <RotateCcw className="w-4 h-4" />
-              Reset Summary
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset statistics
             </button>
           </div>
         )}
 
+        {/* ====================================================
+            TRANSACTIONS
+        ===================================================== */}
+
         {tab === 'transactions' && (
           <div className="p-4">
             {trades.length === 0 ? (
-              <div className="text-center text-sm text-text-muted py-8">No trades yet. Run your bot to see transactions here.</div>
+              <EmptyState
+                icon={List}
+                title="No transactions yet"
+                description="Run your bot to see contracts and trade results here."
+              />
             ) : (
-              <div className="space-y-3">
-                {trades.map((c) => {
-                  const profit = c.profit
-                  const isPos = profit >= 0
+              <div className="space-y-2.5">
+                {trades.map((contract) => {
+                  const profit = contract.profit
+                  const isPositive = profit >= 0
+
+                  const direction =
+                    contract.contract_type === 'CALL'
+                      ? 'UP'
+                      : contract.contract_type ===
+                          'PUT'
+                        ? 'DOWN'
+                        : contract.contract_type ||
+                          '—'
+
                   return (
-                    <div key={c.contract_id} className="rounded-xl bg-bg-tertiary border border-border-light p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded shrink-0 ${
-                            c.contract_type === 'CALL' ? 'bg-brand-green/15 text-brand-green'
-                            : c.contract_type === 'PUT' ? 'bg-brand-red/15 text-brand-red'
-                            : 'bg-bg-hover text-text-secondary'
-                          }`}>
-                            {c.contract_type === 'CALL' ? 'UP' : c.contract_type === 'PUT' ? 'DOWN' : c.contract_type || '—'}
-                          </span>
-                          <span className="text-sm font-medium truncate" title={c.display_name || c.symbol}>{c.display_name || c.symbol}</span>
+                    <div
+                      key={contract.contract_id}
+                      className="group rounded-2xl bg-bg-tertiary border border-border-light overflow-hidden hover:border-border-default transition-colors"
+                    >
+                      {/* Header */}
+                      <div className="px-3.5 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              direction === 'UP'
+                                ? 'bg-brand-green/10'
+                                : direction === 'DOWN'
+                                  ? 'bg-brand-red/10'
+                                  : 'bg-bg-hover'
+                            }`}
+                          >
+                            {direction === 'UP' ? (
+                              <TrendingUp className="w-4 h-4 text-brand-green" />
+                            ) : direction ===
+                              'DOWN' ? (
+                              <TrendingDown className="w-4 h-4 text-brand-red" />
+                            ) : (
+                              <Activity className="w-4 h-4 text-text-muted" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-text-primary truncate">
+                                {contract.display_name ||
+                                  contract.symbol}
+                              </span>
+
+                              <span
+                                className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
+                                  direction === 'UP'
+                                    ? 'bg-brand-green/10 text-brand-green'
+                                    : direction ===
+                                        'DOWN'
+                                      ? 'bg-brand-red/10 text-brand-red'
+                                      : 'bg-bg-hover text-text-secondary'
+                                }`}
+                              >
+                                {direction}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-text-muted">
+                              <Clock3 className="w-3 h-3" />
+
+                              {contract.is_sold
+                                ? contract.status
+                                : 'Open'}
+                            </div>
+                          </div>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${c.is_sold ? 'bg-bg-hover text-text-secondary' : 'bg-brand-blue/15 text-brand-blue'}`}>
-                          {c.is_sold ? c.status : 'Open'}
-                        </span>
+
+                        <div className="text-right shrink-0">
+                          <div
+                            className={`text-sm font-bold tabular ${
+                              isPositive
+                                ? 'text-brand-green'
+                                : 'text-brand-red'
+                            }`}
+                          >
+                            {isPositive ? '+' : ''}
+                            {profit.toFixed(2)}
+                          </div>
+
+                          <div className="text-[10px] text-text-muted">
+                            {currency}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-end gap-2 mb-2.5">
+
+                      {/* Detail grid */}
+                      <div className="px-3.5 pb-3">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-border-default">
+                          <CompactDetail
+                            label="Type"
+                            value={
+                              contract.contract_type ||
+                              '—'
+                            }
+                          />
+
+                          <CompactDetail
+                            label="Buy price"
+                            value={`${contract.buy_price.toFixed(2)} ${currency}`}
+                          />
+
+                          <CompactDetail
+                            label="Entry"
+                            value={
+                              contract.entry_spot != null
+                                ? contract.entry_spot.toFixed(
+                                    contract.entry_spot %
+                                      1 ===
+                                      0
+                                      ? 0
+                                      : 2,
+                                  )
+                                : '—'
+                            }
+                          />
+
+                          <CompactDetail
+                            label="Exit"
+                            value={
+                              contract.exit_spot != null
+                                ? contract.exit_spot.toFixed(
+                                    contract.exit_spot %
+                                      1 ===
+                                      0
+                                      ? 0
+                                      : 2,
+                                  )
+                                : '—'
+                            }
+                          />
+                        </div>
+
                         <button
-                          onClick={() => setDetailContract(c)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                          onClick={() =>
+                            setDetailContract(
+                              contract,
+                            )
+                          }
+                          className="w-full mt-3 h-9 rounded-lg bg-bg-hover text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-secondary flex items-center justify-center gap-2 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          View detail
+                          View contract details
+                          <ArrowUpRight className="w-3 h-3 opacity-50" />
                         </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-text-muted">Type</span>
-                          <span className="tabular font-medium">{c.contract_type || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-text-muted">Buy price</span>
-                          <span className="tabular font-medium">{c.buy_price.toFixed(2)} {currency}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-text-muted">Entry spot</span>
-                          <span className="tabular font-medium">{c.entry_spot != null ? c.entry_spot.toFixed(c.entry_spot % 1 === 0 ? 0 : 2) : '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-text-muted">Exit spot</span>
-                          <span className="tabular font-medium">{c.exit_spot != null ? c.exit_spot.toFixed(c.exit_spot % 1 === 0 ? 0 : 2) : '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between col-span-2 pt-1 border-t border-border-default">
-                          <span className="text-text-muted">P/L</span>
-                          <span className={`tabular font-bold ${isPos ? 'text-brand-green' : 'text-brand-red'}`}>
-                            {isPos ? '+' : ''}{profit.toFixed(2)} {currency}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   )
@@ -288,40 +681,80 @@ export function RunResultsPanel({
           </div>
         )}
 
+        {/* ====================================================
+            JOURNAL
+        ===================================================== */}
+
         {tab === 'journal' && (
-          <div className="p-3 space-y-1.5">
+          <div className="p-3">
             {journal.length === 0 ? (
-              <div className="text-center text-sm text-text-muted py-8">No journal entries yet.</div>
+              <EmptyState
+                icon={ScrollText}
+                title="Journal is empty"
+                description="Bot activity and execution messages will appear here."
+              />
             ) : (
-              journal.map((entry, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-sm py-1">
-                  <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                    entry.type === 'success' ? 'bg-brand-green' :
-                    entry.type === 'error' ? 'bg-brand-red' :
-                    entry.type === 'warn' ? 'bg-brand-amber' :
-                    'bg-brand-blue'
-                  }`} />
-                  <span className="text-text-muted tabular text-xs shrink-0 pt-0.5">{entry.time.toLocaleTimeString()}</span>
-                  <span className="text-text-secondary">{entry.message}</span>
+              <>
+                <div className="space-y-1">
+                  {journal.map((entry, index) => {
+                    const dotClass =
+                      entry.type === 'success'
+                        ? 'bg-brand-green'
+                        : entry.type === 'error'
+                          ? 'bg-brand-red'
+                          : entry.type === 'warn'
+                            ? 'bg-brand-amber'
+                            : 'bg-brand-blue'
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 hover:bg-bg-tertiary transition-colors"
+                      >
+                        <span
+                          className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`}
+                        />
+
+                        <span className="text-[10px] text-text-muted tabular shrink-0 pt-0.5">
+                          {entry.time.toLocaleTimeString()}
+                        </span>
+
+                        <span className="text-xs leading-relaxed text-text-secondary min-w-0">
+                          {entry.message}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))
+
+                <div className="flex items-center gap-2 pt-3 mt-2 border-t border-border-default">
+                  <button
+                    onClick={onResetStats}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </button>
+
+                  <button
+                    onClick={onClearJournal}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                  </button>
+                </div>
+
+                <div ref={journalEndRef} />
+              </>
             )}
-            {journal.length > 0 && (
-              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-border-default">
-                <button onClick={onResetStats} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-                  <RotateCcw className="w-3 h-3" />
-                  Reset
-                </button>
-                <button onClick={onClearJournal} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-                  <Trash2 className="w-3 h-3" />
-                  Clear
-                </button>
-              </div>
-            )}
-            <div ref={journalEndRef} />
           </div>
         )}
       </div>
+
+      {/* ======================================================
+          CONTRACT DETAILS MODAL
+      ======================================================= */}
 
       {detailContract && (
         <div
@@ -329,31 +762,162 @@ export function RunResultsPanel({
           onClick={() => setDetailContract(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-bg-secondary border border-border-light p-6 slide-in"
-            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-bg-secondary border border-border-light shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-lg">Contract details</h2>
-              <button onClick={() => setDetailContract(null)} className="text-text-secondary hover:text-text-primary transition-colors">
-                <X className="w-5 h-5" />
+            <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted font-bold">
+                  Contract
+                </div>
+
+                <h2 className="font-bold text-lg text-text-primary mt-0.5">
+                  Contract details
+                </h2>
+              </div>
+
+              <button
+                onClick={() =>
+                  setDetailContract(null)
+                }
+                className="w-9 h-9 rounded-xl bg-bg-tertiary border border-border-light flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-3 text-sm">
-              <DetailRow label="Symbol" value={detailContract.display_name || detailContract.symbol} />
-              <DetailRow label="Type" value={detailContract.contract_type || '—'} />
-              <DetailRow label="Status" value={detailContract.is_sold ? detailContract.status : 'Open'} />
-              <DetailRow label="Buy price" value={`${detailContract.buy_price.toFixed(2)} ${currency}`} />
-              <DetailRow label="Payout" value={`${detailContract.payout.toFixed(2)} ${currency}`} />
-              <DetailRow label="Entry spot" value={detailContract.entry_spot != null ? String(detailContract.entry_spot) : '—'} />
-              <DetailRow label="Exit spot" value={detailContract.exit_spot != null ? String(detailContract.exit_spot) : '—'} />
-              <DetailRow label="Current spot" value={detailContract.current_spot ? String(detailContract.current_spot) : '—'} />
-              <DetailRow
-                label="P/L"
-                value={`${detailContract.profit >= 0 ? '+' : ''}${detailContract.profit.toFixed(2)} ${currency}`}
-                valueClass={detailContract.profit >= 0 ? 'text-brand-green' : 'text-brand-red'}
-              />
-              <DetailRow label="Purchase time" value={detailContract.purchase_time ? new Date(detailContract.purchase_time * 1000).toLocaleString() : '—'} />
-              <DetailRow label="Sell time" value={detailContract.sell_time ? new Date(detailContract.sell_time * 1000).toLocaleString() : '—'} />
+
+            <div className="p-5 space-y-4">
+              <div
+                className={`rounded-2xl p-4 border ${
+                  detailContract.profit >= 0
+                    ? 'bg-brand-green/10 border-brand-green/20'
+                    : 'bg-brand-red/10 border-brand-red/20'
+                }`}
+              >
+                <div className="text-xs text-text-muted">
+                  Contract P/L
+                </div>
+
+                <div
+                  className={`text-2xl font-bold tabular mt-1 ${
+                    detailContract.profit >= 0
+                      ? 'text-brand-green'
+                      : 'text-brand-red'
+                  }`}
+                >
+                  {detailContract.profit >= 0
+                    ? '+'
+                    : ''}
+                  {detailContract.profit.toFixed(2)}{' '}
+                  {currency}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+                <DetailRow
+                  label="Symbol"
+                  value={
+                    detailContract.display_name ||
+                    detailContract.symbol
+                  }
+                />
+
+                <DetailRow
+                  label="Type"
+                  value={
+                    detailContract.contract_type ||
+                    '—'
+                  }
+                />
+
+                <DetailRow
+                  label="Status"
+                  value={
+                    detailContract.is_sold
+                      ? detailContract.status
+                      : 'Open'
+                  }
+                />
+
+                <DetailRow
+                  label="Buy price"
+                  value={`${detailContract.buy_price.toFixed(2)} ${currency}`}
+                />
+
+                <DetailRow
+                  label="Payout"
+                  value={`${detailContract.payout.toFixed(2)} ${currency}`}
+                />
+
+                <DetailRow
+                  label="Entry spot"
+                  value={
+                    detailContract.entry_spot != null
+                      ? String(
+                          detailContract.entry_spot,
+                        )
+                      : '—'
+                  }
+                />
+
+                <DetailRow
+                  label="Exit spot"
+                  value={
+                    detailContract.exit_spot != null
+                      ? String(
+                          detailContract.exit_spot,
+                        )
+                      : '—'
+                  }
+                />
+
+                <DetailRow
+                  label="Current spot"
+                  value={
+                    detailContract.current_spot
+                      ? String(
+                          detailContract.current_spot,
+                        )
+                      : '—'
+                  }
+                />
+
+                <DetailRow
+                  label="P/L"
+                  value={`${detailContract.profit >= 0 ? '+' : ''}${detailContract.profit.toFixed(2)} ${currency}`}
+                  valueClass={
+                    detailContract.profit >= 0
+                      ? 'text-brand-green'
+                      : 'text-brand-red'
+                  }
+                />
+
+                <DetailRow
+                  label="Purchase time"
+                  value={
+                    detailContract.purchase_time
+                      ? new Date(
+                          detailContract.purchase_time *
+                            1000,
+                        ).toLocaleString()
+                      : '—'
+                  }
+                />
+
+                <DetailRow
+                  label="Sell time"
+                  value={
+                    detailContract.sell_time
+                      ? new Date(
+                          detailContract.sell_time *
+                            1000,
+                        ).toLocaleString()
+                      : '—'
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -362,49 +926,153 @@ export function RunResultsPanel({
   )
 }
 
-function triggerDownload(content: string, filename: string) {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function triggerDownload(
+  content: string,
+  filename: string,
+) {
+  const blob = new Blob([content], {
+    type: 'text/plain;charset=utf-8',
+  })
+
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  const anchor = document.createElement('a')
+
+  anchor.href = url
+  anchor.download = filename
+
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+
   URL.revokeObjectURL(url)
 }
 
-function DetailRow({ label, value, valueClass = '' }: { label: string; value: string; valueClass?: string }) {
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof BarChart3
+  title: string
+  description: string
+}) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-text-muted">{label}</span>
-      <span className={`font-medium text-right break-all ${valueClass}`}>{value}</span>
+    <div className="min-h-[260px] flex flex-col items-center justify-center text-center px-6">
+      <div className="w-12 h-12 rounded-2xl bg-bg-tertiary border border-border-light flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-text-muted" />
+      </div>
+
+      <div className="text-sm font-bold text-text-primary">
+        {title}
+      </div>
+
+      <div className="text-xs text-text-muted leading-relaxed mt-1.5 max-w-[240px]">
+        {description}
+      </div>
     </div>
   )
 }
 
-function ResultsTabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof BarChart3; label: string }) {
+function SummaryStatCard({
+  icon: Icon,
+  label,
+  value,
+  valueClass = 'text-text-primary',
+}: {
+  icon: typeof BarChart3
+  label: string
+  value: string
+  valueClass?: string
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-sm font-medium transition-colors ${
-        active ? 'text-text-primary border-b-2 border-brand-green' : 'text-text-secondary hover:text-text-primary'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+    <div className="rounded-2xl bg-bg-tertiary border border-border-light p-3.5">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icon className="w-3.5 h-3.5 text-text-muted" />
+
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+          {label}
+        </span>
+      </div>
+
+      <div
+        className={`text-lg font-bold tabular ${valueClass}`}
+      >
+        {value}
+      </div>
+    </div>
   )
 }
 
-function SummaryStatCard({ icon: Icon, label, value, color }: { icon: typeof BarChart3; label: string; value: string; color: string }) {
+function MetricBlock({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: string
+  icon: typeof Wallet
+}) {
   return (
-    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3">
-      <div className="flex items-center gap-1.5 mb-1.5">
+    <div className="p-4">
+      <div className="flex items-center gap-1.5 mb-2">
         <Icon className="w-3.5 h-3.5 text-text-muted" />
-        <span className="text-xs text-text-muted">{label}</span>
+
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+          {label}
+        </span>
       </div>
-      <div className={`text-base font-bold tabular ${color}`}>{value}</div>
+
+      <div className="text-sm font-bold tabular text-text-primary">
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function CompactDetail({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 min-w-0">
+      <span className="text-[10px] text-text-muted shrink-0">
+        {label}
+      </span>
+
+      <span className="text-[10px] font-semibold text-text-secondary tabular truncate">
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function DetailRow({
+  label,
+  value,
+  valueClass = '',
+}: {
+  label: string
+  value: string
+  valueClass?: string
+}) {
+  return (
+    <div className="flex items-start justify-between gap-5">
+      <span className="text-xs text-text-muted shrink-0">
+        {label}
+      </span>
+
+      <span
+        className={`text-xs font-semibold text-right break-all ${valueClass}`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
