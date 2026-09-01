@@ -287,7 +287,7 @@ export default function Home() {
           >
             <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
 
-            Next generation trading
+            Next generation trading.
 
             <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
           </div>
