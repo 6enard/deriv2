@@ -13,27 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import {
-  Play,
-  Square,
-  RotateCcw,
-  Download,
-  Upload,
-  Loader as Loader2,
-  FileDown,
-  ChevronDown,
-  Blocks as BlocksIcon,
-  X,
-  Save,
-  FolderOpen,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  MoreHorizontal,
-  CheckCircle2,
-  CircleAlert,
-  FileCode2,
-} from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, ChevronDown, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2 } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)

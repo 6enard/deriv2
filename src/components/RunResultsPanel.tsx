@@ -16,7 +16,6 @@ import {
   Eye,
   X,
   ChevronUp,
-  ChevronDown,
   Clock3,
   CircleDollarSign,
   ArrowUpRight,
