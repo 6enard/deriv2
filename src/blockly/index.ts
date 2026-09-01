@@ -9,6 +9,7 @@ import {
   type RawSymbol,
 } from './blocks'
 
+
 import { toolbox } from './toolbox'
 import { defaultWorkspaceXml } from './defaultWorkspace'
 
