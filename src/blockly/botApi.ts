@@ -97,11 +97,16 @@ export function createBotApi(
         resolve()
       }
 
+      const settledContractIds = new Set<number>()
+
       const handleContract = (c: any) => {
         sellAvailable = !c.is_sold && !c.is_expired
         currentSellPrice = c.sell_price ? parseFloat(c.sell_price) : 0
 
         if (c.is_sold || c.is_expired) {
+          if (settledContractIds.has(contractId)) return
+          settledContractIds.add(contractId)
+
           const profit = parseFloat(c.profit || '0')
           lastProfit = profit
           totalProfit += profit
@@ -113,15 +118,18 @@ export function createBotApi(
           if (c.exit_tick != null) lastExitTick = parseFloat(c.exit_tick)
           if (c.barrier != null) lastBarrier = String(c.barrier)
 
-          if (c.status === 'won') {
+          // Classify by actual P/L, not Deriv's status field.
+          // A contract sold at a profit is a WIN; sold at a loss is a LOSS.
+          // profit === 0 is breakeven/other — not counted as win or loss.
+          if (profit > 0) {
             lastResult = 'win'
             notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
-          } else if (c.status === 'lost') {
+          } else if (profit < 0) {
             lastResult = 'loss'
             notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
           } else {
             lastResult = 'sold'
-            notify('info', `Contract sold. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
+            notify('info', `Contract settled. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
           }
 
           openContractId = null

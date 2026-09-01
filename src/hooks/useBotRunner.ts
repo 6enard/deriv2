@@ -47,6 +47,7 @@ export function useBotRunner(
   const [trades, setTrades] = useState<OpenContract[]>([])
   const [hasRunOnce, setHasRunOnce] = useState(false)
   const stopRef = useRef(false)
+  const settledContractIds = useRef<Set<number>>(new Set())
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current
@@ -120,16 +121,27 @@ export function useBotRunner(
     const botApi: BotApi = createBotApi(ws, account, params, {
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
         setJournal((prev) => [...prev, { time: new Date(), type, message }])
-        if (data?.event === 'trade_won' || data?.event === 'trade_lost' || data?.event === 'trade_sold') {
-          setRunStats((prev) => ({
-            totalRuns: prev.totalRuns + 1,
-            wins: prev.wins + (data.event === 'trade_won' ? 1 : 0),
-            losses: prev.losses + (data.event === 'trade_lost' ? 1 : 0),
-            totalProfit: prev.totalProfit + (data.profit ?? 0),
-            totalStake: prev.totalStake + (data.stake ?? 0),
-            totalPayout: prev.totalPayout + (data.payout ?? 0),
-          }))
-        }
+
+        // Only count completed contracts — not purchases or generic events.
+        // Deduplicate by contract_id so duplicate settlement messages don't
+        // inflate stats. Classify win/loss by actual P/L, not event name.
+        if (!data?.contractId) return
+        if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
+        if (settledContractIds.current.has(data.contractId)) return
+        settledContractIds.current.add(data.contractId)
+
+        const profit = data.profit ?? 0
+        const isWin = profit > 0
+        const isLoss = profit < 0
+
+        setRunStats((prev) => ({
+          totalRuns: prev.totalRuns + 1,
+          wins: prev.wins + (isWin ? 1 : 0),
+          losses: prev.losses + (isLoss ? 1 : 0),
+          totalProfit: prev.totalProfit + profit,
+          totalStake: prev.totalStake + (data.stake ?? 0),
+          totalPayout: prev.totalPayout + (data.payout ?? 0),
+        }))
       },
       onTrade: (contractId: number) => {
         subscribeToContract(contractId)
@@ -182,6 +194,7 @@ export function useBotRunner(
     setJournal([])
     setTrades([])
     setHasRunOnce(false)
+    settledContractIds.current = new Set()
   }, [])
 
   const handleClearJournal = useCallback(() => {

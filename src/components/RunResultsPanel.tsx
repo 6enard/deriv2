@@ -151,8 +151,8 @@ export function RunResultsPanel({
   onResetStats: () => void
 }) {
   const winRate =
-    runStats.totalRuns > 0
-      ? (runStats.wins / runStats.totalRuns) * 100
+    runStats.wins + runStats.losses > 0
+      ? (runStats.wins / (runStats.wins + runStats.losses)) * 100
       : 0
 
   const isProfit = runStats.totalProfit >= 0
