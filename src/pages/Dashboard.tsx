@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import type { Bot, QuickStrategy, StrategyType } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import type { SymbolInfo } from '../lib/types'
-import { isValidBotXml, sanitizeLegacyXml } from '../blockly'
+import { isValidBotXml } from '../blockly'
 import { Upload, Bot as BotIcon, Sparkles, Zap, Plus, Trash2, Play, Code as Code2, Copy, Loader as Loader2, TrendingUp, Settings as SettingsIcon, Grid3x3, Activity, Target, X, Check, ChevronDown, Wand as Wand2, Monitor, Cloud, Blocks, Zap as ZapIcon, ArrowRight } from 'lucide-react'
 import { useMarketData } from '../hooks/useMarketData'
 import { DashboardSkeleton } from '../components/Skeleton'
@@ -73,7 +73,7 @@ export default function Dashboard() {
     reader.onload = (event) => {
       const text = event.target?.result as string
       if (!text) return
-      const sanitized = sanitizeLegacyXml(text)
+      const sanitized = text
       if (!isValidBotXml(sanitized)) {
         showToast('error', "This doesn't look like a valid bot file.")
         return

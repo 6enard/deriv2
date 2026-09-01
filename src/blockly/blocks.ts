@@ -2,7 +2,7 @@
 // Drop-in replacement for src/blockly/blocks.ts
 
 import * as Blockly from 'blockly'
-import { Colours, Categories } from './colours'
+import { Colours } from './colours'
 
 export interface RawSymbol {
   market: string
@@ -246,7 +246,7 @@ function contractTypeMenu(this: Blockly.FieldDropdown) {
   )
 }
 
-export function getPurchaseListOptions(workspace: Blockly.Workspace) {
+export function getPurchaseListOptions(workspace: Blockly.Workspace): [string, string][] {
   const root = workspace
     .getTopBlocks(false)
     .find((b) => b.type === 'trade_definition')

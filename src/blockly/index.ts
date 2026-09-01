@@ -5,7 +5,6 @@ import { Colours, darkThemeOverrides } from './colours'
 
 import {
   setGlobalMarketOptions,
-  getPurchaseListOptions,
   type RawSymbol,
 } from './blocks'
 
@@ -412,15 +411,13 @@ function migrateLegacyTrade(root: Element) {
   })
 }
 
-function migrateXml(dom: Document) {
-  const root = dom.documentElement
-
+function migrateXml(root: Element) {
   renameBlocks(root)
   renameFields(root)
   normalizeCheckboxes(root)
   migrateLegacyTrade(root)
 
-  return dom
+  return root
 }
 
 /* ---------------------------------------------------------
