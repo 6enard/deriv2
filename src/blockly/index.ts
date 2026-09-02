@@ -12,74 +12,100 @@ import {
 } from './blocks'
 
 import { toolbox } from './toolbox'
+
 import {
   defaultWorkspaceXml,
 } from './defaultWorkspace'
 
 let themeRegistered = false
 
+/* =========================================================
+THEME
+========================================================= */
+
 function applyColours() {
   const B =
     Blockly as unknown as {
-      Colours: Record<string, unknown>
+      Colours: Record<
+        string,
+        unknown
+      >
     }
 
   B.Colours = Colours
 }
 
 function registerTheme() {
-  if (themeRegistered) return
+  if (themeRegistered) {
+    return
+  }
 
   Blockly.Theme.defineTheme(
     'dbot_dark',
     {
       name: 'dbot_dark',
 
-      base: Blockly.Themes.Zelos,
+      base:
+        Blockly.Themes.Zelos,
 
       categoryStyles: {
         trade_parameters: {
-          colour: Colours.RootBlock.colour,
+          colour:
+            Colours.RootBlock
+              .colour,
         },
 
         purchase_conditions: {
-          colour: Colours.RootBlock.colour,
+          colour:
+            Colours.RootBlock
+              .colour,
         },
 
         sell_conditions: {
-          colour: Colours.RootBlock.colour,
+          colour:
+            Colours.RootBlock
+              .colour,
         },
 
         trade_results: {
-          colour: Colours.RootBlock.colour,
+          colour:
+            Colours.RootBlock
+              .colour,
         },
 
         analysis: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         utility: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         technical_analysis: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         indicators: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         time: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         candle: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         miscellaneous: {
-          colour: Colours.Base.colour,
+          colour:
+            Colours.Base.colour,
         },
 
         math: {
@@ -105,25 +131,32 @@ function registerTheme() {
 
       componentStyles: {
         toolboxBackgroundColour:
-          darkThemeOverrides.toolboxBackground,
+          darkThemeOverrides
+            .toolboxBackground,
 
         flyoutBackgroundColour:
-          darkThemeOverrides.flyoutBackground,
+          darkThemeOverrides
+            .flyoutBackground,
 
         flyoutOpacity:
-          darkThemeOverrides.flyoutOpacity,
+          darkThemeOverrides
+            .flyoutOpacity,
 
         scrollbarColour:
-          darkThemeOverrides.scrollbarColour,
+          darkThemeOverrides
+            .scrollbarColour,
 
         insertionMarkerColour:
-          darkThemeOverrides.insertionMarkerColour,
+          darkThemeOverrides
+            .insertionMarkerColour,
 
         insertionMarkerOpacity:
-          darkThemeOverrides.insertionMarkerOpacity,
+          darkThemeOverrides
+            .insertionMarkerOpacity,
 
         cursorColour:
-          darkThemeOverrides.cursorColour,
+          darkThemeOverrides
+            .cursorColour,
       },
     },
   )
@@ -136,13 +169,18 @@ export function ensureRegistered() {
   registerTheme()
 }
 
+/* =========================================================
+WORKSPACE
+========================================================= */
+
 export function createWorkspace(
   container: HTMLElement,
 ): Blockly.WorkspaceSvg {
   ensureRegistered()
 
   const mobile =
-    typeof window !== 'undefined' &&
+    typeof window !==
+      'undefined' &&
     window.innerWidth < 1024
 
   return Blockly.inject(
@@ -150,11 +188,14 @@ export function createWorkspace(
     {
       toolbox,
 
-      theme: 'dbot_dark',
+      theme:
+        'dbot_dark',
 
-      renderer: 'zelos',
+      renderer:
+        'zelos',
 
-      media: '/blockly-media/',
+      media:
+        '/blockly-media/',
 
       grid: {
         spacing: 28,
@@ -166,7 +207,10 @@ export function createWorkspace(
       zoom: {
         controls: true,
         wheel: true,
-        startScale: mobile ? 0.75 : 0.95,
+        startScale:
+          mobile
+            ? 0.75
+            : 0.95,
         maxScale: 2,
         minScale: 0.4,
         scaleSpeed: 1.2,
@@ -215,8 +259,10 @@ export function workspaceToXml(
 XML COMPATIBILITY
 ========================================================= */
 
-const BLOCK_RENAMES: Record<string, string> = {
-  trade: 'trade_definition',
+const BLOCK_RENAMES:
+  Record<string, string> = {
+  trade:
+    'trade_definition',
 
   tradeOptions:
     'trade_definition_tradeoptions',
@@ -267,77 +313,64 @@ const BLOCK_RENAMES: Record<string, string> = {
     'before_purchase',
 }
 
-const FIELD_RENAMES: Record<
-  string,
-  Record<string, string>
-> = {
+const FIELD_RENAMES:
+  Record<
+    string,
+    Record<string, string>
+  > = {
   read_details: {
-    DETAILS: 'DETAIL_INDEX',
+    DETAILS:
+      'DETAIL_INDEX',
   },
 
   tick_delay: {
-    TICKS: 'TICKDELAYVALUE',
-    TIMEOUTSTACK: 'TICKDELAYSTACK',
+    TICKS:
+      'TICKDELAYVALUE',
+
+    TIMEOUTSTACK:
+      'TICKDELAYSTACK',
   },
 
   console: {
-    VALUE: 'MESSAGE',
+    VALUE:
+      'MESSAGE',
   },
 
   notify: {
-    VALUE: 'MESSAGE',
+    VALUE:
+      'MESSAGE',
   },
 
   contract_check_result: {
-    RESULT: 'CHECK_RESULT',
-    CHECKRESULT: 'CHECK_RESULT',
+    RESULT:
+      'CHECK_RESULT',
+
+    CHECKRESULT:
+      'CHECK_RESULT',
   },
 }
 
-const VALUE_FIELD_ALIASES: Record<
-  string,
-  string[]
-> = {
-  DURATION: [
-    'DURATION',
-    'DURATION_VALUE',
-    'DURATIONVALUE',
-  ],
+function renameBlocks(
+  root: Element,
+) {
+  const blocks =
+    Array.from(
+      root.querySelectorAll(
+        'block,shadow',
+      ),
+    )
 
-  AMOUNT: [
-    'AMOUNT',
-    'STAKE',
-    'STAKE_AMOUNT',
-    'AMOUNT_VALUE',
-  ],
-
-  PREDICTION: [
-    'PREDICTION',
-    'PREDICTION_VALUE',
-  ],
-
-  BARRIER: [
-    'BARRIER',
-    'BARRIER_VALUE',
-  ],
-
-  SECOND_BARRIER: [
-    'SECOND_BARRIER',
-    'SECONDBARRIER',
-    'SECOND_BARRIER_VALUE',
-  ],
-}
-
-function renameBlocks(root: Element) {
-  const blocks = Array.from(
-    root.querySelectorAll('block,shadow'),
-  )
-
-  for (const block of blocks) {
+  for (
+    const block of blocks
+  ) {
     const type =
-      block.getAttribute('type')
+      block.getAttribute(
+        'type',
+      )
 
-    if (!type) continue
+    if (!type) {
+      continue
+    }
 
     const replacement =
       BLOCK_RENAMES[type]
@@ -351,33 +384,55 @@ function renameBlocks(root: Element) {
   }
 }
 
-function renameFields(root: Element) {
-  const blocks = Array.from(
-    root.querySelectorAll('block,shadow'),
-  )
+function renameFields(
+  root: Element,
+) {
+  const blocks =
+    Array.from(
+      root.querySelectorAll(
+        'block,shadow',
+      ),
+    )
 
-  for (const block of blocks) {
+  for (
+    const block of blocks
+  ) {
     const type =
-      block.getAttribute('type')
+      block.getAttribute(
+        'type',
+      )
 
-    if (!type) continue
+    if (!type) {
+      continue
+    }
 
     const mapping =
       FIELD_RENAMES[type]
 
-    if (!mapping) continue
+    if (!mapping) {
+      continue
+    }
 
-    for (const child of Array.from(
-      block.children,
-    )) {
-      if (child.tagName !== 'field') {
+    for (
+      const child of Array.from(
+        block.children,
+      )
+    ) {
+      if (
+        child.tagName !==
+        'field'
+      ) {
         continue
       }
 
       const name =
-        child.getAttribute('name')
+        child.getAttribute(
+          'name',
+        )
 
-      if (!name) continue
+      if (!name) {
+        continue
+      }
 
       if (mapping[name]) {
         child.setAttribute(
@@ -392,93 +447,65 @@ function renameFields(root: Element) {
 function normalizeXmlBooleans(
   root: Element,
 ) {
-  const fields = Array.from(
-    root.querySelectorAll('field'),
-  )
+  const fields =
+    Array.from(
+      root.querySelectorAll(
+        'field',
+      ),
+    )
 
-  for (const field of fields) {
+  for (
+    const field of fields
+  ) {
     const value =
       field.textContent
         ?.trim()
         .toUpperCase()
 
-    if (value === 'TRUE') {
-      field.textContent = 'TRUE'
-    } else if (value === 'FALSE') {
-      field.textContent = 'FALSE'
-    }
-  }
-}
-
-function normalizeLegacyInputNames(
-  root: Element,
-) {
-  const blocks = Array.from(
-    root.querySelectorAll('block,shadow'),
-  )
-
-  for (const block of blocks) {
-    const type =
-      block.getAttribute('type')
-
     if (
-      type !==
-        'trade_definition_tradeoptions' &&
-      type !== 'trade_definition'
+      value ===
+      'TRUE'
     ) {
-      continue
-    }
-
-    for (const input of Array.from(
-      block.querySelectorAll(
-        ':scope > value, :scope > statement',
-      ),
-    )) {
-      const name =
-        input.getAttribute('name')
-
-      if (!name) continue
-
-      if (
-        name === 'STAKE' ||
-        name === 'STAKE_AMOUNT'
-      ) {
-        input.setAttribute(
-          'name',
-          'AMOUNT',
-        )
-      }
-
-      if (name === 'DURATION_VALUE') {
-        input.setAttribute(
-          'name',
-          'DURATION',
-        )
-      }
+      field.textContent =
+        'TRUE'
+    } else if (
+      value ===
+      'FALSE'
+    ) {
+      field.textContent =
+        'FALSE'
     }
   }
 }
 
 /* =========================================================
-LEGACY VARIABLE MIGRATION
+VARIABLE MIGRATION
 ========================================================= */
 
 function migrateLegacyVariables(
   root: Element,
 ) {
-  const doc = root.ownerDocument
+  const doc =
+    root.ownerDocument
 
-  if (!doc) return
+  if (!doc) {
+    return
+  }
 
   let variablesElement =
-    Array.from(root.children).find(
+    Array.from(
+      root.children,
+    ).find(
       (child) =>
-        child.tagName === 'variables',
+        child.tagName ===
+        'variables',
     )
 
   if (!variablesElement) {
     variablesElement =
-      doc.createElement('variables')
+      doc.createElement(
+        'variables',
+      )
 
     root.insertBefore(
       variablesElement,
@@ -487,32 +514,55 @@ function migrateLegacyVariables(
   }
 
   const variablesById =
-    new Map<string, string>()
+    new Map<
+      string,
+      string
+    >()
 
   const variablesByName =
-    new Map<string, string>()
+    new Map<
+      string,
+      string
+    >()
 
-  for (const child of Array.from(
-    variablesElement.children,
-  )) {
-    if (child.tagName !== 'variable') {
+  for (
+    const child of Array.from(
+      variablesElement.children,
+    )
+  ) {
+    if (
+      child.tagName !==
+      'variable'
+    ) {
       continue
     }
 
     const id =
-      child.getAttribute('id')
+      child.getAttribute(
+        'id',
+      )
 
     const name =
-      child.textContent?.trim() || ''
+      child.textContent
+        ?.trim() || ''
 
-    if (!id || !name) continue
+    if (
+      !id ||
+      !name
+    ) {
+      continue
+    }
 
     variablesById.set(
       id,
       name,
     )
 
-    if (!variablesByName.has(name)) {
+    if (
+      !variablesByName.has(
+        name,
+      )
+    ) {
       variablesByName.set(
         name,
         id,
@@ -520,18 +570,23 @@ function migrateLegacyVariables(
     }
   }
 
-  const createVariableId = () => {
-    let id = ''
+  const createVariableId =
+    () => {
+      let id = ''
 
-    do {
-      id =
-        Blockly.utils.idGenerator.genUid()
-    } while (
-      variablesById.has(id)
-    )
+      do {
+        id =
+          Blockly.utils
+            .idGenerator
+            .genUid()
+      } while (
+        variablesById.has(
+          id,
+        )
+      )
 
-    return id
-  }
+      return id
+    }
 
   const varFields =
     Array.from(
@@ -540,20 +595,29 @@ function migrateLegacyVariables(
       ),
     )
 
-  for (const field of varFields) {
+  for (
+    const field of varFields
+  ) {
     const rawValue =
-      field.textContent?.trim() || ''
+      field.textContent
+        ?.trim() || ''
 
     if (!rawValue) {
       continue
     }
 
-    if (variablesById.has(rawValue)) {
+    if (
+      variablesById.has(
+        rawValue,
+      )
+    ) {
       continue
     }
 
     let variableId =
-      variablesByName.get(rawValue)
+      variablesByName.get(
+        rawValue,
+      )
 
     if (!variableId) {
       variableId =
@@ -593,7 +657,54 @@ function migrateLegacyVariables(
 }
 
 /* =========================================================
-NUMERIC / TRADE XML REPAIRS
+LEGACY TEXT JOIN
+========================================================= */
+
+function repairLegacyTextJoin(
+  root: Element,
+) {
+  const blocks =
+    Array.from(
+      root.querySelectorAll(
+        'block[type="text_join"],shadow[type="text_join"]',
+      ),
+    )
+
+  for (
+    const block of blocks
+  ) {
+    const variable =
+      Array.from(
+        block.children,
+      ).find(
+        (child) =>
+          child.tagName ===
+            'field' &&
+          child.getAttribute(
+            'name',
+          ) ===
+            'VARIABLE',
+      )
+
+    if (variable) {
+      block.removeChild(
+        variable,
+      )
+    }
+
+    /*
+     * Do not silently delete STACK
+     * contents anymore.
+     *
+     * If an old XML contains STACK,
+     * preserve the surrounding block
+     * instead of destroying user data.
+     */
+  }
+}
+
+/* =========================================================
+TRADE OPTION REPAIR
 ========================================================= */
 
 function ensureMathNumberShadow(
@@ -606,31 +717,43 @@ function ensureMathNumberShadow(
       block.children,
     ).find(
       (child) =>
-        child.tagName === 'value' &&
-        child.getAttribute('name') ===
-          inputName,
+        child.tagName ===
+          'value' &&
+        child.getAttribute(
+          'name',
+        ) === inputName,
     )
 
-  if (!value) return
+  if (!value) {
+    return
+  }
 
   const hasBlock =
     Array.from(
       value.children,
     ).some(
       (child) =>
-        child.tagName === 'block' ||
-        child.tagName === 'shadow',
+        child.tagName ===
+          'block' ||
+        child.tagName ===
+          'shadow',
     )
 
-  if (hasBlock) return
+  if (hasBlock) {
+    return
+  }
 
   const doc =
     block.ownerDocument
 
-  if (!doc) return
+  if (!doc) {
+    return
+  }
 
   const shadow =
-    doc.createElement('shadow')
+    doc.createElement(
+      'shadow',
+    )
 
   shadow.setAttribute(
     'type',
@@ -638,7 +761,9 @@ function ensureMathNumberShadow(
   )
 
   const field =
-    doc.createElement('field')
+    doc.createElement(
+      'field',
+    )
 
   field.setAttribute(
     'name',
@@ -648,21 +773,28 @@ function ensureMathNumberShadow(
   field.textContent =
     defaultValue
 
-  shadow.appendChild(field)
-  value.appendChild(shadow)
+  shadow.appendChild(
+    field,
+  )
+
+  value.appendChild(
+    shadow,
+  )
 }
 
 function repairTradeOptions(
   root: Element,
 ) {
-  const optionsBlocks =
+  const blocks =
     Array.from(
       root.querySelectorAll(
         'block[type="trade_definition_tradeoptions"]',
       ),
     )
 
-  for (const block of optionsBlocks) {
+  for (
+    const block of blocks
+  ) {
     ensureMathNumberShadow(
       block,
       'DURATION',
@@ -678,335 +810,177 @@ function repairTradeOptions(
 }
 
 /* =========================================================
-LEGACY TEXT JOIN
-========================================================= */
-
-function repairLegacyTextJoin(
-  root: Element,
-) {
-  const blocks =
-    Array.from(
-      root.querySelectorAll(
-        'block[type="text_join"],shadow[type="text_join"]',
-      ),
-    )
-
-  for (const block of blocks) {
-    const variable =
-      Array.from(
-        block.children,
-      ).find(
-        (child) =>
-          child.tagName === 'field' &&
-          child.getAttribute('name') ===
-            'VARIABLE',
-      )
-
-    if (variable) {
-      block.removeChild(variable)
-    }
-
-    const stack =
-      Array.from(
-        block.children,
-      ).find(
-        (child) =>
-          child.tagName === 'statement' &&
-          child.getAttribute('name') ===
-            'STACK',
-      )
-
-    if (stack) {
-      block.removeChild(stack)
-    }
-  }
-}
-
-/* =========================================================
-LEGACY TRADE DEFINITION
-========================================================= */
-
-function migrateLegacyTrade(
-  root: Element,
-) {
-  const legacyTrades =
-    Array.from(
-      root.querySelectorAll(
-        'block[type="trade_definition"]',
-      ),
-    )
-
-  for (const trade of legacyTrades) {
-    const existingOptions =
-      trade.querySelector(
-        ':scope > statement[name="TRADE_OPTIONS"]',
-      )
-
-    if (existingOptions) {
-      continue
-    }
-
-    const fields =
-      new Map<string, string>()
-
-    for (const child of Array.from(
-      trade.children,
-    )) {
-      if (child.tagName !== 'field') {
-        continue
-      }
-
-      const name =
-        child.getAttribute('name')
-
-      if (!name) continue
-
-      fields.set(
-        name,
-        child.textContent || '',
-      )
-    }
-
-    if (!fields.size) {
-      continue
-    }
-
-    const doc =
-      trade.ownerDocument
-
-    if (!doc) continue
-
-    const statement =
-      doc.createElement(
-        'statement',
-      )
-
-    statement.setAttribute(
-      'name',
-      'TRADE_OPTIONS',
-    )
-
-    const addField = (
-      parent: Element,
-      name: string,
-      value: string,
-    ) => {
-      const field =
-        doc.createElement('field')
-
-      field.setAttribute(
-        'name',
-        name,
-      )
-
-      field.textContent =
-        value
-
-      parent.appendChild(field)
-    }
-
-    const market =
-      doc.createElement('block')
-
-    market.setAttribute(
-      'type',
-      'trade_definition_market',
-    )
-
-    addField(
-      market,
-      'MARKET_LIST',
-      fields.get('MARKET_LIST') ||
-        fields.get('MARKET') ||
-        'synthetic_index',
-    )
-
-    addField(
-      market,
-      'SUBMARKET_LIST',
-      fields.get('SUBMARKET_LIST') ||
-        fields.get('SUBMARKET') ||
-        '',
-    )
-
-    addField(
-      market,
-      'SYMBOL_LIST',
-      fields.get('SYMBOL_LIST') ||
-        fields.get('SYMBOL') ||
-        '',
-    )
-
-    const tradeType =
-      doc.createElement('block')
-
-    tradeType.setAttribute(
-      'type',
-      'trade_definition_tradetype',
-    )
-
-    addField(
-      tradeType,
-      'TRADETYPECAT_LIST',
-      fields.get(
-        'TRADETYPECAT_LIST',
-      ) ||
-        fields.get(
-          'TRADETYPECAT',
-        ) ||
-        '',
-    )
-
-    addField(
-      tradeType,
-      'TRADETYPE_LIST',
-      fields.get('TRADETYPE_LIST') ||
-        fields.get('TRADETYPE') ||
-        '',
-    )
-
-    const contract =
-      doc.createElement('block')
-
-    contract.setAttribute(
-      'type',
-      'trade_definition_contracttype',
-    )
-
-    addField(
-      contract,
-      'TYPE_LIST',
-      fields.get('TYPE_LIST') ||
-        fields.get('CONTRACT_TYPE') ||
-        fields.get('CONTRACTTYPE') ||
-        '',
-    )
-
-    const candle =
-      doc.createElement('block')
-
-    candle.setAttribute(
-      'type',
-      'trade_definition_candleinterval',
-    )
-
-    addField(
-      candle,
-      'CANDLEINTERVAL_LIST',
-      fields.get(
-        'CANDLEINTERVAL_LIST',
-      ) || '60',
-    )
-
-    const restartBuy =
-      doc.createElement('block')
-
-    restartBuy.setAttribute(
-      'type',
-      'trade_definition_restartbuysell',
-    )
-
-    addField(
-      restartBuy,
-      'TIME_MACHINE_ENABLED',
-      fields.get(
-        'TIME_MACHINE_ENABLED',
-      ) || 'FALSE',
-    )
-
-    const restartError =
-      doc.createElement('block')
-
-    restartError.setAttribute(
-      'type',
-      'trade_definition_restartonerror',
-    )
-
-    addField(
-      restartError,
-      'RESTARTONERROR',
-      fields.get(
-        'RESTARTONERROR',
-      ) || 'TRUE',
-    )
-
-    const next1 =
-      doc.createElement('next')
-
-    next1.appendChild(tradeType)
-    market.appendChild(next1)
-
-    const next2 =
-      doc.createElement('next')
-
-    next2.appendChild(contract)
-    tradeType.appendChild(next2)
-
-    const next3 =
-      doc.createElement('next')
-
-    next3.appendChild(candle)
-    contract.appendChild(next3)
-
-    const next4 =
-      doc.createElement('next')
-
-    next4.appendChild(restartBuy)
-    candle.appendChild(next4)
-
-    const next5 =
-      doc.createElement('next')
-
-    next5.appendChild(restartError)
-    restartBuy.appendChild(next5)
-
-    statement.appendChild(market)
-
-    for (const child of Array.from(
-      trade.children,
-    )) {
-      if (child.tagName === 'field') {
-        trade.removeChild(child)
-      }
-    }
-
-    trade.insertBefore(
-      statement,
-      trade.firstChild,
-    )
-  }
-}
-
-/* =========================================================
 DROPDOWN XML REPAIR
 ========================================================= */
 
 function findDirectField(
   block: Element,
   name: string,
-) {
-  return Array.from(
-    block.children,
-  ).find(
-    (child) =>
-      child.tagName === 'field' &&
-      child.getAttribute('name') === name,
+): Element | null {
+  return (
+    Array.from(
+      block.children,
+    ).find(
+      (child) =>
+        child.tagName ===
+          'field' &&
+        child.getAttribute(
+          'name',
+        ) === name,
+    ) || null
   )
 }
 
-function getFirstTradeTypeValueFromCategory(
+function getFirstTradeTypeValue(
   category: string,
-) {
-  const values: Record<string, string> = {
-    updown: 'risefall',
-    touchnotouch: 'touchnotouch',
-    inout: 'endsinout',
-    digits: 'matchesdiffers',
-    multiplier: 'multiplier',
-    accumulator: 'accumulator',
+): string {
+  const values:
+    Record<string, string> = {
+    updown:
+      'risefall',
+
+    touchnotouch:
+      'touchnotouch',
+
+    inout:
+      'endsinout',
+
+    digits:
+      'matchesdiffers',
+
+    multiplier:
+      'multiplier',
+
+    accumulator:
+      'accumulator',
   }
 
-  return values[category] || ''
+  return (
+    values[category] ||
+    'risefall'
+  )
+}
+
+function repairPurchaseField(
+  root: Element,
+) {
+  const purchases =
+    Array.from(
+      root.querySelectorAll(
+        'block[type="purchase"]',
+      ),
+    )
+
+  for (
+    const purchase of purchases
+  ) {
+    const field =
+      findDirectField(
+        purchase,
+        'PURCHASE_LIST',
+      )
+
+    if (!field) {
+      continue
+    }
+
+    if (
+      field.textContent
+        ?.trim()
+    ) {
+      continue
+    }
+
+    /*
+     * Do not arbitrarily select DIGITOVER.
+     *
+     * Use the surrounding contract type
+     * if one exists.
+     */
+    let contractType = ''
+
+    const tradeDefinition =
+      purchase.closest(
+        'block[type="trade_definition"]',
+      )
+
+    if (
+      tradeDefinition
+    ) {
+      const contract =
+        tradeDefinition.querySelector(
+          'block[type="trade_definition_contracttype"]',
+        )
+
+      if (contract) {
+        contractType =
+          findDirectField(
+            contract,
+            'TYPE_LIST',
+          )
+            ?.textContent
+            ?.trim() || ''
+      }
+    }
+
+    const allowed:
+      Record<string, string> = {
+      CALL: 'CALL',
+      PUT: 'PUT',
+
+      ONETOUCH:
+        'ONETOUCH',
+
+      NOTOUCH:
+        'NOTOUCH',
+
+      EXPIRYRANGE:
+        'EXPIRYRANGE',
+
+      EXPIRYMISS:
+        'EXPIRYMISS',
+
+      RANGE:
+        'RANGE',
+
+      UPORDOWN:
+        'UPORDOWN',
+
+      DIGITMATCH:
+        'DIGITMATCH',
+
+      DIGITDIFF:
+        'DIGITDIFF',
+
+      DIGITOVER:
+        'DIGITOVER',
+
+      DIGITUNDER:
+        'DIGITUNDER',
+
+      DIGITEVEN:
+        'DIGITEVEN',
+
+      DIGITODD:
+        'DIGITODD',
+
+      MULTUP:
+        'MULTUP',
+
+      MULTDOWN:
+        'MULTDOWN',
+
+      ACCU:
+        'ACCU',
+    }
+
+    if (
+      allowed[contractType]
+    ) {
+      field.textContent =
+        allowed[contractType]
+    }
+  }
 }
 
 function repairTradeDefinitionFields(
@@ -1019,7 +993,9 @@ function repairTradeDefinitionFields(
       ),
     )
 
-  for (const block of tradeTypes) {
+  for (
+    const block of tradeTypes
+  ) {
     const category =
       findDirectField(
         block,
@@ -1032,26 +1008,35 @@ function repairTradeDefinitionFields(
         'TRADETYPE_LIST',
       )
 
+    /*
+     * These defaults are ONLY used when
+     * the uploaded XML genuinely contains
+     * an empty value.
+     */
     if (
       category &&
-      !category.textContent?.trim()
+      !category.textContent
+        ?.trim()
     ) {
       category.textContent =
-        'updown'
+        'digits'
     }
 
     if (
       type &&
-      !type.textContent?.trim()
+      !type.textContent
+        ?.trim()
     ) {
       const categoryValue =
-        category?.textContent?.trim() ||
-        'updown'
+        category
+          ?.textContent
+          ?.trim() ||
+        'digits'
 
       type.textContent =
-        getFirstTradeTypeValueFromCategory(
+        getFirstTradeTypeValue(
           categoryValue,
-        ) || 'risefall'
+        )
     }
   }
 
@@ -1062,7 +1047,9 @@ function repairTradeDefinitionFields(
       ),
     )
 
-  for (const block of contracts) {
+  for (
+    const block of contracts
+  ) {
     const field =
       findDirectField(
         block,
@@ -1071,112 +1058,17 @@ function repairTradeDefinitionFields(
 
     if (
       field &&
-      !field.textContent?.trim()
+      !field.textContent
+        ?.trim()
     ) {
       field.textContent =
         'both'
     }
   }
 
-  const markets =
-    Array.from(
-      root.querySelectorAll(
-        'block[type="trade_definition_market"]',
-      ),
-    )
-
-  for (const block of markets) {
-    const market =
-      findDirectField(
-        block,
-        'MARKET_LIST',
-      )
-
-    if (
-      market &&
-      !market.textContent?.trim()
-    ) {
-      market.textContent =
-        'synthetic_index'
-    }
-  }
-
-  repairPurchaseFields(root)
-}
-
-function repairPurchaseFields(
-  root: Element,
-) {
-  const purchaseBlocks =
-    Array.from(
-      root.querySelectorAll(
-        'block[type="purchase"]',
-      ),
-    )
-
-  for (const purchase of purchaseBlocks) {
-    const field =
-      findDirectField(
-        purchase,
-        'PURCHASE_LIST',
-      )
-
-    if (
-      !field ||
-      field.textContent?.trim()
-    ) {
-      continue
-    }
-
-    const trade =
-      purchase.closest(
-        'block[type="trade_definition"]',
-      )
-
-    let contractType = ''
-
-    if (trade) {
-      const contract =
-        trade.querySelector(
-          'block[type="trade_definition_contracttype"]',
-        )
-
-      if (contract) {
-        contractType =
-          findDirectField(
-            contract,
-            'TYPE_LIST',
-          )?.textContent?.trim() || ''
-      }
-    }
-
-    const defaults: Record<
-      string,
-      string
-    > = {
-      DIGITMATCH: 'DIGITMATCH',
-      DIGITDIFF: 'DIGITDIFF',
-      DIGITOVER: 'DIGITOVER',
-      DIGITUNDER: 'DIGITUNDER',
-      DIGITEVEN: 'DIGITEVEN',
-      DIGITODD: 'DIGITODD',
-      CALL: 'CALL',
-      PUT: 'PUT',
-      ONETOUCH: 'ONETOUCH',
-      NOTOUCH: 'NOTOUCH',
-      EXPIRYRANGE: 'EXPIRYRANGE',
-      EXPIRYMISS: 'EXPIRYMISS',
-      RANGE: 'RANGE',
-      UPORDOWN: 'UPORDOWN',
-      MULTUP: 'MULTUP',
-      MULTDOWN: 'MULTDOWN',
-      ACCU: 'ACCU',
-    }
-
-    field.textContent =
-      defaults[contractType] ||
-      'DIGITOVER'
-  }
+  repairPurchaseField(
+    root,
+  )
 }
 
 /* =========================================================
@@ -1192,15 +1084,13 @@ function migrateXml(
 
   normalizeXmlBooleans(root)
 
-  normalizeLegacyInputNames(root)
-
   migrateLegacyVariables(root)
-
-  migrateLegacyTrade(root)
 
   repairLegacyTextJoin(root)
 
-  repairTradeDefinitionFields(root)
+  repairTradeDefinitionFields(
+    root,
+  )
 
   repairTradeOptions(root)
 
@@ -1208,7 +1098,7 @@ function migrateXml(
 }
 
 /* =========================================================
-IMPORTED DROPDOWN RESTORATION
+IMPORTED FIELD RESTORATION
 ========================================================= */
 
 function restoreImportedTradeFields(
@@ -1217,71 +1107,111 @@ function restoreImportedTradeFields(
 ) {
   const xmlBlocks =
     Array.from(
-      root.querySelectorAll('block'),
+      root.querySelectorAll(
+        'block',
+      ),
     )
 
-  for (const xmlBlock of xmlBlocks) {
+  for (
+    const xmlBlock of xmlBlocks
+  ) {
     const id =
-      xmlBlock.getAttribute('id')
+      xmlBlock.getAttribute(
+        'id',
+      )
 
-    if (!id) continue
+    if (!id) {
+      continue
+    }
 
     const workspaceBlock =
-      workspace.getBlockById(id)
+      workspace.getBlockById(
+        id,
+      )
 
     if (!workspaceBlock) {
       continue
     }
 
-    const xmlFields =
-      Array.from(
+    for (
+      const child of Array.from(
         xmlBlock.children,
-      ).filter(
-        (child) =>
-          child.tagName === 'field',
       )
-
-    for (const xmlField of xmlFields) {
-      const name =
-        xmlField.getAttribute('name')
-
-      if (!name) continue
-
-      const value =
-        xmlField.textContent?.trim() || ''
-
-      if (!value) continue
-
+    ) {
       if (
-        name === 'MARKET_LIST' ||
-        name === 'SUBMARKET_LIST' ||
-        name === 'SYMBOL_LIST' ||
-        name === 'TRADETYPECAT_LIST' ||
-        name === 'TRADETYPE_LIST' ||
-        name === 'TYPE_LIST' ||
-        name === 'PURCHASE_LIST' ||
-        name === 'VAR'
+        child.tagName !==
+        'field'
       ) {
         continue
       }
 
+      const name =
+        child.getAttribute(
+          'name',
+        )
+
+      if (!name) {
+        continue
+      }
+
+      const value =
+        child.textContent
+          ?.trim() || ''
+
+      if (!value) {
+        continue
+      }
+
       const field =
-        workspaceBlock.getField(name)
+        workspaceBlock.getField(
+          name,
+        )
 
       if (!field) {
         continue
       }
 
+      /*
+       * Dynamic dropdowns are restored
+       * separately after all blocks exist.
+       */
+      if (
+        name ===
+          'MARKET_LIST' ||
+        name ===
+          'SUBMARKET_LIST' ||
+        name ===
+          'SYMBOL_LIST' ||
+        name ===
+          'TRADETYPECAT_LIST' ||
+        name ===
+          'TRADETYPE_LIST' ||
+        name ===
+          'TYPE_LIST' ||
+        name ===
+          'PURCHASE_LIST' ||
+        name === 'VAR'
+      ) {
+        continue
+      }
+
       try {
-        field.setValue(value)
-      } catch (error) {
+        field.setValue(
+          value,
+        )
+      } catch (
+        error
+      ) {
         console.warn(
           '[Bot XML] Unable to restore field',
           {
             type:
               workspaceBlock.type,
+
             name,
+
             value,
+
             error,
           },
         )
@@ -1289,118 +1219,150 @@ function restoreImportedTradeFields(
     }
   }
 
-  const marketXmlBlocks =
-    xmlBlocks.filter(
-      (block) =>
-        block.getAttribute('type') ===
-        'trade_definition_market',
-    )
-
-  for (const xmlBlock of marketXmlBlocks) {
+  /*
+   * Restore dynamic dropdowns in dependency order.
+   */
+  for (
+    const xmlBlock of xmlBlocks
+  ) {
     const id =
-      xmlBlock.getAttribute('id')
+      xmlBlock.getAttribute(
+        'id',
+      )
 
-    if (!id) continue
+    if (!id) {
+      continue
+    }
 
     const block =
-      workspace.getBlockById(id)
+      workspace.getBlockById(
+        id,
+      )
 
-    if (!block) continue
+    if (!block) {
+      continue
+    }
 
-    restoreField(
-      block,
-      xmlBlock,
-      'MARKET_LIST',
-    )
+    if (
+      block.type ===
+      'trade_definition_market'
+    ) {
+      restoreDynamicField(
+        block,
+        xmlBlock,
+        'MARKET_LIST',
+      )
 
-    restoreField(
-      block,
-      xmlBlock,
-      'SUBMARKET_LIST',
-    )
+      restoreDynamicField(
+        block,
+        xmlBlock,
+        'SUBMARKET_LIST',
+      )
 
-    restoreField(
-      block,
-      xmlBlock,
-      'SYMBOL_LIST',
-    )
+      restoreDynamicField(
+        block,
+        xmlBlock,
+        'SYMBOL_LIST',
+      )
+    }
   }
 
-  const tradeTypeXmlBlocks =
-    xmlBlocks.filter(
-      (block) =>
-        block.getAttribute('type') ===
-        'trade_definition_tradetype',
-    )
-
-  for (const xmlBlock of tradeTypeXmlBlocks) {
+  for (
+    const xmlBlock of xmlBlocks
+  ) {
     const id =
-      xmlBlock.getAttribute('id')
+      xmlBlock.getAttribute(
+        'id',
+      )
 
-    if (!id) continue
+    if (!id) {
+      continue
+    }
 
     const block =
-      workspace.getBlockById(id)
+      workspace.getBlockById(
+        id,
+      )
 
-    if (!block) continue
+    if (
+      !block ||
+      block.type !==
+        'trade_definition_tradetype'
+    ) {
+      continue
+    }
 
-    restoreField(
+    restoreDynamicField(
       block,
       xmlBlock,
       'TRADETYPECAT_LIST',
     )
 
-    restoreField(
+    restoreDynamicField(
       block,
       xmlBlock,
       'TRADETYPE_LIST',
     )
   }
 
-  const contractXmlBlocks =
-    xmlBlocks.filter(
-      (block) =>
-        block.getAttribute('type') ===
-        'trade_definition_contracttype',
-    )
-
-  for (const xmlBlock of contractXmlBlocks) {
+  for (
+    const xmlBlock of xmlBlocks
+  ) {
     const id =
-      xmlBlock.getAttribute('id')
+      xmlBlock.getAttribute(
+        'id',
+      )
 
-    if (!id) continue
+    if (!id) {
+      continue
+    }
 
     const block =
-      workspace.getBlockById(id)
+      workspace.getBlockById(
+        id,
+      )
 
-    if (!block) continue
+    if (
+      !block ||
+      block.type !==
+        'trade_definition_contracttype'
+    ) {
+      continue
+    }
 
-    restoreField(
+    restoreDynamicField(
       block,
       xmlBlock,
       'TYPE_LIST',
     )
   }
 
-  const purchaseXmlBlocks =
-    xmlBlocks.filter(
-      (block) =>
-        block.getAttribute('type') ===
-        'purchase',
-    )
-
-  for (const xmlBlock of purchaseXmlBlocks) {
+  for (
+    const xmlBlock of xmlBlocks
+  ) {
     const id =
-      xmlBlock.getAttribute('id')
+      xmlBlock.getAttribute(
+        'id',
+      )
 
-    if (!id) continue
+    if (!id) {
+      continue
+    }
 
     const block =
-      workspace.getBlockById(id)
+      workspace.getBlockById(
+        id,
+      )
 
-    if (!block) continue
+    if (
+      !block ||
+      block.type !==
+        'purchase'
+    ) {
+      continue
+    }
 
-    restoreField(
+    restoreDynamicField(
       block,
       xmlBlock,
       'PURCHASE_LIST',
@@ -1408,7 +1370,7 @@ function restoreImportedTradeFields(
   }
 }
 
-function restoreField(
+function restoreDynamicField(
   block: Blockly.Block,
   xmlBlock: Element,
   name: string,
@@ -1418,8 +1380,11 @@ function restoreField(
       xmlBlock.children,
     ).find(
       (child) =>
-        child.tagName === 'field' &&
-        child.getAttribute('name') === name,
+        child.tagName ===
+          'field' &&
+        child.getAttribute(
+          'name',
+        ) === name,
     )
 
   if (!xmlField) {
@@ -1427,7 +1392,8 @@ function restoreField(
   }
 
   const value =
-    xmlField.textContent?.trim() || ''
+    xmlField.textContent
+      ?.trim() || ''
 
   if (!value) {
     return
@@ -1441,14 +1407,22 @@ function restoreField(
   }
 
   try {
-    field.setValue(value)
-  } catch (error) {
+    field.setValue(
+      value,
+    )
+  } catch (
+    error
+  ) {
     console.warn(
-      '[Bot XML] Could not restore dependent field',
+      '[Bot XML] Could not restore dynamic field',
       {
-        block: block.type,
+        block:
+          block.type,
+
         name,
+
         value,
+
         error,
       },
     )
@@ -1482,11 +1456,19 @@ export function loadFromXml(
 
     workspace.clear()
 
+    /*
+     * XML is now repaired BEFORE
+     * Blockly receives it.
+     */
     Blockly.Xml.domToWorkspace(
       dom,
       workspace,
     )
 
+    /*
+     * Dynamic fields are restored after
+     * all dependent dropdowns exist.
+     */
     restoreImportedTradeFields(
       workspace,
       dom,
@@ -1497,7 +1479,9 @@ export function loadFromXml(
     )
 
     return true
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       '[Bot XML Loader]',
       error,
@@ -1557,28 +1541,31 @@ function finiteNumber(
   value: unknown,
 ): number | undefined {
   if (
-    value === undefined ||
+    value ===
+      undefined ||
     value === null ||
     value === ''
   ) {
     return undefined
   }
 
-  const number =
+  const parsed =
     Number(value)
 
-  return Number.isFinite(number)
-    ? number
+  return Number.isFinite(
+    parsed,
+  )
+    ? parsed
     : undefined
 }
 
 /* =========================================================
-NUMERIC VARIABLE RESOLUTION
+VARIABLE / NUMBER RESOLUTION
 ========================================================= */
 
-function getVariableName(
+function readVariableName(
   block: Blockly.Block,
-) {
+): string {
   const field =
     block.getField('VAR')
 
@@ -1594,14 +1581,19 @@ function getVariableName(
   }
 
   const variable =
-    block.workspace.getVariableById(id)
+    block.workspace.getVariableById(
+      id,
+    )
 
-  return variable?.name || ''
+  return (
+    variable?.name || ''
+  )
 }
 
 function readNumericBlock(
   block: Blockly.Block | null,
-  seenVariables = new Set<string>(),
+  seenVariables =
+    new Set<string>(),
 ): number | undefined {
   if (!block) {
     return undefined
@@ -1609,34 +1601,43 @@ function readNumericBlock(
 
   const direct =
     finiteNumber(
-      block.getFieldValue('NUM'),
+      block.getFieldValue(
+        'NUM',
+      ),
     )
 
-  if (direct !== undefined) {
+  if (
+    direct !== undefined
+  ) {
     return direct
   }
 
   const value =
     finiteNumber(
-      block.getFieldValue('VALUE'),
+      block.getFieldValue(
+        'VALUE',
+      ),
     )
 
-  if (value !== undefined) {
+  if (
+    value !== undefined
+  ) {
     return value
   }
 
   if (
-    block.type === 'variables_get'
+    block.type ===
+    'variables_get'
   ) {
-    const variableField =
+    const field =
       block.getField('VAR')
 
-    if (!variableField) {
+    if (!field) {
       return undefined
     }
 
     const variableId =
-      variableField.getValue()
+      field.getValue()
 
     if (!variableId) {
       return undefined
@@ -1650,10 +1651,9 @@ function readNumericBlock(
       return undefined
     }
 
-    const nextSeen =
-      new Set(seenVariables)
-
-    nextSeen.add(variableId)
+    seenVariables.add(
+      variableId,
+    )
 
     const variable =
       block.workspace.getVariableById(
@@ -1664,554 +1664,300 @@ function readNumericBlock(
       return undefined
     }
 
-    const allBlocks =
-      block.workspace.getAllBlocks(
-        false,
-      )
+    const variableName =
+      variable.name
 
-    const setters =
-      allBlocks.filter(
-        (candidate) => {
-          if (
-            candidate.type !==
-            'variables_set'
-          ) {
-            return false
-          }
-
-          const field =
-            candidate.getField('VAR')
-
-          return (
-            field?.getValue() ===
-            variableId
-          )
-        },
-      )
-
-    const tradeRoot =
-      allBlocks.find(
-        (candidate) =>
-          candidate.type ===
-          'trade_definition',
-      )
-
-    if (tradeRoot) {
-      let init =
-        tradeRoot.getInputTargetBlock(
-          'INITIALIZATION',
+    const sets =
+      block.workspace
+        .getAllBlocks(false)
+        .filter(
+          (candidate) =>
+            candidate.type ===
+              'variables_set' &&
+            readVariableName(
+              candidate,
+            ) ===
+              variableName,
         )
 
-      while (init) {
-        if (
-          init.type ===
-            'variables_set' &&
-          init.getField('VAR')?.getValue() ===
-            variableId
-        ) {
-          const resolved =
-            resolveSetterValue(
-              init,
-              nextSeen,
-            )
-
-          if (
-            resolved !== undefined
-          ) {
-            return resolved
-          }
-        }
-
-        init =
-          init.getNextBlock()
-      }
-    }
-
-    for (const setter of setters) {
-      const resolved =
-        resolveSetterValue(
-          setter,
-          nextSeen,
+    for (
+      const setBlock of sets
+    ) {
+      const input =
+        setBlock.getInputTargetBlock(
+          'VALUE',
         )
-
-      if (
-        resolved !== undefined
-      ) {
-        return resolved
-      }
-    }
-
-    for (const setter of allBlocks) {
-      if (
-        setter.type !==
-        'variables_set'
-      ) {
-        continue
-      }
-
-      const setterName =
-        getVariableName(setter)
-
-      if (
-        setterName !==
-        variable.name
-      ) {
-        continue
-      }
 
       const resolved =
-        resolveSetterValue(
-          setter,
-          nextSeen,
+        readNumericBlock(
+          input,
+          new Set(
+            seenVariables,
+          ),
         )
 
       if (
-        resolved !== undefined
+        resolved !==
+        undefined
       ) {
         return resolved
       }
     }
   }
 
-  return undefined
-}
+  /*
+   * Try any numeric value input.
+   */
+  for (
+    const input of
+      block.inputList
+  ) {
+    if (
+      input.type !==
+      Blockly.inputs
+        .inputTypes
+        .VALUE
+    ) {
+      continue
+    }
 
-function resolveSetterValue(
-  setter: Blockly.Block,
-  seenVariables: Set<string>,
-) {
-  for (const inputName of [
-    'VALUE',
-    'AMOUNT',
-    'STAKE',
-  ]) {
-    const valueBlock =
-      setter.getInputTargetBlock(
-        inputName,
-      )
+    const target =
+      input.connection
+        ?.targetBlock()
 
     const resolved =
       readNumericBlock(
-        valueBlock,
-        seenVariables,
-      )
-
-    if (
-      resolved !== undefined
-    ) {
-      return resolved
-    }
-
-    const direct =
-      finiteNumber(
-        setter.getFieldValue(
-          inputName,
+        target,
+        new Set(
+          seenVariables,
         ),
       )
 
     if (
-      direct !== undefined
+      resolved !==
+      undefined
     ) {
-      return direct
+      return resolved
     }
   }
 
   return undefined
-}
-
-function numberValue(
-  block: Blockly.Block,
-  inputNames:
-    | string
-    | string[],
-) {
-  const names =
-    Array.isArray(inputNames)
-      ? inputNames
-      : [inputNames]
-
-  for (const name of names) {
-    const target =
-      block.getInputTargetBlock(
-        name,
-      )
-
-    const value =
-      readNumericBlock(
-        target,
-      )
-
-    if (
-      value !== undefined
-    ) {
-      return value
-    }
-
-    const fieldValue =
-      finiteNumber(
-        block.getFieldValue(name),
-      )
-
-    if (
-      fieldValue !== undefined
-    ) {
-      return fieldValue
-    }
-  }
-
-  return undefined
-}
-
-function textValue(
-  block: Blockly.Block,
-  names: string[],
-) {
-  for (const name of names) {
-    const value =
-      block.getFieldValue(name)
-
-    if (
-      value !== undefined &&
-      value !== null &&
-      String(value).trim() !== ''
-    ) {
-      return String(value)
-    }
-  }
-
-  return ''
-}
-
-function getTradeChain(
-  root: Blockly.Block,
-) {
-  const blocks: Blockly.Block[] =
-    []
-
-  let block =
-    root.getInputTargetBlock(
-      'TRADE_OPTIONS',
-    )
-
-  while (block) {
-    blocks.push(block)
-
-    block =
-      block.getNextBlock()
-  }
-
-  return blocks
-}
-
-function findBlockByType(
-  blocks: Blockly.Block[],
-  type: string,
-) {
-  return blocks.find(
-    (block) =>
-      block.type === type,
-  )
-}
-
-function getOptionBlock(
-  root: Blockly.Block,
-) {
-  const direct =
-    root.getInputTargetBlock(
-      'SUBMARKET',
-    )
-
-  if (
-    direct?.type ===
-    'trade_definition_tradeoptions'
-  ) {
-    return direct
-  }
-
-  const candidates =
-    root.getDescendants(true)
-
-  return (
-    candidates.find(
-      (block) =>
-        block.type ===
-        'trade_definition_tradeoptions',
-    ) || null
-  )
-}
-
-function getOptionalText(
-  block: Blockly.Block,
-  names: string[],
-) {
-  return textValue(
-    block,
-    names,
-  )
 }
 
 /* =========================================================
-TRADE PARAMETER EXTRACTION
+TRADE PARAM EXTRACTION
 ========================================================= */
 
 export function extractTradeParams(
   workspace: Blockly.WorkspaceSvg,
 ): TradeParamsResult {
-  const root =
-    workspace
-      .getTopBlocks(false)
-      .find(
-        (block) =>
-          block.type ===
-          'trade_definition',
-      )
+  const blocks =
+    workspace.getAllBlocks(
+      false,
+    )
 
-  if (!root) {
+  const market =
+    blocks.find(
+      (block) =>
+        block.type ===
+        'trade_definition_market',
+    )
+
+  const tradeType =
+    blocks.find(
+      (block) =>
+        block.type ===
+        'trade_definition_tradetype',
+    )
+
+  const contract =
+    blocks.find(
+      (block) =>
+        block.type ===
+        'trade_definition_contracttype',
+    )
+
+  const options =
+    blocks.find(
+      (block) =>
+        block.type ===
+        'trade_definition_tradeoptions',
+    )
+
+  if (!market) {
     return {
       ok: false,
       missingField:
-        'trade_definition',
+        'market',
     }
-  }
-
-  const chain =
-    getTradeChain(root)
-
-  const market =
-    findBlockByType(
-      chain,
-      'trade_definition_market',
-    )
-
-  const tradeTypeBlock =
-    findBlockByType(
-      chain,
-      'trade_definition_tradetype',
-    )
-
-  const contractBlock =
-    findBlockByType(
-      chain,
-      'trade_definition_contracttype',
-    )
-
-  let symbol =
-    market
-      ? textValue(
-          market,
-          [
-            'SYMBOL_LIST',
-            'SYMBOL',
-          ],
-        )
-      : ''
-
-  let tradeType =
-    tradeTypeBlock
-      ? textValue(
-          tradeTypeBlock,
-          [
-            'TRADETYPE_LIST',
-            'TRADE_TYPE',
-          ],
-        )
-      : ''
-
-  let contractType =
-    contractBlock
-      ? textValue(
-          contractBlock,
-          [
-            'TYPE_LIST',
-            'CONTRACT_TYPE',
-          ],
-        )
-      : ''
-
-  if (!symbol) {
-    symbol =
-      textValue(
-        root,
-        [
-          'SYMBOL_LIST',
-          'SYMBOL',
-        ],
-      )
   }
 
   if (!tradeType) {
-    tradeType =
-      textValue(
-        root,
-        [
-          'TRADETYPE_LIST',
-          'TRADETYPE',
-        ],
-      )
-  }
-
-  if (!contractType) {
-    contractType =
-      textValue(
-        root,
-        [
-          'TYPE_LIST',
-          'CONTRACT_TYPE',
-          'CONTRACTTYPE',
-        ],
-      )
-  }
-
-  if (!symbol) {
-    return {
-      ok: false,
-      missingField: 'symbol',
-    }
-  }
-
-  if (!contractType) {
     return {
       ok: false,
       missingField:
-        'contract_type',
+        'trade type',
     }
   }
 
-  const options =
-    getOptionBlock(root)
+  if (!contract) {
+    return {
+      ok: false,
+      missingField:
+        'contract type',
+    }
+  }
 
   if (!options) {
     return {
       ok: false,
       missingField:
-        'trade_options',
+        'trade options',
     }
   }
 
-  const repairedInputs: string[] =
-    []
+  const symbol =
+    String(
+      market.getFieldValue(
+        'SYMBOL_LIST',
+      ) || '',
+    )
 
-  let duration =
-    numberValue(
-      options,
-      VALUE_FIELD_ALIASES.DURATION,
+  if (!symbol) {
+    return {
+      ok: false,
+      missingField:
+        'symbol',
+    }
+  }
+
+  const contractType =
+    String(
+      contract.getFieldValue(
+        'TYPE_LIST',
+      ) || '',
+    )
+
+  if (!contractType) {
+    return {
+      ok: false,
+      missingField:
+        'contract type',
+    }
+  }
+
+  const tradeTypeValue =
+    String(
+      tradeType.getFieldValue(
+        'TRADETYPE_LIST',
+      ) || '',
+    )
+
+  if (!tradeTypeValue) {
+    return {
+      ok: false,
+      missingField:
+        'trade type',
+    }
+  }
+
+  const durationBlock =
+    options.getInputTargetBlock(
+      'DURATION',
+    )
+
+  const amountBlock =
+    options.getInputTargetBlock(
+      'AMOUNT',
+    )
+
+  const predictionBlock =
+    options.getInputTargetBlock(
+      'PREDICTION',
+    )
+
+  const barrierBlock =
+    options.getInputTargetBlock(
+      'BARRIER',
+    )
+
+  const secondBarrierBlock =
+    options.getInputTargetBlock(
+      'SECOND_BARRIER',
+    )
+
+  const duration =
+    readNumericBlock(
+      durationBlock,
     )
 
   const amount =
-    numberValue(
-      options,
-      VALUE_FIELD_ALIASES.AMOUNT,
+    readNumericBlock(
+      amountBlock,
     )
 
   const prediction =
-    numberValue(
-      options,
-      VALUE_FIELD_ALIASES.PREDICTION,
+    readNumericBlock(
+      predictionBlock,
     )
-
-  if (
-    duration === undefined
-  ) {
-    duration = 1
-
-    repairedInputs.push(
-      'duration',
-    )
-  }
-
-  if (
-    amount === undefined
-  ) {
-    return {
-      ok: false,
-      missingField: 'amount',
-    }
-  }
-
-  let durationUnit =
-    textValue(
-      options,
-      [
-        'DURATIONTYPE_LIST',
-        'DURATION_UNIT',
-        'DURATIONUNIT',
-      ],
-    )
-
-  let currency =
-    textValue(
-      options,
-      [
-        'CURRENCY_LIST',
-        'CURRENCY',
-      ],
-    )
-
-  if (!durationUnit) {
-    durationUnit = 't'
-
-    repairedInputs.push(
-      'duration_unit',
-    )
-  }
-
-  if (!currency) {
-    currency = 'USD'
-
-    repairedInputs.push(
-      'currency',
-    )
-  }
 
   const barrier =
-    getOptionalText(
-      options,
-      VALUE_FIELD_ALIASES.BARRIER,
+    readNumericBlock(
+      barrierBlock,
     )
 
   const secondBarrier =
-    getOptionalText(
-      options,
-      VALUE_FIELD_ALIASES.SECOND_BARRIER,
+    readNumericBlock(
+      secondBarrierBlock,
     )
 
-  const digitContracts = [
-    'DIGITMATCH',
-    'DIGITDIFF',
-    'DIGITOVER',
-    'DIGITUNDER',
-  ]
-
   if (
-    digitContracts.includes(
-      contractType,
-    ) &&
-    prediction === undefined &&
-    !barrier
+    duration ===
+      undefined ||
+    duration <= 0
   ) {
     return {
       ok: false,
       missingField:
-        'prediction',
+        'duration',
     }
   }
 
-  const normalizedPrediction =
-    prediction !== undefined
-      ? prediction
-      : finiteNumber(barrier)
+  if (
+    amount ===
+      undefined ||
+    amount <= 0
+  ) {
+    return {
+      ok: false,
+      missingField:
+        'stake amount',
+    }
+  }
 
-  return {
-    ok: true,
+  const durationUnit =
+    String(
+      options.getFieldValue(
+        'DURATIONTYPE_LIST',
+      ) || 't',
+    )
 
-    params: {
+  const currency =
+    String(
+      options.getFieldValue(
+        'CURRENCY_LIST',
+      ) || 'USD',
+    )
+
+  const result: TradeParams =
+    {
       symbol,
 
       contract_type:
         contractType,
 
       trade_type:
-        tradeType,
+        tradeTypeValue,
 
       duration,
 
@@ -2221,32 +1967,43 @@ export function extractTradeParams(
       amount,
 
       currency,
+    }
 
-      prediction:
-        normalizedPrediction,
+  if (
+    prediction !==
+      undefined
+  ) {
+    result.prediction =
+      prediction
+  }
 
-      barrier:
-        barrier ||
-        (
-          normalizedPrediction !==
-          undefined
-            ? String(
-                normalizedPrediction,
-              )
-            : undefined
-        ),
+  if (
+    barrier !==
+      undefined
+  ) {
+    result.barrier =
+      String(barrier)
+  }
 
-      second_barrier:
-        secondBarrier ||
-        undefined,
-    },
+  if (
+    secondBarrier !==
+      undefined
+  ) {
+    result.second_barrier =
+      String(
+        secondBarrier,
+      )
+  }
 
-    repairedInputs,
+  return {
+    ok: true,
+    params: result,
+    repairedInputs: [],
   }
 }
 
 /* =========================================================
-SAFE IMPORT
+SAFE BOT XML LOAD
 ========================================================= */
 
 export async function loadBotXmlSafely(
@@ -2277,16 +2034,18 @@ export async function loadBotXmlSafely(
         await fetchSymbolsIfNeeded()
     }
 
-    if (symbols?.length) {
+    if (
+      symbols &&
+      symbols.length
+    ) {
       setGlobalMarketOptions(
         symbols,
       )
     }
 
-    const valid =
-      isValidBotXml(xml)
-
-    if (!valid) {
+    if (
+      !isValidBotXml(xml)
+    ) {
       return {
         ok: false,
         reason:
@@ -2294,13 +2053,13 @@ export async function loadBotXmlSafely(
       }
     }
 
-    const ok =
+    const loaded =
       loadFromXml(
         workspace,
         xml,
       )
 
-    if (!ok) {
+    if (!loaded) {
       return {
         ok: false,
         reason:
@@ -2317,18 +2076,20 @@ export async function loadBotXmlSafely(
       return {
         ok: false,
         reason:
-          `Missing or invalid trade field: ${params.missingField}`,
+          'Missing or invalid trade field: ' +
+          params.missingField,
       }
     }
 
     return {
       ok: true,
-
       repaired:
-        params.repairedInputs.length >
-        0,
+        params.repairedInputs
+          .length > 0,
     }
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       '[Bot XML Import]',
       error,
@@ -2336,7 +2097,6 @@ export async function loadBotXmlSafely(
 
     return {
       ok: false,
-
       reason:
         error instanceof Error
           ? error.message
