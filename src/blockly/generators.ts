@@ -23,7 +23,6 @@ for (const name of names) {
 const value =
 block.getFieldValue(name)
 
-```
 if (
   value !== undefined &&
   value !== null &&
@@ -31,7 +30,6 @@ if (
 ) {
   return String(value)
 }
-```
 
 }
 
@@ -51,14 +49,12 @@ name,
 javascriptGenerator.ORDER_NONE,
 )
 
-```
 if (
   code &&
   code.trim()
 ) {
   return code
 }
-```
 
 }
 
@@ -82,7 +78,6 @@ javascriptGenerator.blockToCode(
 current,
 )
 
-```
 if (
   typeof generated ===
   'string'
@@ -111,7 +106,6 @@ if (
 
 current =
   current.getNextBlock()
-```
 
 }
 
@@ -907,7 +901,6 @@ if (
 continue
 }
 
-```
 const code =
   javascriptGenerator.valueToCode(
     block,
@@ -917,7 +910,6 @@ const code =
   JSON.stringify('')
 
 parts.push(code)
-```
 
 }
 
@@ -978,7 +970,6 @@ current,
 JSON.stringify(''),
 )
 
-```
   parts.push(
     'String(' +
       value +
@@ -1007,7 +998,6 @@ JSON.stringify(''),
 
 current =
   current.getNextBlock()
-```
 
 }
 
@@ -1134,7 +1124,6 @@ workspace,
 'trade_definition',
 )
 
-```
 const before =
   findWorkspaceBlock(
     workspace,
@@ -1263,7 +1252,6 @@ sections.push(
 )
 
 return sections.join('\n')
-```
 
 } finally {
 javascriptGenerator.finish('')

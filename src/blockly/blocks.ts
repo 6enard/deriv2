@@ -56,58 +56,57 @@ accumulator: [
 const contractTypeOptionsByTradeType: Record<
 string,
 [string, string][]
-
 > = {
-> risefall: [
-> ['Rise/Fall (both)', 'both'],
-> ['Rise', 'CALL'],
-> ['Fall', 'PUT'],
-> ],
-> higherlower: [
-> ['Higher/Lower (both)', 'both'],
-> ['Higher', 'CALL'],
-> ['Lower', 'PUT'],
-> ],
-> touchnotouch: [
-> ['Touch/No Touch (both)', 'both'],
-> ['Touch', 'ONETOUCH'],
-> ['No Touch', 'NOTOUCH'],
-> ],
-> endsinout: [
-> ['Ends Between/Outside (both)', 'both'],
-> ['Ends Between', 'EXPIRYRANGE'],
-> ['Ends Outside', 'EXPIRYMISS'],
-> ],
-> staysinout: [
-> ['Stays Between/Goes Outside (both)', 'both'],
-> ['Stays Between', 'RANGE'],
-> ['Goes Outside', 'UPORDOWN'],
-> ],
-> matchesdiffers: [
-> ['Matches/Differs (both)', 'both'],
-> ['Matches', 'DIGITMATCH'],
-> ['Differs', 'DIGITDIFF'],
-> ],
-> evenodd: [
-> ['Even/Odd (both)', 'both'],
-> ['Even', 'DIGITEVEN'],
-> ['Odd', 'DIGITODD'],
-> ],
-> overunder: [
-> ['Over/Under (both)', 'both'],
-> ['Over', 'DIGITOVER'],
-> ['Under', 'DIGITUNDER'],
-> ],
-> multiplier: [
-> ['Multiplier Up/Down (both)', 'both'],
-> ['Up', 'MULTUP'],
-> ['Down', 'MULTDOWN'],
-> ],
-> accumulator: [
-> ['Accumulator (both)', 'both'],
-> ['Accumulate', 'ACCU'],
-> ],
-> }
+risefall: [
+['Rise/Fall (both)', 'both'],
+['Rise', 'CALL'],
+['Fall', 'PUT'],
+],
+higherlower: [
+['Higher/Lower (both)', 'both'],
+['Higher', 'CALL'],
+['Lower', 'PUT'],
+],
+touchnotouch: [
+['Touch/No Touch (both)', 'both'],
+['Touch', 'ONETOUCH'],
+['No Touch', 'NOTOUCH'],
+],
+endsinout: [
+['Ends Between/Outside (both)', 'both'],
+['Ends Between', 'EXPIRYRANGE'],
+['Ends Outside', 'EXPIRYMISS'],
+],
+staysinout: [
+['Stays Between/Goes Outside (both)', 'both'],
+['Stays Between', 'RANGE'],
+['Goes Outside', 'UPORDOWN'],
+],
+matchesdiffers: [
+['Matches/Differs (both)', 'both'],
+['Matches', 'DIGITMATCH'],
+['Differs', 'DIGITDIFF'],
+],
+evenodd: [
+['Even/Odd (both)', 'both'],
+['Even', 'DIGITEVEN'],
+['Odd', 'DIGITODD'],
+],
+overunder: [
+['Over/Under (both)', 'both'],
+['Over', 'DIGITOVER'],
+['Under', 'DIGITUNDER'],
+],
+multiplier: [
+['Multiplier Up/Down (both)', 'both'],
+['Up', 'MULTUP'],
+['Down', 'MULTDOWN'],
+],
+accumulator: [
+['Accumulator (both)', 'both'],
+['Accumulate', 'ACCU'],
+],
+}
 
 function prettifyKey(key: string) {
 return key
@@ -128,11 +127,10 @@ const markets: [string, string][] = []
 const submarkets: Record<
 string,
 [string, string][]
-
 > = {}
-> const symbols: Record<
-> string,
-> [string, string][]
+const symbols: Record<
+string,
+[string, string][]
 > = {}
 
 for (const s of rawSymbols) {
@@ -143,7 +141,6 @@ s.underlying_symbol ||
 s.symbol ||
 ''
 
-```
 if (
   !market ||
   !submarket ||
@@ -190,7 +187,6 @@ if (
     symbol,
   ])
 }
-```
 
 }
 
@@ -371,10 +367,8 @@ cursor.type ===
 return cursor
 }
 
-```
 cursor =
   cursor.getPreviousBlock()
-```
 
 }
 
@@ -506,11 +500,9 @@ x[1] ===
 contractType,
 )
 
-```
 return matched.length
   ? matched
   : real
-```
 
 }
 
@@ -692,10 +684,8 @@ init(this: Blockly.Block) {
 this as any
 ).jsonInit(json())
 
-```
   extra?.(this)
 },
-```
 
 }
 }
@@ -713,7 +703,6 @@ text: '1. Trade parameters',
 },
 ],
 
-```
 message1: '%1',
 args1: [
   {
@@ -754,7 +743,6 @@ colourSecondary:
 colourTertiary:
   Colours.RootBlock
     .colourTertiary,
-```
 
 }),
 (b) =>
@@ -769,7 +757,6 @@ defineBlock(
 message0:
 'Market: %1 > %2 > %3',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -795,7 +782,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -806,7 +792,6 @@ defineBlock(
 message0:
 'Trade type: %1 > %2',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -827,7 +812,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -838,7 +822,6 @@ defineBlock(
 message0:
 'Contract type: %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -853,7 +836,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -864,7 +846,6 @@ defineBlock(
 message0:
 'Candle interval: %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -891,7 +872,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -902,7 +882,6 @@ defineBlock(
 message0:
 'Restart buy/sell on error: %1',
 
-```
 args0: [
   {
     type: 'field_checkbox',
@@ -916,7 +895,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -927,7 +905,6 @@ defineBlock(
 message0:
 'Restart on error: %1',
 
-```
 args0: [
   {
     type: 'field_checkbox',
@@ -941,7 +918,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -952,7 +928,6 @@ defineBlock(
 message0:
 'Duration: %1 %2',
 
-```
 args0: [
   {
     type: 'input_value',
@@ -1032,7 +1007,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 function (block) {
@@ -1043,7 +1017,6 @@ xml.getAttribute(
 'has_prediction',
 )
 
-```
     const barrier =
       xml.getAttribute(
         'has_first_barrier',
@@ -1109,7 +1082,6 @@ block.mutationToDom =
 
     return xml
   }
-```
 
 },
 )
@@ -1122,7 +1094,6 @@ defineBlock(
 message0:
 'Multiplier: %1  Stake: %2 %3',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1158,7 +1129,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1169,7 +1139,6 @@ defineBlock(
 message0:
 'Growth Rate: %1  Stake: %2 %3',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1201,7 +1170,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1212,7 +1180,6 @@ defineBlock(
 message0:
 'Stop Loss: %1 %2',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1232,7 +1199,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1243,7 +1209,6 @@ defineBlock(
 message0:
 'Take Profit: %1 %2',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1263,7 +1228,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1274,7 +1238,6 @@ defineBlock(
 message0:
 'Take Profit: %1 %2',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1294,7 +1257,6 @@ nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1306,7 +1268,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1325,7 +1286,6 @@ args1: [
 
 colour:
   Colours.RootBlock.colour,
-```
 
 }),
 (b) =>
@@ -1338,7 +1298,6 @@ defineBlock(
 message0:
 'Purchase %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1351,7 +1310,6 @@ previousStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1383,7 +1341,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1402,7 +1359,6 @@ args1: [
 
 colour:
   Colours.RootBlock.colour,
-```
 
 }),
 (b) =>
@@ -1415,12 +1371,10 @@ defineBlock(
 message0:
 'Sell is available',
 
-```
 output: 'Boolean',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1431,13 +1385,11 @@ defineBlock(
 message0:
 'Sell at market',
 
-```
 previousStatement: null,
 nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1448,12 +1400,10 @@ defineBlock(
 message0:
 'Sell price',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1465,7 +1415,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'field_label',
@@ -1484,7 +1433,6 @@ args1: [
 
 colour:
   Colours.RootBlock.colour,
-```
 
 }),
 (b) =>
@@ -1497,7 +1445,6 @@ defineBlock(
 message0:
 'Result is %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1513,7 +1460,6 @@ output: 'Boolean',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1524,7 +1470,6 @@ defineBlock(
 message0:
 'Details: %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1549,7 +1494,6 @@ output: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1560,13 +1504,11 @@ defineBlock(
 message0:
 'Trade again',
 
-```
 previousStatement: null,
 nextStatement: null,
 
 colour:
   Colours.Special1.colour,
-```
 
 }),
 )
@@ -1579,12 +1521,10 @@ defineBlock(
 message0:
 'Last Tick',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1594,12 +1534,10 @@ defineBlock(
 () => ({
 message0: 'Ticks',
 
-```
 output: 'Array',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1610,12 +1548,10 @@ defineBlock(
 message0:
 'Last Digit',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1626,7 +1562,6 @@ defineBlock(
 message0:
 'Direction is %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1643,7 +1578,6 @@ output: 'Boolean',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1654,12 +1588,10 @@ defineBlock(
 message0:
 'Last digit list',
 
-```
 output: 'Array',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1676,7 +1608,6 @@ name,
 message0:
 'set %1 to ' + label,
 
-```
   args0: [
     {
       type: 'field_variable',
@@ -1700,7 +1631,6 @@ message0:
   colour:
     Colours.Base.colour,
 }),
-```
 
 )
 }
@@ -1773,7 +1703,6 @@ defineBlock(
 message0:
 'Balance %1',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1789,7 +1718,6 @@ output: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1800,7 +1728,6 @@ defineBlock(
 message0:
 'Notify %1 sound %2 message %3',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1831,7 +1758,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1842,7 +1768,6 @@ defineBlock(
 message0:
 'Print %1 %2',
 
-```
 args0: [
   {
     type: 'field_dropdown',
@@ -1866,7 +1791,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1877,12 +1801,10 @@ defineBlock(
 message0:
 'Total Profit',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1893,12 +1815,10 @@ defineBlock(
 message0:
 'Total Runs',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1908,13 +1828,11 @@ defineBlock(
 () => ({
 message0: '',
 
-```
 previousStatement: null,
 nextStatement: null,
 
 colour:
   Colours.Special4.colour,
-```
 
 }),
 )
@@ -1925,7 +1843,6 @@ defineBlock(
 message0:
 'Set stake to %1',
 
-```
 args0: [
   {
     type: 'input_value',
@@ -1939,7 +1856,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1950,12 +1866,10 @@ defineBlock(
 message0:
 'Current stake',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1968,12 +1882,10 @@ defineBlock(
 message0:
 'Seconds Since Epoch',
 
-```
 output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -1983,7 +1895,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'input_statement',
@@ -2007,7 +1918,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2017,7 +1927,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'input_statement',
@@ -2041,7 +1950,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2052,7 +1960,6 @@ defineBlock(
 message0:
 'Convert to date %1',
 
-```
 args0: [
   {
     type: 'input_value',
@@ -2065,7 +1972,6 @@ output: 'String',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2076,7 +1982,6 @@ defineBlock(
 message0:
 'Convert to timestamp %1',
 
-```
 args0: [
   {
     type: 'input_value',
@@ -2089,7 +1994,6 @@ output: 'Number',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2102,12 +2006,10 @@ defineBlock(
 message0:
 'Candle is black',
 
-```
 output: 'Boolean',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2118,12 +2020,10 @@ defineBlock(
 message0:
 'OHLC values in list',
 
-```
 output: 'Array',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2134,12 +2034,10 @@ defineBlock(
 message0:
 'Read OHLC object',
 
-```
 output: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2152,12 +2050,10 @@ defineBlock(
 message0:
 'create text',
 
-```
 output: 'String',
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 function (block) {
@@ -2172,7 +2068,6 @@ block.inputList[0].name,
 )
 }
 
-```
   block
     .appendDummyInput()
     .appendField(
@@ -2235,7 +2130,6 @@ block.mutationToDom =
 
     return xml
   }
-```
 
 },
 )
@@ -2248,7 +2142,6 @@ defineBlock(
 message0:
 'create text',
 
-```
 args0: [
   {
     type: 'field_variable',
@@ -2271,7 +2164,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )
@@ -2281,7 +2173,6 @@ defineBlock(
 () => ({
 message0: '%1',
 
-```
 args0: [
   {
     type: 'input_value',
@@ -2294,7 +2185,6 @@ nextStatement: null,
 
 colour:
   Colours.Base.colour,
-```
 
 }),
 )

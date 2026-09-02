@@ -48,7 +48,6 @@ Blockly.Theme.defineTheme(
 {
 name: 'dbot_dark',
 
-```
   base:
     Blockly.Themes.Zelos,
 
@@ -163,7 +162,6 @@ name: 'dbot_dark',
         .cursorColour,
   },
 },
-```
 
 )
 
@@ -190,7 +188,6 @@ container,
 {
 toolbox,
 
-```
   theme:
     'dbot_dark',
 
@@ -229,7 +226,6 @@ toolbox,
 
   sounds: false,
 },
-```
 
 )
 }
@@ -322,21 +318,18 @@ const FIELD_RENAMES:
 Record<
 string,
 Record<string, string>
-
 > = {
-> read_details: {
-> DETAILS:
-> 'DETAIL_INDEX',
-> },
+read_details: {
+DETAILS:
+'DETAIL_INDEX',
+},
 
 tick_delay: {
 TICKS:
 'TICKDELAYVALUE',
 
-```
 TIMEOUTSTACK:
   'TICKDELAYSTACK',
-```
 
 },
 
@@ -354,10 +347,8 @@ contract_check_result: {
 RESULT:
 'CHECK_RESULT',
 
-```
 CHECKRESULT:
   'CHECK_RESULT',
-```
 
 },
 }
@@ -380,7 +371,6 @@ block.getAttribute(
 'type',
 )
 
-```
 if (!type) {
   continue
 }
@@ -394,7 +384,6 @@ if (replacement) {
     replacement,
   )
 }
-```
 
 }
 }
@@ -417,7 +406,6 @@ block.getAttribute(
 'type',
 )
 
-```
 if (!type) {
   continue
 }
@@ -457,7 +445,6 @@ for (
     )
   }
 }
-```
 
 }
 }
@@ -480,7 +467,6 @@ field.textContent
 ?.trim()
 .toUpperCase()
 
-```
 if (
   value ===
   'TRUE'
@@ -494,7 +480,6 @@ if (
   field.textContent =
     'FALSE'
 }
-```
 
 }
 }
@@ -528,12 +513,10 @@ doc.createElement(
 'variables',
 )
 
-```
 root.insertBefore(
   variablesElement,
   root.firstChild,
 )
-```
 
 }
 
@@ -561,7 +544,6 @@ child.tagName !==
 continue
 }
 
-```
 const id =
   child.getAttribute(
     'id',
@@ -593,7 +575,6 @@ if (
     id,
   )
 }
-```
 
 }
 
@@ -601,7 +582,6 @@ const createVariableId =
 () => {
 let id = ''
 
-```
   do {
     id =
       Blockly.utils
@@ -615,7 +595,6 @@ let id = ''
 
   return id
 }
-```
 
 const varFields =
 Array.from(
@@ -631,7 +610,6 @@ const rawValue =
 field.textContent
 ?.trim() || ''
 
-```
 if (!rawValue) {
   continue
 }
@@ -683,7 +661,6 @@ if (!variableId) {
 
 field.textContent =
   variableId
-```
 
 }
 
@@ -701,7 +678,6 @@ const rawValue =
 field.textContent
 ?.trim() || ''
 
-```
 const variableId =
   field.getAttribute(
     'id',
@@ -762,7 +738,6 @@ field.setAttribute(
   'id',
   id,
 )
-```
 
 }
 }
@@ -796,7 +771,6 @@ child.getAttribute(
 ) === 'STACK',
 )
 
-```
 const hasVariable =
   Array.from(
     block.children,
@@ -819,7 +793,6 @@ if (
     'text_join_legacy',
   )
 }
-```
 
 }
 }
@@ -922,13 +895,11 @@ block,
 '1',
 )
 
-```
 ensureMathNumberShadow(
   block,
   'AMOUNT',
   '1',
 )
-```
 
 }
 }
@@ -996,7 +967,6 @@ if (
 market =
 getFirstMarketValue()
 
-```
 if (
   marketField &&
   market
@@ -1004,7 +974,6 @@ if (
   marketField.textContent =
     market
 }
-```
 
 }
 
@@ -1022,7 +991,6 @@ getFirstSubmarketValue(
 market,
 )
 
-```
 if (
   submarketField &&
   submarket
@@ -1030,7 +998,6 @@ if (
   submarketField.textContent =
     submarket
 }
-```
 
 }
 
@@ -1048,7 +1015,6 @@ getFirstSymbolValue(
 submarket,
 )
 
-```
 if (
   symbolField &&
   symbol
@@ -1056,7 +1022,6 @@ if (
   symbolField.textContent =
     symbol
 }
-```
 
 }
 }
@@ -1080,7 +1045,6 @@ block,
 'TRADETYPECAT_LIST',
 )
 
-```
 const type =
   findDirectField(
     block,
@@ -1112,7 +1076,6 @@ if (
       categoryValue,
     )
 }
-```
 
 }
 
@@ -1132,7 +1095,6 @@ block,
 'TYPE_LIST',
 )
 
-```
 if (
   field &&
   !field.textContent
@@ -1160,7 +1122,6 @@ if (
       tradeType,
     ) || 'both'
 }
-```
 
 }
 }
@@ -1234,7 +1195,6 @@ purchase,
 'PURCHASE_LIST',
 )
 
-```
 if (!field) {
   continue
 }
@@ -1252,7 +1212,6 @@ if (
   field.textContent =
     defaultPurchase
 }
-```
 
 }
 }
@@ -1306,7 +1265,6 @@ xmlBlock.getAttribute(
 'id',
 )
 
-```
 if (!id) {
   continue
 }
@@ -1398,7 +1356,6 @@ for (
     )
   }
 }
-```
 
 }
 
@@ -1410,7 +1367,6 @@ xmlBlock.getAttribute(
 'id',
 )
 
-```
 if (!id) {
   continue
 }
@@ -1448,7 +1404,6 @@ if (
     'SYMBOL_LIST',
   )
 }
-```
 
 }
 
@@ -1460,7 +1415,6 @@ xmlBlock.getAttribute(
 'id',
 )
 
-```
 if (!id) {
   continue
 }
@@ -1489,7 +1443,6 @@ restoreDynamicField(
   xmlBlock,
   'TRADETYPE_LIST',
 )
-```
 
 }
 
@@ -1501,7 +1454,6 @@ xmlBlock.getAttribute(
 'id',
 )
 
-```
 if (!id) {
   continue
 }
@@ -1524,7 +1476,6 @@ restoreDynamicField(
   xmlBlock,
   'TYPE_LIST',
 )
-```
 
 }
 
@@ -1536,7 +1487,6 @@ xmlBlock.getAttribute(
 'id',
 )
 
-```
 if (!id) {
   continue
 }
@@ -1559,7 +1509,6 @@ restoreDynamicField(
   xmlBlock,
   'PURCHASE_LIST',
 )
-```
 
 }
 }
@@ -1638,7 +1587,6 @@ throw new Error(
 )
 }
 
-```
 const dom =
   Blockly.utils.xml.textToDom(
     xmlText,
@@ -1663,7 +1611,6 @@ Blockly.svgResize(
 )
 
 return true
-```
 
 } catch (
 error
@@ -1673,9 +1620,7 @@ console.error(
 error,
 )
 
-```
 return false
-```
 
 }
 }
@@ -1688,13 +1633,11 @@ if (!xml.trim()) {
 return false
 }
 
-```
 Blockly.utils.xml.textToDom(
   xml,
 )
 
 return true
-```
 
 } catch {
 return false
@@ -1820,7 +1763,6 @@ block.type ===
 const field =
 block.getField('VAR')
 
-```
 if (!field) {
   return undefined
 }
@@ -1892,7 +1834,6 @@ for (
     return resolved
   }
 }
-```
 
 }
 
@@ -1909,7 +1850,6 @@ Blockly.inputs
 continue
 }
 
-```
 const target =
   input.connection
     ?.targetBlock()
@@ -1928,7 +1868,6 @@ if (
 ) {
   return resolved
 }
-```
 
 }
 
@@ -2140,7 +2079,6 @@ const result: TradeParams =
 {
 symbol,
 
-```
   contract_type:
     contractType,
 
@@ -2156,7 +2094,6 @@ symbol,
 
   currency,
 }
-```
 
 if (
 prediction !==
@@ -2200,26 +2137,24 @@ workspace: Blockly.WorkspaceSvg,
 xml: string,
 fetchSymbolsIfNeeded: () => Promise<
 RawSymbol[] | null
-
-> ,
-> currentlyLoadedSymbols:
-> | RawSymbol[]
-> | null,
-> ): Promise<
-> | {
-> ok: true
-> repaired: boolean
-> }
-> | {
-> ok: false
-> reason: string
-> }
+>,
+currentlyLoadedSymbols:
+| RawSymbol[]
+| null,
+): Promise<
+| {
+ok: true
+repaired: boolean
+}
+| {
+ok: false
+reason: string
+}
 > {
-> try {
-> let symbols =
-> currentlyLoadedSymbols
+try {
+let symbols =
+currentlyLoadedSymbols
 
-```
 if (!symbols?.length) {
   symbols =
     await fetchSymbolsIfNeeded()
@@ -2278,7 +2213,6 @@ return {
     params.repairedInputs
       .length > 0,
 }
-```
 
 } catch (
 error
@@ -2288,7 +2222,6 @@ console.error(
 error,
 )
 
-```
 return {
   ok: false,
   reason:
@@ -2296,7 +2229,6 @@ return {
       ? error.message
       : 'Unknown XML import error.',
 }
-```
 
 }
 }
