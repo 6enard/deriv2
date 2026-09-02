@@ -26,7 +26,10 @@ export interface NotifyData {
 }
 
 export interface BotApi {
-  purchase(contractType?: string): Promise<number>
+  purchase(
+    contractType?: string,
+  ): Promise<number>
+
   sellAtMarket(): Promise<void>
 
   isContractOpen(): boolean
@@ -44,7 +47,9 @@ export interface BotApi {
 
   getBalance(): number
   getLastResult(): string
-  getDetails(detail: string): string | number
+  getDetails(
+    detail: string,
+  ): string | number
 
   getTotalProfit(): number
   getTotalRuns(): number
@@ -52,7 +57,10 @@ export interface BotApi {
   setStake(amount: number): void
   getStake(): number
 
-  setBarrier(barrier: string | number): void
+  setBarrier(
+    barrier: string | number,
+  ): void
+
   getBarrier(): string
 
   shouldStop(): boolean
@@ -60,27 +68,30 @@ export interface BotApi {
   notify(
     type: NotificationType,
     message: string,
-    data?: NotifyData
+    data?: NotifyData,
   ): void
 
   console(
     type: string,
-    message: unknown
+    message: unknown,
   ): void
 
   sleep(ms: number): Promise<void>
-  tickDelay(count: number): Promise<void>
+
+  tickDelay(
+    count: number,
+  ): Promise<void>
 }
 
 export interface BotApiOptions {
   onNotify?: (
     type: NotificationType,
     message: string,
-    data?: NotifyData
+    data?: NotifyData,
   ) => void
 
   onTrade?: (
-    contractId: number
+    contractId: number,
   ) => void
 
   shouldStop?: () => boolean
@@ -88,9 +99,10 @@ export interface BotApiOptions {
 
 function number(
   value: unknown,
-  fallback = 0
+  fallback = 0,
 ): number {
-  const parsed = Number(value)
+  const parsed =
+    Number(value)
 
   return Number.isFinite(parsed)
     ? parsed
@@ -98,84 +110,109 @@ function number(
 }
 
 function isBarrierContract(
-  contractType: string
+  contractType: string,
 ): boolean {
   return [
     'DIGITMATCH',
     'DIGITDIFF',
     'DIGITOVER',
     'DIGITUNDER',
-    'CALLPUT',
+    'DIGITEVEN',
+    'DIGITODD',
     'CALL',
     'PUT',
+    'HIGHER',
+    'LOWER',
     'TOUCH',
     'NOTOUCH',
     'ONETOUCH',
     'IN',
-    'OUT'
+    'OUT',
+    'EXPIRYRANGE',
+    'EXPIRYMISS',
+    'RANGE',
+    'UPORDOWN',
   ].includes(contractType)
 }
 
 function decimalPlaces(
-  value: number
+  value: number,
 ): number {
   if (!Number.isFinite(value)) {
     return 0
   }
 
-  const text = String(value)
+  const text =
+    String(value)
 
   if (!text.includes('.')) {
     return 0
   }
 
-  return text.split('.')[1].length
+  return text.split('.')[1]
+    .length
 }
 
 function getLastDigitFromQuote(
-  quote: number
+  quote: number,
 ): number {
   if (!Number.isFinite(quote)) {
     return 0
   }
 
-  const places = decimalPlaces(quote)
+  const places =
+    decimalPlaces(quote)
 
   if (places <= 0) {
-    return Math.abs(Math.trunc(quote)) % 10
+    return (
+      Math.abs(
+        Math.trunc(quote),
+      ) % 10
+    )
   }
 
-  const multiplier = Math.pow(10, places)
+  const multiplier =
+    Math.pow(10, places)
 
   const integerValue =
     Math.round(
-      Math.abs(quote) * multiplier
+      Math.abs(quote) *
+        multiplier,
     )
 
-  return integerValue % 10
+  return (
+    integerValue % 10
+  )
 }
 
 export function createBotApi(
   ws: DerivWS,
   account: DerivSessionAccount,
   params: TradeParams,
-  options: BotApiOptions = {}
+  options: BotApiOptions = {},
 ): BotApi {
   let currentStake =
     number(params.amount, 0)
 
   let currentContractType =
     String(
-      params.contract_type || ''
+      params.contract_type ||
+        '',
     ).toUpperCase()
 
   let currentBarrier =
-    params.barrier !== undefined &&
-    params.barrier !== null
+    params.barrier !==
+        undefined &&
+      params.barrier !==
+        null
       ? String(params.barrier)
-      : params.prediction !== undefined &&
-          params.prediction !== null
-        ? String(params.prediction)
+      : params.prediction !==
+            undefined &&
+          params.prediction !==
+            null
+        ? String(
+            params.prediction,
+          )
         : ''
 
   let openContractId:
@@ -190,7 +227,16 @@ export function createBotApi(
   let totalRuns = 0
   let totalProfit = 0
 
-  const tickHistory: number[] = []
+  const tickHistory: number[] =
+    []
+
+  let tickSubscriptionId:
+    string | null = null
+
+  let contractSubscriptionId:
+    string | null = null
+
+  let disposed = false
 
   const shouldStop =
     options.shouldStop ||
@@ -198,27 +244,33 @@ export function createBotApi(
       return false
     }
 
+  /* =======================================================
+  NOTIFICATIONS
+  ======================================================= */
+
   function notify(
     type: NotificationType,
     message: string,
-    data?: NotifyData
+    data?: NotifyData,
   ): void {
     if (options.onNotify) {
       options.onNotify(
         type,
         message,
-        data
+        data,
       )
     }
   }
 
   function writeConsole(
     type: string,
-    message: unknown
+    message: unknown,
   ): void {
     if (type === 'error') {
       console.error(message)
-    } else if (type === 'warn') {
+    } else if (
+      type === 'warn'
+    ) {
       console.warn(message)
     } else {
       console.log(message)
@@ -230,12 +282,150 @@ export function createBotApi(
         : type === 'warn'
           ? 'warn'
           : 'info',
-      String(message)
+      String(message),
     )
   }
 
+  /* =======================================================
+  SUBSCRIPTION CLEANUP
+  ======================================================= */
+
+  async function forgetSubscription(
+    subscriptionId:
+      | string
+      | null,
+  ): Promise<void> {
+    if (!subscriptionId) {
+      return
+    }
+
+    try {
+      await ws.forget(
+        subscriptionId,
+      )
+    } catch {
+      // Subscription may already be gone.
+    }
+  }
+
+  async function cleanupSubscriptions(): Promise<void> {
+    const tickId =
+      tickSubscriptionId
+
+    const contractId =
+      contractSubscriptionId
+
+    tickSubscriptionId = null
+    contractSubscriptionId = null
+
+    await Promise.all([
+      forgetSubscription(
+        tickId,
+      ),
+      forgetSubscription(
+        contractId,
+      ),
+    ])
+  }
+
+  /* =======================================================
+  TICK STREAM
+  ======================================================= */
+
+  async function startTickStream(): Promise<void> {
+    if (disposed) {
+      return
+    }
+
+    /*
+     * Do not create another stream if one is
+     * already active for this BotApi instance.
+     */
+    if (tickSubscriptionId) {
+      return
+    }
+
+    try {
+      const result =
+        await ws.subscribe(
+          {
+            ticks: params.symbol,
+          },
+          (
+            data: any,
+          ) => {
+            if (
+              disposed ||
+              !data?.tick
+            ) {
+              return
+            }
+
+            const quote =
+              number(
+                data.tick.quote,
+                NaN,
+              )
+
+            if (
+              !Number.isFinite(
+                quote,
+              )
+            ) {
+              return
+            }
+
+            tickHistory.push(
+              quote,
+            )
+
+            if (
+              tickHistory.length >
+              100
+            ) {
+              tickHistory.shift()
+            }
+          },
+        )
+
+      const id =
+        result.data?.subscription
+          ?.id
+
+      if (id) {
+        tickSubscriptionId =
+          String(id)
+      }
+
+      notify(
+        'info',
+        'Tick stream connected for ' +
+          params.symbol,
+        {
+          event: 'info',
+        },
+      )
+    } catch (error) {
+      writeConsole(
+        'warn',
+        'Unable to subscribe to ticks.',
+      )
+
+      writeConsole(
+        'warn',
+        error,
+      )
+
+      throw error
+    }
+  }
+
+  /* =======================================================
+  CONTRACT SETTLEMENT
+  ======================================================= */
+
   function handleSettlement(
-    contract: any
+    contract: any,
   ): void {
     if (!contract) {
       return
@@ -244,12 +434,12 @@ export function createBotApi(
     const contractId =
       number(
         contract.contract_id,
-        0
+        0,
       )
 
     const status =
       String(
-        contract.status || ''
+        contract.status || '',
       ).toLowerCase()
 
     const isSold =
@@ -263,23 +453,31 @@ export function createBotApi(
     }
 
     const profit =
-      number(contract.profit, 0)
+      number(
+        contract.profit,
+        0,
+      )
 
     const buyPrice =
       number(
         contract.buy_price,
-        lastBuyPrice
+        lastBuyPrice,
       )
 
     const payout =
       number(
         contract.payout,
-        lastPayout
+        lastPayout,
       )
 
-    lastProfit = profit
-    lastBuyPrice = buyPrice
-    lastPayout = payout
+    lastProfit =
+      profit
+
+    lastBuyPrice =
+      buyPrice
+
+    lastPayout =
+      payout
 
     const result =
       profit > 0
@@ -288,12 +486,32 @@ export function createBotApi(
           ? 'loss'
           : 'sold'
 
-    lastResult = result
+    lastResult =
+      result
 
-    totalProfit += profit
-    totalRuns += 1
+    totalProfit +=
+      profit
 
-    openContractId = null
+    totalRuns +=
+      1
+
+    if (
+      openContractId ===
+      contractId
+    ) {
+      openContractId =
+        null
+    }
+
+    const subscriptionId =
+      contractSubscriptionId
+
+    contractSubscriptionId =
+      null
+
+    void forgetSubscription(
+      subscriptionId,
+    )
 
     const event =
       result === 'win'
@@ -322,161 +540,244 @@ export function createBotApi(
         contractType:
           String(
             contract.contract_type ||
-              currentContractType
-          )
-      }
+              currentContractType,
+          ),
+      },
     )
   }
 
   async function waitForContractSettlement(
-    contractId: number
+    contractId: number,
   ): Promise<void> {
-    const timeoutMs = 120000
-    const started = Date.now()
+    const timeoutMs =
+      120000
+
+    const started =
+      Date.now()
 
     try {
-      const response =
-        await ws.send({
-          proposal_open_contract: 1,
-          contract_id: contractId,
-          subscribe: 1
-        })
+      const result =
+        await ws.subscribe(
+          {
+            proposal_open_contract: 1,
+            contract_id:
+              contractId,
+          },
+          (
+            data: any,
+          ) => {
+            const contract =
+              data?.proposal_open_contract
 
-      if (response) {
-        const contract =
-          response.proposal_open_contract
+            if (contract) {
+              handleSettlement(
+                contract,
+              )
+            }
+          },
+        )
 
-        if (contract) {
-          handleSettlement(contract)
+      const subscriptionId =
+        result.data?.subscription
+          ?.id
 
-          if (
-            openContractId === null
-          ) {
-            return
-          }
-        }
+      if (subscriptionId) {
+        contractSubscriptionId =
+          String(
+            subscriptionId,
+          )
+      }
+
+      /*
+       * The initial response may already
+       * contain the final state.
+       */
+      if (
+        result.data
+          ?.proposal_open_contract
+      ) {
+        handleSettlement(
+          result.data
+            .proposal_open_contract,
+        )
       }
     } catch (error) {
       writeConsole(
         'warn',
-        'Contract subscription failed; using polling fallback.'
+        'Contract subscription failed; using polling fallback.',
       )
+
+      /*
+       * Polling fallback.
+       */
+      while (
+        openContractId !==
+          null &&
+        openContractId ===
+          contractId &&
+        Date.now() -
+            started <
+          timeoutMs
+      ) {
+        if (
+          shouldStop()
+        ) {
+          return
+        }
+
+        try {
+          const response =
+            await ws.send({
+              proposal_open_contract:
+                1,
+              contract_id:
+                contractId,
+            })
+
+          if (
+            response
+              ?.proposal_open_contract
+          ) {
+            handleSettlement(
+              response.proposal_open_contract,
+            )
+          }
+        } catch (pollError) {
+          writeConsole(
+            'warn',
+            'Unable to read contract status.',
+          )
+        }
+
+        if (
+          openContractId ===
+          null
+        ) {
+          return
+        }
+
+        await sleep(1000)
+      }
     }
 
     while (
-      openContractId !== null &&
-      Date.now() - started <
+      openContractId ===
+        contractId &&
+      Date.now() -
+          started <
         timeoutMs
     ) {
-      if (shouldStop()) {
-        return
-      }
-
-      try {
-        const response =
-          await ws.send({
-            proposal_open_contract: 1,
-            contract_id: contractId
-          })
-
-        if (response) {
-          const contract =
-            response.proposal_open_contract
-
-          if (contract) {
-            handleSettlement(
-              contract
-            )
-          }
-        }
-      } catch (error) {
-        writeConsole(
-          'warn',
-          'Unable to read contract status.'
-        )
-      }
-
       if (
-        openContractId === null
+        shouldStop()
       ) {
         return
       }
 
-      await sleep(1000)
+      await sleep(250)
+
+      if (
+        openContractId ===
+        null
+      ) {
+        return
+      }
     }
 
     if (
-      openContractId !== null
+      openContractId ===
+      contractId
     ) {
       notify(
         'warn',
         'Contract settlement timed out.',
         {
           event: 'info',
-          contractId
-        }
+          contractId,
+        },
       )
     }
   }
 
+  /* =======================================================
+  PURCHASE
+  ======================================================= */
+
   async function purchase(
-    contractType?: string
+    contractType?: string,
   ): Promise<number> {
-    if (shouldStop()) {
+    if (
+      shouldStop()
+    ) {
       throw new Error(
-        'Bot stop requested.'
+        'Bot stop requested.',
       )
     }
+
+    /*
+     * Make sure tick stream exists before
+     * the first purchase.
+     */
+    await startTickStream()
 
     const ct =
       String(
         contractType ||
           currentContractType ||
           params.contract_type ||
-          ''
+          '',
       ).toUpperCase()
 
     if (!ct) {
       throw new Error(
-        'No contract type was provided.'
+        'No contract type was provided.',
       )
     }
 
-    currentContractType = ct
+    currentContractType =
+      ct
 
     const stake =
-      number(currentStake, 0)
+      number(
+        currentStake,
+        0,
+      )
 
     if (
-      !Number.isFinite(stake) ||
+      !Number.isFinite(
+        stake,
+      ) ||
       stake <= 0
     ) {
       throw new Error(
         'Invalid stake amount: ' +
-          String(currentStake)
+          String(
+            currentStake,
+          ),
       )
     }
 
     const proposalRequest:
-      Record<string, unknown> = {
-      proposal: 1,
-      amount: stake,
-      basis: 'stake',
-      contract_type: ct,
-      currency:
-        params.currency ||
-        account.currency,
-      duration:
-        number(
-          params.duration,
-          1
-        ),
-      duration_unit:
-        params.duration_unit ||
-        't',
-      underlying_symbol:
-        params.symbol
-    }
+      Record<string, unknown> =
+      {
+        proposal: 1,
+        amount: stake,
+        basis: 'stake',
+        contract_type:
+          ct,
+        currency:
+          params.currency ||
+          account.currency,
+        duration:
+          number(
+            params.duration,
+            1,
+          ),
+        duration_unit:
+          params.duration_unit ||
+          't',
+        underlying_symbol:
+          params.symbol,
+      }
 
     if (
       isBarrierContract(ct) &&
@@ -492,12 +793,12 @@ export function createBotApi(
       params.second_barrier !==
         null &&
       String(
-        params.second_barrier
+        params.second_barrier,
       ) !== ''
     ) {
       proposalRequest.barrier2 =
         String(
-          params.second_barrier
+          params.second_barrier,
         )
     }
 
@@ -510,9 +811,11 @@ export function createBotApi(
       attempt += 1
     ) {
       try {
-        if (shouldStop()) {
+        if (
+          shouldStop()
+        ) {
           throw new Error(
-            'Bot stop requested.'
+            'Bot stop requested.',
           )
         }
 
@@ -523,95 +826,106 @@ export function createBotApi(
             ' with stake ' +
             stake,
           {
-            event: 'proposal',
+            event:
+              'proposal',
             stake,
-            contractType: ct
-          }
+            contractType:
+              ct,
+          },
         )
 
         const proposalResponse =
           await ws.send(
-            proposalRequest
+            proposalRequest,
           )
 
         if (
-          proposalResponse &&
-          proposalResponse.error
+          proposalResponse
+            ?.error
         ) {
           throw new Error(
-            proposalResponse.error.message ||
-              'Proposal request failed.'
+            proposalResponse
+              .error
+              .message ||
+              'Proposal request failed.',
           )
         }
 
         const proposal =
-          proposalResponse &&
-          proposalResponse.proposal
+          proposalResponse
+            ?.proposal
 
         if (!proposal) {
           throw new Error(
-            'Deriv returned no proposal.'
+            'Deriv returned no proposal.',
           )
         }
 
         const proposalId =
           String(
-            proposal.id || ''
+            proposal.id ||
+              '',
           )
 
         if (!proposalId) {
           throw new Error(
-            'Deriv proposal has no id.'
+            'Deriv proposal has no id.',
           )
         }
 
         lastAskPrice =
           number(
             proposal.ask_price,
-            stake
+            stake,
           )
 
         lastPayout =
           number(
             proposal.payout,
-            0
+            0,
           )
 
+        /*
+         * Buy the proposal.
+         */
         const buyResponse =
           await ws.send({
-            buy: proposalId,
-            price: lastAskPrice
+            buy:
+              proposalId,
+            price:
+              lastAskPrice,
           })
 
         if (
-          buyResponse &&
-          buyResponse.error
+          buyResponse
+            ?.error
         ) {
           throw new Error(
-            buyResponse.error.message ||
-              'Buy request failed.'
+            buyResponse
+              .error
+              .message ||
+              'Buy request failed.',
           )
         }
 
         const buy =
-          buyResponse &&
-          buyResponse.buy
+          buyResponse?.buy
 
         if (!buy) {
           throw new Error(
-            'Deriv returned no buy response.'
+            'Deriv returned no buy response.',
           )
         }
 
         const contractId =
           number(
             buy.contract_id,
-            0
+            0,
           )
 
         if (!contractId) {
           throw new Error(
-            'Deriv returned no contract id.'
+            'Deriv returned no contract id.',
           )
         }
 
@@ -621,16 +935,17 @@ export function createBotApi(
         lastBuyPrice =
           number(
             buy.buy_price,
-            lastAskPrice
+            lastAskPrice,
           )
 
         if (
-          buy.payout !== undefined
+          buy.payout !==
+          undefined
         ) {
           lastPayout =
             number(
               buy.payout,
-              lastPayout
+              lastPayout,
             )
         }
 
@@ -639,58 +954,77 @@ export function createBotApi(
           'Contract purchased: ' +
             contractId,
           {
-            event: 'purchase',
+            event:
+              'purchase',
             contractId,
             stake,
-            payout: lastPayout,
-            contractType: ct
-          }
+            payout:
+              lastPayout,
+            contractType:
+              ct,
+          },
         )
 
-        if (options.onTrade) {
+        if (
+          options.onTrade
+        ) {
           options.onTrade(
-            contractId
+            contractId,
           )
         }
 
+        /*
+         * Wait until the contract actually
+         * settles before returning from
+         * Bot.purchase().
+         */
         await waitForContractSettlement(
-          contractId
+          contractId,
         )
 
         return contractId
-      } catch (error) {
-        lastError = error
+      } catch (
+        error
+      ) {
+        lastError =
+          error
 
         writeConsole(
           'error',
-          error
+          error,
         )
 
         if (
           attempt < 3
         ) {
           await sleep(
-            attempt * 1000
+            attempt * 1000,
           )
         }
       }
     }
 
     throw (
-      lastError instanceof Error
+      lastError instanceof
+      Error
         ? lastError
         : new Error(
-            'Unable to purchase contract.'
+            'Unable to purchase contract.',
           )
     )
   }
 
+  /* =======================================================
+  SELL
+  ======================================================= */
+
   async function sellAtMarket(): Promise<void> {
     if (
-      openContractId === null
+      openContractId ===
+      null
     ) {
       throw new Error(
-        'There is no open contract to sell.'
+        'There is no open contract to sell.',
       )
     }
 
@@ -699,17 +1033,18 @@ export function createBotApi(
 
     const response =
       await ws.send({
-        sell: contractId,
-        price: 0
+        sell:
+          contractId,
+        price: 0,
       })
 
     if (
-      response &&
-      response.error
+      response?.error
     ) {
       throw new Error(
-        response.error.message ||
-          'Unable to sell contract.'
+        response.error
+          .message ||
+          'Unable to sell contract.',
       )
     }
 
@@ -718,23 +1053,41 @@ export function createBotApi(
       'Contract sold: ' +
         contractId,
       {
-        event: 'trade_sold',
+        event:
+          'trade_sold',
         contractId,
-        profit: 0,
-        stake: lastBuyPrice,
-        payout: lastPayout,
+        profit:
+          number(
+            response.sell
+              ?.profit,
+            0,
+          ),
+        stake:
+          lastBuyPrice,
+        payout:
+          lastPayout,
         contractType:
-          currentContractType
-      }
+          currentContractType,
+      },
     )
   }
 
+  /* =======================================================
+  CONTRACT / MARKET DATA
+  ======================================================= */
+
   function isContractOpen(): boolean {
-    return openContractId !== null
+    return (
+      openContractId !==
+      null
+    )
   }
 
   function isSellAvailable(): boolean {
-    return openContractId !== null
+    return (
+      openContractId !==
+      null
+    )
   }
 
   function getAskPrice(): number {
@@ -751,7 +1104,8 @@ export function createBotApi(
 
   function getTick(): number {
     if (
-      tickHistory.length === 0
+      tickHistory.length ===
+      0
     ) {
       return 0
     }
@@ -767,19 +1121,20 @@ export function createBotApi(
 
   function getLastDigit(): number {
     return getLastDigitFromQuote(
-      getTick()
+      getTick(),
     )
   }
 
   function getLastDigitList(): number[] {
     return tickHistory.map(
-      getLastDigitFromQuote
+      getLastDigitFromQuote,
     )
   }
 
   function getDirection(): string {
     if (
-      tickHistory.length < 2
+      tickHistory.length <
+      2
     ) {
       return ''
     }
@@ -794,11 +1149,17 @@ export function createBotApi(
         tickHistory.length - 2
       ]
 
-    if (current > previous) {
+    if (
+      current >
+      previous
+    ) {
       return 'up'
     }
 
-    if (current < previous) {
+    if (
+      current <
+      previous
+    ) {
       return 'down'
     }
 
@@ -808,7 +1169,7 @@ export function createBotApi(
   function getBalance(): number {
     return number(
       account.balance,
-      0
+      0,
     )
   }
 
@@ -817,14 +1178,19 @@ export function createBotApi(
   }
 
   function getDetails(
-    detail: string
+    detail: string,
   ): string | number {
     const normalized =
       String(detail)
         .toLowerCase()
-        .replace(/\s+/g, '_')
+        .replace(
+          /\s+/g,
+          '_',
+        )
 
-    switch (normalized) {
+    switch (
+      normalized
+    ) {
       case 'profit':
       case 'last_profit':
         return lastProfit
@@ -843,7 +1209,10 @@ export function createBotApi(
         return lastResult
 
       case 'contract_id':
-        return openContractId || 0
+        return (
+          openContractId ||
+          0
+        )
 
       case 'stake':
       case 'amount':
@@ -882,22 +1251,32 @@ export function createBotApi(
     return totalRuns
   }
 
+  /* =======================================================
+  STAKE / BARRIER
+  ======================================================= */
+
   function setStake(
-    amount: number
+    amount: number,
   ): void {
     const value =
-      number(amount, NaN)
+      number(
+        amount,
+        NaN,
+      )
 
     if (
-      !Number.isFinite(value) ||
+      !Number.isFinite(
+        value,
+      ) ||
       value <= 0
     ) {
       throw new Error(
-        'Stake must be greater than zero.'
+        'Stake must be greater than zero.',
       )
     }
 
-    currentStake = value
+    currentStake =
+      value
   }
 
   function getStake(): number {
@@ -905,7 +1284,9 @@ export function createBotApi(
   }
 
   function setBarrier(
-    barrier: string | number
+    barrier:
+      | string
+      | number,
   ): void {
     currentBarrier =
       String(barrier)
@@ -915,132 +1296,93 @@ export function createBotApi(
     return currentBarrier
   }
 
+  /* =======================================================
+  TIMING
+  ======================================================= */
+
   function sleep(
-    ms: number
+    ms: number,
   ): Promise<void> {
     const delay =
       Math.max(
         0,
-        number(ms, 0)
+        number(ms, 0),
       )
 
     return new Promise(
-      resolve => {
+      (resolve) => {
         setTimeout(
           resolve,
-          delay
+          delay,
         )
-      }
+      },
     )
   }
 
   async function tickDelay(
-    count: number
+    count: number,
   ): Promise<void> {
     const target =
       Math.max(
         1,
         Math.floor(
-          number(count, 1)
-        )
+          number(
+            count,
+            1,
+          ),
+        ),
       )
+
+    /*
+     * Make sure there is a tick stream.
+     */
+    await startTickStream()
 
     const startingLength =
       tickHistory.length
 
     const targetLength =
-      startingLength + target
+      startingLength +
+      target
 
     while (
       tickHistory.length <
       targetLength
     ) {
-      if (shouldStop()) {
+      if (
+        shouldStop()
+      ) {
         return
       }
 
-      await sleep(250)
+      await sleep(100)
     }
   }
 
-  const tickSubscription =
-    ws.send({
-      ticks: params.symbol,
-      subscribe: 1
-    })
-      .then(() => {
-        notify(
-          'info',
-          'Tick stream connected for ' +
-            params.symbol,
-          {
-            event: 'info'
-          }
-        )
-      })
-      .catch(error => {
-        writeConsole(
-          'warn',
-          'Unable to subscribe to ticks.'
-        )
+  /* =======================================================
+  START STREAM
+  ======================================================= */
 
-        writeConsole(
-          'warn',
-          error
-        )
-      })
+  void startTickStream().catch(
+    () => {
+      /*
+       * The error was already
+       * reported by startTickStream.
+       */
+    },
+  )
 
-  void tickSubscription
-
-  const originalOnMessage =
-    (ws as any).onMessage
-
-  if (
-    typeof originalOnMessage ===
-    'function'
-  ) {
-    ;(ws as any).onMessage =
-      function (
-        message: any
-      ): void {
-        try {
-          if (
-            message &&
-            message.tick
-          ) {
-            const quote =
-              number(
-                message.tick.quote,
-                NaN
-              )
-
-            if (
-              Number.isFinite(quote)
-            ) {
-              tickHistory.push(
-                quote
-              )
-
-              if (
-                tickHistory.length >
-                100
-              ) {
-                tickHistory.shift()
-              }
-            }
-          }
-        } catch (error) {
-          writeConsole(
-            'warn',
-            error
-          )
-        }
-
-        originalOnMessage(message)
-      }
-  }
-
-  return {
+  /*
+   * The generated bot can finish, but the
+   * WebSocket subscriptions must not remain
+   * attached forever.
+   *
+   * The runner should call the cleanup hook
+   * below if it wants explicit cleanup.
+   */
+  const api: BotApi & {
+    cleanup?: () => Promise<void>
+  } = {
     purchase,
     sellAtMarket,
 
@@ -1073,11 +1415,26 @@ export function createBotApi(
     shouldStop,
 
     notify,
-    console: writeConsole,
+    console:
+      writeConsole,
 
     sleep,
-    tickDelay
+    tickDelay,
+
+    cleanup:
+      async () => {
+        if (disposed) {
+          return
+        }
+
+        disposed =
+          true
+
+        await cleanupSubscriptions()
+      },
   }
+
+  return api
 }
 
 export default createBotApi
