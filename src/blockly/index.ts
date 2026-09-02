@@ -2417,13 +2417,20 @@ const params =
     workspace,
   )
 
+if (!params.ok) {
+  return {
+    ok: false,
+    reason:
+      `Missing or invalid trade field: ${params.missingField}`,
+  }
+}
+
 return {
   ok: true,
 
   repaired:
-    params.ok &&
     params.repairedInputs.length >
-      0,
+    0,
 }
 ```
 
