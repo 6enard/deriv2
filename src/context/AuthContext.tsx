@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import {
+createContext,
+useCallback,
+useContext,
+useEffect,
+useState,
+type ReactNode,
+} from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import {
 buildAuthUrl,
@@ -104,7 +111,7 @@ return data as OAuthTokenResponse
 function authHeaders(accessToken: string): Record<string, string> {
 return {
 'Deriv-App-ID': DERIV_CLIENT_ID,
-Authorization: `Bearer ${accessToken}`,
+Authorization: 'Bearer ' + accessToken,
 'Content-Type': 'application/json',
 }
 }
@@ -122,12 +129,12 @@ async function callDerivOAuth(
 payload: Record<string, unknown>,
 ): Promise<OAuthTokenResponse> {
 const res = await fetch(
-`${SUPABASE_URL}/functions/v1/deriv-oauth`,
+SUPABASE_URL + '/functions/v1/deriv-oauth',
 {
 method: 'POST',
 headers: {
 'Content-Type': 'application/json',
-Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
 },
 body: JSON.stringify(payload),
 },
@@ -138,7 +145,7 @@ const body = await res.json().catch(() => ({}))
 if (!res.ok) {
 const msg =
 (body as { error?: string }).error ||
-`Edge function error (${res.status})`
+'Edge function error (' + res.status + ')'
 
 ```
 throw new Error(msg)
@@ -171,7 +178,7 @@ async function fetchAccounts(
 accessToken: string,
 ): Promise<OptionsAccount[]> {
 const res = await fetch(
-`${OPTIONS_API_BASE}/accounts`,
+OPTIONS_API_BASE + '/accounts',
 {
 headers: authHeaders(accessToken),
 },
@@ -182,8 +189,8 @@ const err = await res.json().catch(() => ({}))
 
 ```
 throw new Error(
-  err.error ||
-    `Accounts request failed (${res.status})`,
+  (err as { error?: string }).error ||
+    'Accounts request failed (' + res.status + ')',
 )
 ```
 
@@ -199,7 +206,7 @@ accessToken: string,
 accountType: 'demo' | 'real',
 ): Promise<OptionsAccount> {
 const res = await fetch(
-`${OPTIONS_API_BASE}/accounts`,
+OPTIONS_API_BASE + '/accounts',
 {
 method: 'POST',
 headers: authHeaders(accessToken),
@@ -216,8 +223,8 @@ const err = await res.json().catch(() => ({}))
 
 ```
 throw new Error(
-  err.error ||
-    `Account creation failed (${res.status})`,
+  (err as { error?: string }).error ||
+    'Account creation failed (' + res.status + ')',
 )
 ```
 
@@ -233,7 +240,10 @@ accessToken: string,
 accountId: string,
 ): Promise<string> {
 const res = await fetch(
-`${OPTIONS_API_BASE}/accounts/${accountId}/otp`,
+OPTIONS_API_BASE +
+'/accounts/' +
+accountId +
+'/otp',
 {
 method: 'POST',
 headers: authHeaders(accessToken),
@@ -245,8 +255,8 @@ const err = await res.json().catch(() => ({}))
 
 ```
 throw new Error(
-  err.error ||
-    `OTP request failed (${res.status})`,
+  (err as { error?: string }).error ||
+    'OTP request failed (' + res.status + ')',
 )
 ```
 
@@ -462,9 +472,12 @@ accountId,
       )
 
     const nextWs =
-      await connectViaOtp(otpUrl)
+      await connectViaOtp(
+        otpUrl,
+      )
 
-    refreshed.ws_url = otpUrl
+    refreshed.ws_url =
+      otpUrl
 
     ws?.disconnect()
 
@@ -698,13 +711,15 @@ type,
 
 ```
     if (!targetAccount) {
-      setError(
-        `No ${type} account found. ${
-          type === 'real'
-            ? 'Enable real trading first.'
-            : ''
-        }`,
-      )
+      const message =
+        'No ' +
+        type +
+        ' account found. ' +
+        (type === 'real'
+          ? 'Enable real trading first.'
+          : '')
+
+      setError(message)
 
       return
     }
@@ -766,7 +781,7 @@ return
     if (!hasReal) {
       const realAcct =
         await createAccount(
-          account.access_token,
+          validated.access_token,
           'real',
         )
 
