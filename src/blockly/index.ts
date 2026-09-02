@@ -2350,6 +2350,10 @@ EXPORTS
 ========================================================= */
 
 export {
+  setGlobalMarketOptions,
+} from './blocks'
+
+export {
   createBotApi,
 } from './botApi'
 
