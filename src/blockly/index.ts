@@ -610,6 +610,70 @@ function migrateXml(root: Element) {
 
   return root
 }
+function withXmlDropdownPreservation(
+  callback: () => void,
+) {
+  const FieldDropdownClass =
+    Blockly.FieldDropdown as unknown as {
+      prototype: {
+        doClassValidation_?: (
+          newValue: string,
+        ) => string | null
+      }
+    }
+
+  const prototype =
+    FieldDropdownClass.prototype
+
+  const originalValidation =
+    prototype.doClassValidation_
+
+  if (
+    typeof originalValidation !== 'function'
+  ) {
+    callback()
+    return
+  }
+
+  /*
+   * Blockly validates FieldDropdown values while
+   * domToWorkspace() is constructing the blocks.
+   *
+   * Deriv's market/submarket/symbol dropdowns are
+   * dynamic, so their options may not exist yet when
+   * an XML bot is imported.
+   *
+   * During XML deserialization only, preserve the
+   * value contained in the XML instead of allowing
+   * FieldDropdown to reject it because its dynamic
+   * options have not loaded yet.
+   */
+  prototype.doClassValidation_ =
+    function preserveImportedXmlValue(
+      newValue: string,
+    ) {
+      if (
+        newValue === null ||
+        newValue === undefined
+      ) {
+        return ''
+      }
+
+      return String(newValue)
+    }
+
+  try {
+    callback()
+  } finally {
+    /*
+     * IMPORTANT:
+     * Restore Blockly's original validation
+     * immediately after XML import.
+     */
+    prototype.doClassValidation_ =
+      originalValidation
+  }
+}
 
 /* =========================================================
    LOAD XML
@@ -638,10 +702,21 @@ export function loadFromXml(
 
     workspace.clear()
 
-    Blockly.Xml.domToWorkspace(
-      dom,
-      workspace,
-    )
+    /*
+     * Dynamic Deriv dropdowns can reject valid XML
+     * values during Blockly's deserialization because
+     * their option lists may not have been populated yet.
+     *
+     * Keep validation relaxed only for this synchronous
+     * XML import operation. The original Blockly
+     * validation is restored immediately afterwards.
+     */
+    withXmlDropdownPreservation(() => {
+      Blockly.Xml.domToWorkspace(
+        dom,
+        workspace,
+      )
+    })
 
     Blockly.svgResize(workspace)
 
