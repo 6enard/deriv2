@@ -133,7 +133,7 @@ function getOAuthToken(data: unknown): OAuthTokenResponse {
 
 function authHeaders(accessToken: string): Record<string, string> {
   return {
-    'Deriv-App-ID': DERIV_CLIENT_ID,
+    'Deriv-App-ID': DERIV_APP_ID,
     Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
   }
