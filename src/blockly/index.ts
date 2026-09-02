@@ -1727,7 +1727,7 @@ function readNumericBlock(
 
     const resolved =
       readNumericBlock(
-        target,
+        target ?? null,
         new Set(
           seenVariables,
         ),
