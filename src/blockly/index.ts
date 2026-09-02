@@ -1,3 +1,4 @@
+
 import * as Blockly from 'blockly'
 import 'blockly/blocks'
 
@@ -21,10 +22,7 @@ let themeRegistered = false
 function applyColours() {
   const B =
     Blockly as unknown as {
-      Colours: Record<
-        string,
-        unknown
-      >
+      Colours: Record<string, unknown>
     }
 
   B.Colours = Colours
@@ -42,62 +40,47 @@ function registerTheme() {
 
       categoryStyles: {
         trade_parameters: {
-          colour:
-            Colours.RootBlock
-              .colour,
+          colour: Colours.RootBlock.colour,
         },
 
         purchase_conditions: {
-          colour:
-            Colours.RootBlock
-              .colour,
+          colour: Colours.RootBlock.colour,
         },
 
         sell_conditions: {
-          colour:
-            Colours.RootBlock
-              .colour,
+          colour: Colours.RootBlock.colour,
         },
 
         trade_results: {
-          colour:
-            Colours.RootBlock
-              .colour,
+          colour: Colours.RootBlock.colour,
         },
 
         analysis: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         utility: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         technical_analysis: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         indicators: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         time: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         candle: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         miscellaneous: {
-          colour:
-            Colours.Base.colour,
+          colour: Colours.Base.colour,
         },
 
         math: {
@@ -184,9 +167,7 @@ export function createWorkspace(
       zoom: {
         controls: true,
         wheel: true,
-        startScale: mobile
-          ? 0.75
-          : 0.95,
+        startScale: mobile ? 0.75 : 0.95,
         maxScale: 2,
         minScale: 0.4,
         scaleSpeed: 1.2,
@@ -235,10 +216,7 @@ export function workspaceToXml(
    XML COMPATIBILITY
 ========================================================= */
 
-const BLOCK_RENAMES: Record<
-  string,
-  string
-> = {
+const BLOCK_RENAMES: Record<string, string> = {
   trade: 'trade_definition',
 
   tradeOptions:
@@ -274,14 +252,17 @@ const BLOCK_RENAMES: Record<
   contract_check_result:
     'contract_check_result',
 
-  tickdelay: 'tick_delay',
+  tickdelay:
+    'tick_delay',
 
-  tick_delay: 'tick_delay',
+  tick_delay:
+    'tick_delay',
 
   math_number_positive:
     'math_number',
 
-  buy: 'purchase',
+  buy:
+    'purchase',
 
   purchase_conditions:
     'before_purchase',
@@ -297,9 +278,7 @@ const FIELD_RENAMES: Record<
 
   tick_delay: {
     TICKS: 'TICKDELAYVALUE',
-
-    TIMEOUTSTACK:
-      'TICKDELAYSTACK',
+    TIMEOUTSTACK: 'TICKDELAYSTACK',
   },
 
   console: {
@@ -312,9 +291,7 @@ const FIELD_RENAMES: Record<
 
   contract_check_result: {
     RESULT: 'CHECK_RESULT',
-
-    CHECKRESULT:
-      'CHECK_RESULT',
+    CHECKRESULT: 'CHECK_RESULT',
   },
 }
 
@@ -352,18 +329,13 @@ const VALUE_FIELD_ALIASES: Record<
   ],
 }
 
-function renameBlocks(
-  root: Element,
-) {
+function renameBlocks(root: Element) {
   const blocks = Array.from(
-    root.querySelectorAll(
-      'block,shadow',
-    ),
+    root.querySelectorAll('block,shadow'),
   )
 
   for (const block of blocks) {
-    const type =
-      block.getAttribute('type')
+    const type = block.getAttribute('type')
 
     if (!type) continue
 
@@ -379,18 +351,13 @@ function renameBlocks(
   }
 }
 
-function renameFields(
-  root: Element,
-) {
+function renameFields(root: Element) {
   const blocks = Array.from(
-    root.querySelectorAll(
-      'block,shadow',
-    ),
+    root.querySelectorAll('block,shadow'),
   )
 
   for (const block of blocks) {
-    const type =
-      block.getAttribute('type')
+    const type = block.getAttribute('type')
 
     if (!type) continue
 
@@ -402,17 +369,12 @@ function renameFields(
     for (const child of Array.from(
       block.children,
     )) {
-      if (
-        child.tagName !==
-        'field'
-      ) {
+      if (child.tagName !== 'field') {
         continue
       }
 
       const name =
-        child.getAttribute(
-          'name',
-        )
+        child.getAttribute('name')
 
       if (!name) continue
 
@@ -430,9 +392,7 @@ function normalizeXmlBooleans(
   root: Element,
 ) {
   const fields = Array.from(
-    root.querySelectorAll(
-      'field',
-    ),
+    root.querySelectorAll('field'),
   )
 
   for (const field of fields) {
@@ -443,9 +403,7 @@ function normalizeXmlBooleans(
 
     if (value === 'TRUE') {
       field.textContent = 'TRUE'
-    } else if (
-      value === 'FALSE'
-    ) {
+    } else if (value === 'FALSE') {
       field.textContent = 'FALSE'
     }
   }
@@ -455,9 +413,7 @@ function normalizeLegacyInputNames(
   root: Element,
 ) {
   const blocks = Array.from(
-    root.querySelectorAll(
-      'block,shadow',
-    ),
+    root.querySelectorAll('block,shadow'),
   )
 
   for (const block of blocks) {
@@ -478,9 +434,7 @@ function normalizeLegacyInputNames(
       ),
     )) {
       const name =
-        input.getAttribute(
-          'name',
-        )
+        input.getAttribute('name')
 
       if (!name) continue
 
@@ -494,9 +448,7 @@ function normalizeLegacyInputNames(
         )
       }
 
-      if (
-        name === 'DURATION_VALUE'
-      ) {
+      if (name === 'DURATION_VALUE') {
         input.setAttribute(
           'name',
           'DURATION',
@@ -505,6 +457,179 @@ function normalizeLegacyInputNames(
     }
   }
 }
+
+/* =========================================================
+   LEGACY VARIABLE MIGRATION
+========================================================= */
+
+/*
+ * Older Deriv Bot XML can store:
+ *
+ *   <field name="VAR">Stake</field>
+ *
+ * Modern Blockly expects VAR to contain the variable ID:
+ *
+ *   <field name="VAR">abc123</field>
+ *
+ * with:
+ *
+ *   <variables>
+ *     <variable id="abc123">Stake</variable>
+ *   </variables>
+ *
+ * If we pass the old format directly to Blockly,
+ * Blockly reports:
+ *
+ *   Variable id doesn't point to a real variable!
+ *
+ * This function converts both old and mixed XML into
+ * valid modern Blockly variable XML before deserialization.
+ */
+function migrateLegacyVariables(
+  root: Element,
+) {
+  const doc = root.ownerDocument
+
+  if (!doc) return
+
+  let variablesElement =
+    Array.from(root.children).find(
+      (child) =>
+        child.tagName === 'variables',
+    )
+
+  if (!variablesElement) {
+    variablesElement =
+      doc.createElement('variables')
+
+    root.insertBefore(
+      variablesElement,
+      root.firstChild,
+    )
+  }
+
+  const variablesById =
+    new Map<string, string>()
+
+  const variablesByName =
+    new Map<string, string>()
+
+  /*
+   * First collect variables already declared by
+   * modern Blockly XML.
+   */
+  for (const child of Array.from(
+    variablesElement.children,
+  )) {
+    if (child.tagName !== 'variable') {
+      continue
+    }
+
+    const id =
+      child.getAttribute('id')
+
+    const name =
+      child.textContent?.trim() || ''
+
+    if (!id || !name) continue
+
+    variablesById.set(id, name)
+
+    if (!variablesByName.has(name)) {
+      variablesByName.set(name, id)
+    }
+  }
+
+  /*
+   * Create a safe unique Blockly variable ID.
+   */
+  const createVariableId = () => {
+    let id = ''
+
+    do {
+      id =
+        Blockly.utils.idGenerator.genUid()
+    } while (
+      variablesById.has(id)
+    )
+
+    return id
+  }
+
+  /*
+   * Find every VAR field, including fields inside
+   * nested blocks and shadows.
+   */
+  const varFields =
+    Array.from(
+      root.querySelectorAll(
+        'field[name="VAR"]',
+      ),
+    )
+
+  for (const field of varFields) {
+    const rawValue =
+      field.textContent?.trim() || ''
+
+    if (!rawValue) {
+      continue
+    }
+
+    /*
+     * If this is already a declared variable ID,
+     * leave it untouched.
+     */
+    if (variablesById.has(rawValue)) {
+      continue
+    }
+
+    /*
+     * Legacy XML frequently uses the variable name
+     * itself as the VAR value.
+     */
+    let variableId =
+      variablesByName.get(rawValue)
+
+    if (!variableId) {
+      variableId =
+        createVariableId()
+
+      const variable =
+        doc.createElement(
+          'variable',
+        )
+
+      variable.setAttribute(
+        'id',
+        variableId,
+      )
+
+      variable.textContent =
+        rawValue
+
+      variablesElement.appendChild(
+        variable,
+      )
+
+      variablesById.set(
+        variableId,
+        rawValue,
+      )
+
+      variablesByName.set(
+        rawValue,
+        variableId,
+      )
+    }
+
+    field.textContent =
+      variableId
+  }
+}
+
+/* =========================================================
+   NUMERIC / TRADE XML REPAIRS
+========================================================= */
 
 function ensureMathNumberShadow(
   block: Element,
@@ -516,11 +641,9 @@ function ensureMathNumberShadow(
       block.children,
     ).find(
       (child) =>
-        child.tagName ===
-          'value' &&
-        child.getAttribute(
-          'name',
-        ) === inputName,
+        child.tagName === 'value' &&
+        child.getAttribute('name') ===
+          inputName,
     )
 
   if (!value) return
@@ -530,10 +653,8 @@ function ensureMathNumberShadow(
       value.children,
     ).some(
       (child) =>
-        child.tagName ===
-          'block' ||
-        child.tagName ===
-          'shadow',
+        child.tagName === 'block' ||
+        child.tagName === 'shadow',
     )
 
   if (hasBlock) return
@@ -544,9 +665,7 @@ function ensureMathNumberShadow(
   if (!doc) return
 
   const shadow =
-    doc.createElement(
-      'shadow',
-    )
+    doc.createElement('shadow')
 
   shadow.setAttribute(
     'type',
@@ -554,9 +673,7 @@ function ensureMathNumberShadow(
   )
 
   const field =
-    doc.createElement(
-      'field',
-    )
+    doc.createElement('field')
 
   field.setAttribute(
     'name',
@@ -567,7 +684,6 @@ function ensureMathNumberShadow(
     defaultValue
 
   shadow.appendChild(field)
-
   value.appendChild(shadow)
 }
 
@@ -596,18 +712,10 @@ function repairTradeOptions(
   }
 }
 
-/*
- * Repairs older Deriv text_join XML.
- *
- * Older versions may contain:
- *
- * <field name="VARIABLE">...</field>
- * <statement name="STACK">...</statement>
- *
- * The current text_join block does not have either
- * of those inputs. They are safely removed because
- * the actual text values are stored in the ADD inputs.
- */
+/* =========================================================
+   LEGACY TEXT JOIN
+========================================================= */
+
 function repairLegacyTextJoin(
   root: Element,
 ) {
@@ -624,17 +732,13 @@ function repairLegacyTextJoin(
         block.children,
       ).find(
         (child) =>
-          child.tagName ===
-            'field' &&
-          child.getAttribute(
-            'name',
-          ) === 'VARIABLE',
+          child.tagName === 'field' &&
+          child.getAttribute('name') ===
+            'VARIABLE',
       )
 
     if (variable) {
-      block.removeChild(
-        variable,
-      )
+      block.removeChild(variable)
     }
 
     const stack =
@@ -642,20 +746,20 @@ function repairLegacyTextJoin(
         block.children,
       ).find(
         (child) =>
-          child.tagName ===
-            'statement' &&
-          child.getAttribute(
-            'name',
-          ) === 'STACK',
+          child.tagName === 'statement' &&
+          child.getAttribute('name') ===
+            'STACK',
       )
 
     if (stack) {
-      block.removeChild(
-        stack,
-      )
+      block.removeChild(stack)
     }
   }
 }
+
+/* =========================================================
+   LEGACY TRADE DEFINITION
+========================================================= */
 
 function migrateLegacyTrade(
   root: Element,
@@ -678,25 +782,17 @@ function migrateLegacyTrade(
     }
 
     const fields =
-      new Map<
-        string,
-        string
-      >()
+      new Map<string, string>()
 
     for (const child of Array.from(
       trade.children,
     )) {
-      if (
-        child.tagName !==
-        'field'
-      ) {
+      if (child.tagName !== 'field') {
         continue
       }
 
       const name =
-        child.getAttribute(
-          'name',
-        )
+        child.getAttribute('name')
 
       if (!name) continue
 
@@ -731,25 +827,20 @@ function migrateLegacyTrade(
       value: string,
     ) => {
       const field =
-        doc.createElement(
-          'field',
-        )
+        doc.createElement('field')
 
       field.setAttribute(
         'name',
         name,
       )
 
-      field.textContent =
-        value
+      field.textContent = value
 
       parent.appendChild(field)
     }
 
     const market =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     market.setAttribute(
       'type',
@@ -759,43 +850,29 @@ function migrateLegacyTrade(
     addField(
       market,
       'MARKET_LIST',
-      fields.get(
-        'MARKET_LIST',
-      ) ||
-        fields.get(
-          'MARKET',
-        ) ||
+      fields.get('MARKET_LIST') ||
+        fields.get('MARKET') ||
         'synthetic_index',
     )
 
     addField(
       market,
       'SUBMARKET_LIST',
-      fields.get(
-        'SUBMARKET_LIST',
-      ) ||
-        fields.get(
-          'SUBMARKET',
-        ) ||
+      fields.get('SUBMARKET_LIST') ||
+        fields.get('SUBMARKET') ||
         '',
     )
 
     addField(
       market,
       'SYMBOL_LIST',
-      fields.get(
-        'SYMBOL_LIST',
-      ) ||
-        fields.get(
-          'SYMBOL',
-        ) ||
+      fields.get('SYMBOL_LIST') ||
+        fields.get('SYMBOL') ||
         '',
     )
 
     const tradeType =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     tradeType.setAttribute(
       'type',
@@ -817,19 +894,13 @@ function migrateLegacyTrade(
     addField(
       tradeType,
       'TRADETYPE_LIST',
-      fields.get(
-        'TRADETYPE_LIST',
-      ) ||
-        fields.get(
-          'TRADETYPE',
-        ) ||
+      fields.get('TRADETYPE_LIST') ||
+        fields.get('TRADETYPE') ||
         '',
     )
 
     const contract =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     contract.setAttribute(
       'type',
@@ -839,22 +910,14 @@ function migrateLegacyTrade(
     addField(
       contract,
       'TYPE_LIST',
-      fields.get(
-        'TYPE_LIST',
-      ) ||
-        fields.get(
-          'CONTRACT_TYPE',
-        ) ||
-        fields.get(
-          'CONTRACTTYPE',
-        ) ||
+      fields.get('TYPE_LIST') ||
+        fields.get('CONTRACT_TYPE') ||
+        fields.get('CONTRACTTYPE') ||
         '',
     )
 
     const candle =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     candle.setAttribute(
       'type',
@@ -870,9 +933,7 @@ function migrateLegacyTrade(
     )
 
     const restartBuy =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     restartBuy.setAttribute(
       'type',
@@ -888,9 +949,7 @@ function migrateLegacyTrade(
     )
 
     const restartError =
-      doc.createElement(
-        'block',
-      )
+      doc.createElement('block')
 
     restartError.setAttribute(
       'type',
@@ -906,84 +965,42 @@ function migrateLegacyTrade(
     )
 
     const next1 =
-      doc.createElement(
-        'next',
-      )
+      doc.createElement('next')
 
-    next1.appendChild(
-      tradeType,
-    )
-
-    market.appendChild(
-      next1,
-    )
+    next1.appendChild(tradeType)
+    market.appendChild(next1)
 
     const next2 =
-      doc.createElement(
-        'next',
-      )
+      doc.createElement('next')
 
-    next2.appendChild(
-      contract,
-    )
-
-    tradeType.appendChild(
-      next2,
-    )
+    next2.appendChild(contract)
+    tradeType.appendChild(next2)
 
     const next3 =
-      doc.createElement(
-        'next',
-      )
+      doc.createElement('next')
 
-    next3.appendChild(
-      candle,
-    )
-
-    contract.appendChild(
-      next3,
-    )
+    next3.appendChild(candle)
+    contract.appendChild(next3)
 
     const next4 =
-      doc.createElement(
-        'next',
-      )
+      doc.createElement('next')
 
-    next4.appendChild(
-      restartBuy,
-    )
-
-    candle.appendChild(
-      next4,
-    )
+    next4.appendChild(restartBuy)
+    candle.appendChild(next4)
 
     const next5 =
-      doc.createElement(
-        'next',
-      )
+      doc.createElement('next')
 
-    next5.appendChild(
-      restartError,
-    )
+    next5.appendChild(restartError)
+    restartBuy.appendChild(next5)
 
-    restartBuy.appendChild(
-      next5,
-    )
-
-    statement.appendChild(
-      market,
-    )
+    statement.appendChild(market)
 
     for (const child of Array.from(
       trade.children,
     )) {
-      if (
-        child.tagName ===
-        'field'
-      ) {
-        trade.removeChild(
-          child,
-        )
+      if (child.tagName === 'field') {
+        trade.removeChild(child)
       }
     }
 
@@ -994,12 +1011,45 @@ function migrateLegacyTrade(
   }
 }
 
+/* =========================================================
+   DROPDOWN XML REPAIR
+========================================================= */
+
+function findDirectField(
+  block: Element,
+  name: string,
+) {
+  return Array.from(
+    block.children,
+  ).find(
+    (child) =>
+      child.tagName === 'field' &&
+      child.getAttribute('name') === name,
+  )
+}
+
+function getFirstTradeTypeValueFromCategory(
+  category: string,
+) {
+  const values: Record<string, string> = {
+    updown: 'risefall',
+    touchnotouch: 'touchnotouch',
+    inout: 'endsinout',
+    digits: 'matchesdiffers',
+    multiplier: 'multiplier',
+    accumulator: 'accumulator',
+  }
+
+  return values[category] || ''
+}
+
 /*
- * Repair empty values in the core trade definition.
+ * Before Blockly sees the XML, every static dropdown
+ * must contain a real option.
  *
- * This protects against older XML where Blockly saved
- * a dependent dropdown before its parent dropdown had
- * finished populating.
+ * This is different from restoring the fields after
+ * import. The value has to be valid during Blockly's
+ * own fromXml() process.
  */
 function repairTradeDefinitionFields(
   root: Element,
@@ -1013,29 +1063,15 @@ function repairTradeDefinitionFields(
 
   for (const block of tradeTypes) {
     const category =
-      Array.from(
-        block.children,
-      ).find(
-        (child) =>
-          child.tagName ===
-            'field' &&
-          child.getAttribute(
-            'name',
-          ) ===
-            'TRADETYPECAT_LIST',
+      findDirectField(
+        block,
+        'TRADETYPECAT_LIST',
       )
 
     const type =
-      Array.from(
-        block.children,
-      ).find(
-        (child) =>
-          child.tagName ===
-            'field' &&
-          child.getAttribute(
-            'name',
-          ) ===
-            'TRADETYPE_LIST',
+      findDirectField(
+        block,
+        'TRADETYPE_LIST',
       )
 
     if (
@@ -1054,13 +1090,10 @@ function repairTradeDefinitionFields(
         category?.textContent?.trim() ||
         'updown'
 
-      const first =
+      type.textContent =
         getFirstTradeTypeValueFromCategory(
           categoryValue,
-        )
-
-      type.textContent =
-        first || 'risefall'
+        ) || 'risefall'
     }
   }
 
@@ -1073,15 +1106,9 @@ function repairTradeDefinitionFields(
 
   for (const block of contracts) {
     const field =
-      Array.from(
-        block.children,
-      ).find(
-        (child) =>
-          child.tagName ===
-            'field' &&
-          child.getAttribute(
-            'name',
-          ) === 'TYPE_LIST',
+      findDirectField(
+        block,
+        'TYPE_LIST',
       )
 
     if (
@@ -1107,18 +1134,6 @@ function repairTradeDefinitionFields(
         'MARKET_LIST',
       )
 
-    const submarket =
-      findDirectField(
-        block,
-        'SUBMARKET_LIST',
-      )
-
-    const symbol =
-      findDirectField(
-        block,
-        'SYMBOL_LIST',
-      )
-
     if (
       market &&
       !market.textContent?.trim()
@@ -1126,58 +1141,96 @@ function repairTradeDefinitionFields(
       market.textContent =
         'synthetic_index'
     }
+  }
+
+  /*
+   * Purchase must also contain a valid value.
+   *
+   * If it is missing, choose a safe value based on
+   * the contract type.
+   */
+  repairPurchaseFields(root)
+}
+
+function repairPurchaseFields(
+  root: Element,
+) {
+  const purchaseBlocks =
+    Array.from(
+      root.querySelectorAll(
+        'block[type="purchase"]',
+      ),
+    )
+
+  for (const purchase of purchaseBlocks) {
+    const field =
+      findDirectField(
+        purchase,
+        'PURCHASE_LIST',
+      )
+
+    if (
+      !field ||
+      field.textContent?.trim()
+    ) {
+      continue
+    }
 
     /*
-     * Do not invent submarket/symbol values here.
-     *
-     * They must come from the XML or the live
-     * active-symbol data.
+     * Find the nearest trade definition.
      */
-    void submarket
-    void symbol
+    const trade =
+      purchase.closest(
+        'block[type="trade_definition"]',
+      )
+
+    let contractType = ''
+
+    if (trade) {
+      const contract =
+        trade.querySelector(
+          'block[type="trade_definition_contracttype"]',
+        )
+
+      contractType =
+        findDirectField(
+          contract as Element,
+          'TYPE_LIST',
+        )?.textContent?.trim() || ''
+    }
+
+    const defaults: Record<
+      string,
+      string
+    > = {
+      DIGITMATCH: 'DIGITMATCH',
+      DIGITDIFF: 'DIGITDIFF',
+      DIGITOVER: 'DIGITOVER',
+      DIGITUNDER: 'DIGITUNDER',
+      DIGITEVEN: 'DIGITEVEN',
+      DIGITODD: 'DIGITODD',
+      CALL: 'CALL',
+      PUT: 'PUT',
+      ONETOUCH: 'ONETOUCH',
+      NOTOUCH: 'NOTOUCH',
+      EXPIRYRANGE: 'EXPIRYRANGE',
+      EXPIRYMISS: 'EXPIRYMISS',
+      RANGE: 'RANGE',
+      UPORDOWN: 'UPORDOWN',
+      MULTUP: 'MULTUP',
+      MULTDOWN: 'MULTDOWN',
+      ACCU: 'ACCU',
+    }
+
+    field.textContent =
+      defaults[contractType] ||
+      'DIGITOVER'
   }
 }
 
-function findDirectField(
-  block: Element,
-  name: string,
-) {
-  return Array.from(
-    block.children,
-  ).find(
-    (child) =>
-      child.tagName ===
-        'field' &&
-      child.getAttribute(
-        'name',
-      ) === name,
-  )
-}
-
-function getFirstTradeTypeValueFromCategory(
-  category: string,
-) {
-  const values: Record<
-    string,
-    string
-  > = {
-    updown: 'risefall',
-
-    touchnotouch:
-      'touchnotouch',
-
-    inout: 'endsinout',
-
-    digits: 'matchesdiffers',
-
-    multiplier: 'multiplier',
-
-    accumulator:
-      'accumulator',
-  }
-
-  return values[category] || ''
-}
+/* =========================================================
+   XML MIGRATION
+========================================================= */
 
 function migrateXml(
   root: Element,
@@ -1190,13 +1243,16 @@ function migrateXml(
 
   normalizeLegacyInputNames(root)
 
+  /*
+   * MUST happen before domToWorkspace().
+   */
+  migrateLegacyVariables(root)
+
   migrateLegacyTrade(root)
 
   repairLegacyTextJoin(root)
 
-  repairTradeDefinitionFields(
-    root,
-  )
+  repairTradeDefinitionFields(root)
 
   repairTradeOptions(root)
 
@@ -1207,54 +1263,21 @@ function migrateXml(
    IMPORTED DROPDOWN RESTORATION
 ========================================================= */
 
-/*
- * Blockly's dynamic dropdowns depend on other fields.
- *
- * Example:
- *
- * MARKET
- *   ↓
- * SUBMARKET
- *   ↓
- * SYMBOL
- *
- * and:
- *
- * TRADE CATEGORY
- *   ↓
- * TRADE TYPE
- *   ↓
- * CONTRACT TYPE
- *
- * During XML deserialization Blockly may construct the
- * dependent field before the parent field has received
- * its XML value.
- *
- * After import, restore the values in dependency order.
- */
 function restoreImportedTradeFields(
   workspace: Blockly.WorkspaceSvg,
   root: Element,
 ) {
   const xmlBlocks =
     Array.from(
-      root.querySelectorAll(
-        'block',
-      ),
+      root.querySelectorAll('block'),
     )
 
   /*
-   * First restore all normal fields by block ID.
-   *
-   * Using IDs is important. Matching by block type
-   * could accidentally apply the value from one
-   * trade-definition block to another.
+   * Restore ordinary fields first.
    */
   for (const xmlBlock of xmlBlocks) {
     const id =
-      xmlBlock.getAttribute(
-        'id',
-      )
+      xmlBlock.getAttribute('id')
 
     if (!id) continue
 
@@ -1270,48 +1293,35 @@ function restoreImportedTradeFields(
         xmlBlock.children,
       ).filter(
         (child) =>
-          child.tagName ===
-          'field',
+          child.tagName === 'field',
       )
 
     for (const xmlField of xmlFields) {
       const name =
-        xmlField.getAttribute(
-          'name',
-        )
+        xmlField.getAttribute('name')
 
       if (!name) continue
 
       const value =
-        xmlField.textContent?.trim() ||
-        ''
+        xmlField.textContent?.trim() || ''
 
       if (!value) continue
 
-      /*
-       * Dependent dropdowns are restored later in a
-       * specific order.
-       */
       if (
-        name ===
-          'MARKET_LIST' ||
-        name ===
-          'SUBMARKET_LIST' ||
-        name ===
-          'SYMBOL_LIST' ||
-        name ===
-          'TRADETYPECAT_LIST' ||
-        name ===
-          'TRADETYPE_LIST' ||
-        name === 'TYPE_LIST'
+        name === 'MARKET_LIST' ||
+        name === 'SUBMARKET_LIST' ||
+        name === 'SYMBOL_LIST' ||
+        name === 'TRADETYPECAT_LIST' ||
+        name === 'TRADETYPE_LIST' ||
+        name === 'TYPE_LIST' ||
+        name === 'PURCHASE_LIST' ||
+        name === 'VAR'
       ) {
         continue
       }
 
       const field =
-        workspaceBlock.getField(
-          name,
-        )
+        workspaceBlock.getField(name)
 
       if (!field) {
         continue
@@ -1335,22 +1345,18 @@ function restoreImportedTradeFields(
   }
 
   /*
-   * Restore Market → Submarket → Symbol.
+   * Market → Submarket → Symbol
    */
   const marketXmlBlocks =
     xmlBlocks.filter(
       (block) =>
-        block.getAttribute(
-          'type',
-        ) ===
+        block.getAttribute('type') ===
         'trade_definition_market',
     )
 
   for (const xmlBlock of marketXmlBlocks) {
     const id =
-      xmlBlock.getAttribute(
-        'id',
-      )
+      xmlBlock.getAttribute('id')
 
     if (!id) continue
 
@@ -1379,22 +1385,18 @@ function restoreImportedTradeFields(
   }
 
   /*
-   * Restore Trade Category → Trade Type.
+   * Trade category → trade type
    */
   const tradeTypeXmlBlocks =
     xmlBlocks.filter(
       (block) =>
-        block.getAttribute(
-          'type',
-        ) ===
+        block.getAttribute('type') ===
         'trade_definition_tradetype',
     )
 
   for (const xmlBlock of tradeTypeXmlBlocks) {
     const id =
-      xmlBlock.getAttribute(
-        'id',
-      )
+      xmlBlock.getAttribute('id')
 
     if (!id) continue
 
@@ -1417,22 +1419,18 @@ function restoreImportedTradeFields(
   }
 
   /*
-   * Restore Trade Type → Contract Type.
+   * Trade type → contract type
    */
   const contractXmlBlocks =
     xmlBlocks.filter(
       (block) =>
-        block.getAttribute(
-          'type',
-        ) ===
+        block.getAttribute('type') ===
         'trade_definition_contracttype',
     )
 
   for (const xmlBlock of contractXmlBlocks) {
     const id =
-      xmlBlock.getAttribute(
-        'id',
-      )
+      xmlBlock.getAttribute('id')
 
     if (!id) continue
 
@@ -1447,6 +1445,34 @@ function restoreImportedTradeFields(
       'TYPE_LIST',
     )
   }
+
+  /*
+   * Purchase condition
+   */
+  const purchaseXmlBlocks =
+    xmlBlocks.filter(
+      (block) =>
+        block.getAttribute('type') ===
+        'purchase',
+    )
+
+  for (const xmlBlock of purchaseXmlBlocks) {
+    const id =
+      xmlBlock.getAttribute('id')
+
+    if (!id) continue
+
+    const block =
+      workspace.getBlockById(id)
+
+    if (!block) continue
+
+    restoreField(
+      block,
+      xmlBlock,
+      'PURCHASE_LIST',
+    )
+  }
 }
 
 function restoreField(
@@ -1459,11 +1485,8 @@ function restoreField(
       xmlBlock.children,
     ).find(
       (child) =>
-        child.tagName ===
-          'field' &&
-        child.getAttribute(
-          'name',
-        ) === name,
+        child.tagName === 'field' &&
+        child.getAttribute('name') === name,
     )
 
   if (!xmlField) {
@@ -1471,8 +1494,7 @@ function restoreField(
   }
 
   const value =
-    xmlField.textContent?.trim() ||
-    ''
+    xmlField.textContent?.trim() || ''
 
   if (!value) {
     return
@@ -1488,17 +1510,10 @@ function restoreField(
   try {
     field.setValue(value)
   } catch (error) {
-    /*
-     * Do not abort the entire bot import because a
-     * single legacy dropdown value is no longer valid.
-     *
-     * The importer has already preserved the XML.
-     */
     console.warn(
       '[Bot XML] Could not restore dependent field',
       {
-        block:
-          block.type,
+        block: block.type,
         name,
         value,
         error,
@@ -1534,17 +1549,25 @@ export function loadFromXml(
 
     workspace.clear()
 
+    /*
+     * At this point:
+     *
+     * - legacy variables have real IDs
+     * - empty static dropdowns have values
+     * - old block names have been migrated
+     * - old input names have been migrated
+     *
+     * Therefore Blockly should be able to deserialize
+     * the XML without destroying its values.
+     */
     Blockly.Xml.domToWorkspace(
       dom,
       workspace,
     )
 
     /*
-     * Blockly has now created the blocks.
-     *
-     * Restore imported dynamic dropdown values
-     * after all blocks exist and all dependencies
-     * can be resolved.
+     * Dynamic dropdowns can still need restoration
+     * after all blocks exist.
      */
     restoreImportedTradeFields(
       workspace,
@@ -1631,40 +1654,61 @@ function finiteNumber(
     : undefined
 }
 
+/* =========================================================
+   NUMERIC VARIABLE RESOLUTION
+========================================================= */
+
 /*
- * Resolves a numeric Blockly block.
+ * Get the variable name from a variables_get block.
+ */
+function getVariableName(
+  block: Blockly.Block,
+) {
+  const field =
+    block.getField('VAR')
+
+  if (!field) {
+    return ''
+  }
+
+  const id =
+    field.getValue()
+
+  if (!id) {
+    return ''
+  }
+
+  const variable =
+    block.workspace.getVariableById(id)
+
+  return variable?.name || ''
+}
+
+/*
+ * Resolve a numeric Blockly expression.
  *
  * Supports:
  *
- * math_number
- * variables_get
- * direct VALUE fields
+ *   math_number
+ *   variables_get
+ *   legacy numeric blocks
  *
- * Most importantly, this lets:
- *
- * Amount → Stake
- *
- * resolve to:
- *
- * Stake = 1
- *
- * from the initialization section.
+ * Variables are resolved against variables_set blocks.
  */
 function readNumericBlock(
   block: Blockly.Block | null,
+  seenVariables = new Set<string>(),
 ): number | undefined {
   if (!block) {
     return undefined
   }
 
   /*
-   * Standard math_number block.
+   * Standard math_number.
    */
   const direct =
     finiteNumber(
-      block.getFieldValue(
-        'NUM',
-      ),
+      block.getFieldValue('NUM'),
     )
 
   if (direct !== undefined) {
@@ -1676,9 +1720,7 @@ function readNumericBlock(
    */
   const value =
     finiteNumber(
-      block.getFieldValue(
-        'VALUE',
-      ),
+      block.getFieldValue('VALUE'),
     )
 
   if (value !== undefined) {
@@ -1687,22 +1729,9 @@ function readNumericBlock(
 
   /*
    * Resolve variables_get.
-   *
-   * Example:
-   *
-   * Amount
-   *   └── variables_get
-   *         VAR = Stake
-   *
-   * Initialization:
-   *
-   * variables_set
-   *   VAR = Stake
-   *   VALUE = math_number(1)
    */
   if (
-    block.type ===
-    'variables_get'
+    block.type === 'variables_get'
   ) {
     const variableField =
       block.getField('VAR')
@@ -1717,6 +1746,19 @@ function readNumericBlock(
     if (!variableId) {
       return undefined
     }
+
+    if (
+      seenVariables.has(
+        variableId,
+      )
+    ) {
+      return undefined
+    }
+
+    const nextSeen =
+      new Set(seenVariables)
+
+    nextSeen.add(variableId)
 
     const variable =
       block.workspace.getVariableById(
@@ -1733,147 +1775,163 @@ function readNumericBlock(
       )
 
     /*
-     * Find the corresponding variables_set.
+     * Prefer the first matching variables_set
+     * in the workspace.
      */
-    for (const candidate of allBlocks) {
-      if (
-        candidate.type !==
-        'variables_set'
-      ) {
-        continue
-      }
+    const setters =
+      allBlocks.filter(
+        (candidate) => {
+          if (
+            candidate.type !==
+            'variables_set'
+          ) {
+            return false
+          }
 
-      const candidateVariable =
-        candidate.getField(
-          'VAR',
+          const field =
+            candidate.getField('VAR')
+
+          return (
+            field?.getValue() ===
+            variableId
+          )
+        },
+      )
+
+    /*
+     * Prefer a setter inside the trade
+     * initialization section.
+     */
+    const tradeRoot =
+      allBlocks.find(
+        (candidate) =>
+          candidate.type ===
+          'trade_definition',
+      )
+
+    if (tradeRoot) {
+      let init =
+        tradeRoot.getInputTargetBlock(
+          'INITIALIZATION',
         )
 
-      if (!candidateVariable) {
-        continue
+      while (init) {
+        if (
+          init.type ===
+            'variables_set' &&
+          init.getField('VAR')?.getValue() ===
+            variableId
+        ) {
+          const resolved =
+            resolveSetterValue(
+              init,
+              nextSeen,
+            )
+
+          if (
+            resolved !== undefined
+          ) {
+            return resolved
+          }
+        }
+
+        init =
+          init.getNextBlock()
       }
+    }
 
-      if (
-        candidateVariable.getValue() !==
-        variableId
-      ) {
-        continue
-      }
-
-      /*
-       * Current Blockly uses VALUE.
-       */
-      const valueBlock =
-        candidate.getInputTargetBlock(
-          'VALUE',
-        )
-
+    for (const setter of setters) {
       const resolved =
-        readNumericBlock(
-          valueBlock,
+        resolveSetterValue(
+          setter,
+          nextSeen,
         )
 
       if (
-        resolved !==
-        undefined
+        resolved !== undefined
       ) {
         return resolved
-      }
-
-      /*
-       * Legacy Deriv XML can use other names.
-       */
-      for (const inputName of [
-        'AMOUNT',
-        'STAKE',
-        'VALUE',
-      ]) {
-        const legacyValueBlock =
-          candidate.getInputTargetBlock(
-            inputName,
-          )
-
-        const legacyResolved =
-          readNumericBlock(
-            legacyValueBlock,
-          )
-
-        if (
-          legacyResolved !==
-          undefined
-        ) {
-          return legacyResolved
-        }
       }
     }
 
     /*
-     * If the variable does not have a variables_set,
-     * try finding an initialization block by variable
-     * name. This helps with some older XML formats where
-     * variable IDs changed during import.
+     * Fallback by variable name.
+     *
+     * This helps when an old XML format caused
+     * variable IDs to change.
      */
-    for (const candidate of allBlocks) {
+    for (const setter of allBlocks) {
       if (
-        candidate.type !==
+        setter.type !==
         'variables_set'
       ) {
         continue
       }
 
-      const candidateVariable =
-        candidate.getField(
-          'VAR',
-        )
-
-      if (!candidateVariable) {
-        continue
-      }
-
-      const candidateId =
-        candidateVariable.getValue()
-
-      const candidateVariableObject =
-        candidateId
-          ? block.workspace.getVariableById(
-              candidateId,
-            )
-          : null
+      const setterName =
+        getVariableName(setter)
 
       if (
-        !candidateVariableObject
-      ) {
-        continue
-      }
-
-      if (
-        candidateVariableObject.name !==
+        setterName !==
         variable.name
       ) {
         continue
       }
 
-      for (const inputName of [
-        'VALUE',
-        'AMOUNT',
-        'STAKE',
-      ]) {
-        const valueBlock =
-          candidate.getInputTargetBlock(
-            inputName,
-          )
+      const resolved =
+        resolveSetterValue(
+          setter,
+          nextSeen,
+        )
 
-        const resolved =
-          readNumericBlock(
-            valueBlock,
-          )
-
-        if (
-          resolved !==
-          undefined
-        ) {
-          return resolved
-        }
+      if (
+        resolved !== undefined
+      ) {
+        return resolved
       }
+    }
+  }
+
+  return undefined
+}
+
+function resolveSetterValue(
+  setter: Blockly.Block,
+  seenVariables: Set<string>,
+) {
+  for (const inputName of [
+    'VALUE',
+    'AMOUNT',
+    'STAKE',
+  ]) {
+    const valueBlock =
+      setter.getInputTargetBlock(
+        inputName,
+      )
+
+    const resolved =
+      readNumericBlock(
+        valueBlock,
+        seenVariables,
+      )
+
+    if (
+      resolved !== undefined
+    ) {
+      return resolved
+    }
+
+    const direct =
+      finiteNumber(
+        setter.getFieldValue(
+          inputName,
+        ),
+      )
+
+    if (
+      direct !== undefined
+    ) {
+      return direct
     }
   }
 
@@ -1910,9 +1968,7 @@ function numberValue(
 
     const fieldValue =
       finiteNumber(
-        block.getFieldValue(
-          name,
-        ),
+        block.getFieldValue(name),
       )
 
     if (
@@ -1931,15 +1987,12 @@ function textValue(
 ) {
   for (const name of names) {
     const value =
-      block.getFieldValue(
-        name,
-      )
+      block.getFieldValue(name)
 
     if (
       value !== undefined &&
       value !== null &&
-      String(value).trim() !==
-        ''
+      String(value).trim() !== ''
     ) {
       return String(value)
     }
@@ -2016,6 +2069,10 @@ function getOptionalText(
   )
 }
 
+/* =========================================================
+   TRADE PARAMETER EXTRACTION
+========================================================= */
+
 export function extractTradeParams(
   workspace: Blockly.WorkspaceSvg,
 ): TradeParamsResult {
@@ -2091,27 +2148,28 @@ export function extractTradeParams(
       : ''
 
   /*
-   * Legacy XML sometimes stores these fields directly
-   * on the root trade_definition block.
+   * Legacy root-level fields.
    */
   if (!symbol) {
-    symbol = textValue(
-      root,
-      [
-        'SYMBOL_LIST',
-        'SYMBOL',
-      ],
-    )
+    symbol =
+      textValue(
+        root,
+        [
+          'SYMBOL_LIST',
+          'SYMBOL',
+        ],
+      )
   }
 
   if (!tradeType) {
-    tradeType = textValue(
-      root,
-      [
-        'TRADETYPE_LIST',
-        'TRADETYPE',
-      ],
-    )
+    tradeType =
+      textValue(
+        root,
+        [
+          'TRADETYPE_LIST',
+          'TRADETYPE',
+        ],
+      )
   }
 
   if (!contractType) {
@@ -2129,8 +2187,7 @@ export function extractTradeParams(
   if (!symbol) {
     return {
       ok: false,
-      missingField:
-        'symbol',
+      missingField: 'symbol',
     }
   }
 
@@ -2184,18 +2241,12 @@ export function extractTradeParams(
     )
   }
 
-  /*
-   * If Amount → Stake and Stake is initialized
-   * to a numeric value, readNumericBlock() above
-   * resolves it here.
-   */
   if (
     amount === undefined
   ) {
     return {
       ok: false,
-      missingField:
-        'amount',
+      missingField: 'amount',
     }
   }
 
@@ -2270,9 +2321,7 @@ export function extractTradeParams(
   const normalizedPrediction =
     prediction !== undefined
       ? prediction
-      : finiteNumber(
-          barrier,
-        )
+      : finiteNumber(barrier)
 
   return {
     ok: true,
@@ -2300,12 +2349,14 @@ export function extractTradeParams(
 
       barrier:
         barrier ||
-        (normalizedPrediction !==
-        undefined
-          ? String(
-              normalizedPrediction,
-            )
-          : undefined),
+        (
+          normalizedPrediction !==
+          undefined
+            ? String(
+                normalizedPrediction,
+              )
+            : undefined
+        ),
 
       second_barrier:
         secondBarrier ||
@@ -2343,9 +2394,7 @@ export async function loadBotXmlSafely(
     let symbols =
       currentlyLoadedSymbols
 
-    if (
-      !symbols?.length
-    ) {
+    if (!symbols?.length) {
       symbols =
         await fetchSymbolsIfNeeded()
     }
@@ -2391,8 +2440,8 @@ export async function loadBotXmlSafely(
 
       repaired:
         params.ok &&
-        params.repairedInputs
-          .length > 0,
+        params.repairedInputs.length >
+          0,
     }
   } catch (error) {
     console.error(
@@ -2428,7 +2477,4 @@ export type {
 export {
   generateBotCode,
 } from './generators'
-
-export {
-  setGlobalMarketOptions,
-}
+```
