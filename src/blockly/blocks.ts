@@ -27,6 +27,8 @@ const tradeTypeCategoryOptions: [string, string][] = [
   ['Touch/No Touch', 'touchnotouch'],
   ['In/Out', 'inout'],
   ['Digits', 'digits'],
+  ['Multiplier', 'multiplier'],
+  ['Accumulator', 'accumulator'],
 ]
 
 const tradeTypeOptionsByCategory: Record<string, [string, string][]> = {
@@ -44,6 +46,8 @@ const tradeTypeOptionsByCategory: Record<string, [string, string][]> = {
     ['Even/Odd', 'evenodd'],
     ['Over/Under', 'overunder'],
   ],
+  multiplier: [['Multiplier Up/Down', 'multiplier']],
+  accumulator: [['Accumulator', 'accumulator']],
 }
 
 const contractTypeOptionsByTradeType: Record<string, [string, string][]> = {
@@ -86,6 +90,15 @@ const contractTypeOptionsByTradeType: Record<string, [string, string][]> = {
     ['Over/Under (both)', 'both'],
     ['Over', 'DIGITOVER'],
     ['Under', 'DIGITUNDER'],
+  ],
+  multiplier: [
+    ['Multiplier Up/Down (both)', 'both'],
+    ['Up', 'MULTUP'],
+    ['Down', 'MULTDOWN'],
+  ],
+  accumulator: [
+    ['Accumulator (both)', 'both'],
+    ['Accumulate', 'ACCU'],
   ],
 }
 
@@ -543,6 +556,92 @@ defineBlock('trade_definition_tradeoptions', () => ({
     return xml
   }
 })
+
+/* MULTIPLIER / ACCUMULATOR TRADE OPTIONS */
+
+// TODO: Replace fixed multiplier/growth-rate lists with live per-symbol
+// fetches (getMultiplierRange / getAccumulationRange) for accurate bounds.
+
+defineBlock('trade_definition_multiplier', () => ({
+  message0: 'Multiplier: %1  Stake: %2 %3',
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'MULTIPLIER_LIST',
+      options: [
+        ['x10', '10'],
+        ['x20', '20'],
+        ['x50', '50'],
+        ['x100', '100'],
+        ['x200', '200'],
+        ['x300', '300'],
+        ['x400', '400'],
+        ['x500', '500'],
+        ['x1000', '1000'],
+      ],
+    },
+    { type: 'field_label', name: 'CURRENCY_LIST', text: 'USD' },
+    { type: 'input_value', name: 'AMOUNT', check: 'Number' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: Colours.Special1.colour,
+}))
+
+defineBlock('trade_definition_accumulator', () => ({
+  message0: 'Growth Rate: %1  Stake: %2 %3',
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'GROWTHRATE_LIST',
+      options: [
+        ['1%', '0.01'],
+        ['2%', '0.02'],
+        ['3%', '0.03'],
+        ['4%', '0.04'],
+        ['5%', '0.05'],
+      ],
+    },
+    { type: 'field_label', name: 'CURRENCY_LIST', text: 'USD' },
+    { type: 'input_value', name: 'AMOUNT', check: 'Number' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: Colours.Special1.colour,
+}))
+
+defineBlock('multiplier_stop_loss', () => ({
+  message0: 'Stop Loss: %1 %2',
+  args0: [
+    { type: 'field_label', name: 'CURRENCY_LIST', text: 'USD' },
+    { type: 'input_value', name: 'AMOUNT', check: 'Number' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: Colours.Special1.colour,
+}))
+
+defineBlock('multiplier_take_profit', () => ({
+  message0: 'Take Profit: %1 %2',
+  args0: [
+    { type: 'field_label', name: 'CURRENCY_LIST', text: 'USD' },
+    { type: 'input_value', name: 'AMOUNT', check: 'Number' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: Colours.Special1.colour,
+}))
+
+defineBlock('accumulator_take_profit', () => ({
+  message0: 'Take Profit: %1 %2',
+  args0: [
+    { type: 'field_label', name: 'CURRENCY_LIST', text: 'USD' },
+    { type: 'input_value', name: 'AMOUNT', check: 'Number' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: Colours.Special1.colour,
+}))
 
 /* BEFORE PURCHASE */
 

@@ -9,7 +9,7 @@ export default function Admin() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Admin Settings</h1>
+        <h1 className="text-2xl font-bold mb-2">Admin Settingss</h1>
         <p className="text-text-secondary">Configure your app's markup commission rate.</p>
       </div>
 

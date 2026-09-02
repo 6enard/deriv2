@@ -2,364 +2,1082 @@ import type { DerivWS } from '../lib/deriv-ws'
 import type { DerivSessionAccount } from '../lib/types'
 import type { TradeParams } from './index'
 
-export type NotificationType = 'success' | 'info' | 'warn' | 'error'
+export type NotificationType =
+  | 'success'
+  | 'info'
+  | 'warn'
+  | 'error'
+
+export interface NotifyData {
+  event?:
+    | 'trade_won'
+    | 'trade_lost'
+    | 'trade_sold'
+    | 'purchase'
+    | 'proposal'
+    | 'error'
+    | 'info'
+
+  contractId?: number
+  profit?: number
+  stake?: number
+  payout?: number
+  contractType?: string
+}
 
 export interface BotApi {
   purchase(contractType?: string): Promise<number>
   sellAtMarket(): Promise<void>
+
   isContractOpen(): boolean
   isSellAvailable(): boolean
+
   getAskPrice(): number
   getPayout(): number
   getSellPrice(): number
+
   getTick(): number
   getTicks(): number[]
   getLastDigit(): number
   getLastDigitList(): number[]
   getDirection(): string
+
   getBalance(): number
   getLastResult(): string
   getDetails(detail: string): string | number
+
   getTotalProfit(): number
   getTotalRuns(): number
+
   setStake(amount: number): void
   getStake(): number
+
+  setBarrier(barrier: string | number): void
+  getBarrier(): string
+
   shouldStop(): boolean
-  notify(type: NotificationType, message: string): void
-  console(type: string, message: unknown): void
+
+  notify(
+    type: NotificationType,
+    message: string,
+    data?: NotifyData
+  ): void
+
+  console(
+    type: string,
+    message: unknown
+  ): void
+
   sleep(ms: number): Promise<void>
   tickDelay(count: number): Promise<void>
 }
 
-export interface NotifyData {
-  event?: 'trade_won' | 'trade_lost' | 'trade_sold' | 'purchased'
-  profit?: number
-  stake?: number
-  payout?: number
-  contractId?: number
-  symbol?: string
-  contractType?: string
+export interface BotApiOptions {
+  onNotify?: (
+    type: NotificationType,
+    message: string,
+    data?: NotifyData
+  ) => void
+
+  onTrade?: (
+    contractId: number
+  ) => void
+
+  shouldStop?: () => boolean
 }
 
-export interface BotApiOptions {
-  onNotify?: (type: NotificationType, message: string, data?: NotifyData) => void
-  onTrade?: (contractId: number) => void
-  shouldStop?: () => boolean
+function number(
+  value: unknown,
+  fallback = 0
+): number {
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : fallback
+}
+
+function isBarrierContract(
+  contractType: string
+): boolean {
+  return [
+    'DIGITMATCH',
+    'DIGITDIFF',
+    'DIGITOVER',
+    'DIGITUNDER',
+    'CALLPUT',
+    'CALL',
+    'PUT',
+    'TOUCH',
+    'NOTOUCH',
+    'ONETOUCH',
+    'IN',
+    'OUT'
+  ].includes(contractType)
+}
+
+function decimalPlaces(
+  value: number
+): number {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+
+  const text = String(value)
+
+  if (!text.includes('.')) {
+    return 0
+  }
+
+  return text.split('.')[1].length
+}
+
+function getLastDigitFromQuote(
+  quote: number
+): number {
+  if (!Number.isFinite(quote)) {
+    return 0
+  }
+
+  const places = decimalPlaces(quote)
+
+  if (places <= 0) {
+    return Math.abs(Math.trunc(quote)) % 10
+  }
+
+  const multiplier = Math.pow(10, places)
+
+  const integerValue =
+    Math.round(
+      Math.abs(quote) * multiplier
+    )
+
+  return integerValue % 10
 }
 
 export function createBotApi(
   ws: DerivWS,
   account: DerivSessionAccount,
   params: TradeParams,
-  options: BotApiOptions = {},
+  options: BotApiOptions = {}
 ): BotApi {
-  let currentStake = params.amount
-  let currentContractType = params.contract_type
-  let openContractId: number | null = null
-  let lastResult: 'win' | 'loss' | 'sold' = 'win'
+  let currentStake =
+    number(params.amount, 0)
+
+  let currentContractType =
+    String(
+      params.contract_type || ''
+    ).toUpperCase()
+
+  let currentBarrier =
+    params.barrier !== undefined &&
+    params.barrier !== null
+      ? String(params.barrier)
+      : params.prediction !== undefined &&
+          params.prediction !== null
+        ? String(params.prediction)
+        : ''
+
+  let openContractId:
+    number | null = null
+
+  let lastResult = ''
   let lastProfit = 0
   let lastBuyPrice = 0
   let lastPayout = 0
   let lastAskPrice = 0
-  let lastProposalPayout = 0
-  let lastContractType = ''
-  let lastEntryTickTime: number | null = null
-  let lastEntryTick: number | null = null
-  let lastExitTickTime: number | null = null
-  let lastExitTick: number | null = null
-  let lastBarrier: string | null = null
-  let totalProfit = 0
-  let totalRuns = 0
-  let lastTick = 0
-  let tickHistory: number[] = []
-  let sellAvailable = false
-  let currentSellPrice = 0
 
-  const notify = (type: NotificationType, message: string, data?: NotifyData): void => {
-    options.onNotify?.(type, message, data)
+  let totalRuns = 0
+  let totalProfit = 0
+
+  const tickHistory: number[] = []
+
+  const shouldStop =
+    options.shouldStop ||
+    function (): boolean {
+      return false
+    }
+
+  function notify(
+    type: NotificationType,
+    message: string,
+    data?: NotifyData
+  ): void {
+    if (options.onNotify) {
+      options.onNotify(
+        type,
+        message,
+        data
+      )
+    }
   }
 
-  const waitForContractSettlement = (contractId: number): Promise<void> => {
-    return new Promise((resolve) => {
-      let settled = false
-      let pollTimer: ReturnType<typeof setTimeout> | null = null
-      let subReqId: number | null = null
+  function writeConsole(
+    type: string,
+    message: unknown
+  ): void {
+    if (type === 'error') {
+      console.error(message)
+    } else if (type === 'warn') {
+      console.warn(message)
+    } else {
+      console.log(message)
+    }
 
-      const cleanup = () => {
-        if (pollTimer) clearTimeout(pollTimer)
-        if (subReqId !== null) ws.unsubscribe(subReqId)
+    notify(
+      type === 'error'
+        ? 'error'
+        : type === 'warn'
+          ? 'warn'
+          : 'info',
+      String(message)
+    )
+  }
+
+  function handleSettlement(
+    contract: any
+  ): void {
+    if (!contract) {
+      return
+    }
+
+    const contractId =
+      number(
+        contract.contract_id,
+        0
+      )
+
+    const status =
+      String(
+        contract.status || ''
+      ).toLowerCase()
+
+    const isSold =
+      contract.is_sold === 1 ||
+      status === 'sold' ||
+      status === 'won' ||
+      status === 'lost'
+
+    if (!isSold) {
+      return
+    }
+
+    const profit =
+      number(contract.profit, 0)
+
+    const buyPrice =
+      number(
+        contract.buy_price,
+        lastBuyPrice
+      )
+
+    const payout =
+      number(
+        contract.payout,
+        lastPayout
+      )
+
+    lastProfit = profit
+    lastBuyPrice = buyPrice
+    lastPayout = payout
+
+    const result =
+      profit > 0
+        ? 'win'
+        : profit < 0
+          ? 'loss'
+          : 'sold'
+
+    lastResult = result
+
+    totalProfit += profit
+    totalRuns += 1
+
+    openContractId = null
+
+    const event =
+      result === 'win'
+        ? 'trade_won'
+        : result === 'loss'
+          ? 'trade_lost'
+          : 'trade_sold'
+
+    notify(
+      result === 'win'
+        ? 'success'
+        : result === 'loss'
+          ? 'error'
+          : 'info',
+      'Contract settled: ' +
+        result +
+        ' (' +
+        profit +
+        ')',
+      {
+        event,
+        contractId,
+        profit,
+        stake: buyPrice,
+        payout,
+        contractType:
+          String(
+            contract.contract_type ||
+              currentContractType
+          )
       }
+    )
+  }
 
-      const finish = () => {
-        if (settled) return
-        settled = true
-        cleanup()
-        resolve()
-      }
+  async function waitForContractSettlement(
+    contractId: number
+  ): Promise<void> {
+    const timeoutMs = 120000
+    const started = Date.now()
 
-      const settledContractIds = new Set<number>()
+    try {
+      const response =
+        await ws.send({
+          proposal_open_contract: 1,
+          contract_id: contractId,
+          subscribe: 1
+        })
 
-      const handleContract = (c: any) => {
-        sellAvailable = !c.is_sold && !c.is_expired
-        currentSellPrice = c.sell_price ? parseFloat(c.sell_price) : 0
+      if (response) {
+        const contract =
+          response.proposal_open_contract
 
-        if (c.is_sold || c.is_expired) {
-          if (settledContractIds.has(contractId)) return
-          settledContractIds.add(contractId)
+        if (contract) {
+          handleSettlement(contract)
 
-          const profit = parseFloat(c.profit || '0')
-          lastProfit = profit
-          totalProfit += profit
-          totalRuns++
-          lastContractType = c.contract_type || currentContractType
-          if (c.entry_tick_time != null) lastEntryTickTime = Number(c.entry_tick_time)
-          if (c.entry_tick != null) lastEntryTick = parseFloat(c.entry_tick)
-          if (c.exit_tick_time != null) lastExitTickTime = Number(c.exit_tick_time)
-          if (c.exit_tick != null) lastExitTick = parseFloat(c.exit_tick)
-          if (c.barrier != null) lastBarrier = String(c.barrier)
-
-          // Classify by actual P/L, not Deriv's status field.
-          // A contract sold at a profit is a WIN; sold at a loss is a LOSS.
-          // profit === 0 is breakeven/other — not counted as win or loss.
-          if (profit > 0) {
-            lastResult = 'win'
-            notify('success', `Trade won! Profit: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_won', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
-          } else if (profit < 0) {
-            lastResult = 'loss'
-            notify('error', `Trade lost. Loss: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_lost', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
-          } else {
-            lastResult = 'sold'
-            notify('info', `Contract settled. P/L: ${profit.toFixed(2)} ${account.currency}`, { event: 'trade_sold', profit, stake: lastBuyPrice, payout: lastPayout, contractId, symbol: params.symbol, contractType: currentContractType })
+          if (
+            openContractId === null
+          ) {
+            return
           }
-
-          openContractId = null
-          finish()
         }
       }
+    } catch (error) {
+      writeConsole(
+        'warn',
+        'Contract subscription failed; using polling fallback.'
+      )
+    }
 
-      // Primary: subscribe to proposal_open_contract for live updates
-      ws.subscribe(
-        { proposal_open_contract: 1, contract_id: contractId },
-        (data: any) => {
-          if (settled) return
-          const c = data.proposal_open_contract
-          if (c) handleContract(c)
-        },
-      ).then(({ reqId }) => {
-        subReqId = reqId
-        if (settled) ws.unsubscribe(reqId)
-      }).catch(() => {
-        // Subscription failed — fall back to polling below
+    while (
+      openContractId !== null &&
+      Date.now() - started <
+        timeoutMs
+    ) {
+      if (shouldStop()) {
+        return
+      }
+
+      try {
+        const response =
+          await ws.send({
+            proposal_open_contract: 1,
+            contract_id: contractId
+          })
+
+        if (response) {
+          const contract =
+            response.proposal_open_contract
+
+          if (contract) {
+            handleSettlement(
+              contract
+            )
+          }
+        }
+      } catch (error) {
+        writeConsole(
+          'warn',
+          'Unable to read contract status.'
+        )
+      }
+
+      if (
+        openContractId === null
+      ) {
+        return
+      }
+
+      await sleep(1000)
+    }
+
+    if (
+      openContractId !== null
+    ) {
+      notify(
+        'warn',
+        'Contract settlement timed out.',
+        {
+          event: 'info',
+          contractId
+        }
+      )
+    }
+  }
+
+  async function purchase(
+    contractType?: string
+  ): Promise<number> {
+    if (shouldStop()) {
+      throw new Error(
+        'Bot stop requested.'
+      )
+    }
+
+    const ct =
+      String(
+        contractType ||
+          currentContractType ||
+          params.contract_type ||
+          ''
+      ).toUpperCase()
+
+    if (!ct) {
+      throw new Error(
+        'No contract type was provided.'
+      )
+    }
+
+    currentContractType = ct
+
+    const stake =
+      number(currentStake, 0)
+
+    if (
+      !Number.isFinite(stake) ||
+      stake <= 0
+    ) {
+      throw new Error(
+        'Invalid stake amount: ' +
+          String(currentStake)
+      )
+    }
+
+    const proposalRequest:
+      Record<string, unknown> = {
+      proposal: 1,
+      amount: stake,
+      basis: 'stake',
+      contract_type: ct,
+      currency:
+        params.currency ||
+        account.currency,
+      duration:
+        number(
+          params.duration,
+          1
+        ),
+      duration_unit:
+        params.duration_unit ||
+        't',
+      underlying_symbol:
+        params.symbol
+    }
+
+    if (
+      isBarrierContract(ct) &&
+      currentBarrier !== ''
+    ) {
+      proposalRequest.barrier =
+        currentBarrier
+    }
+
+    if (
+      params.second_barrier !==
+        undefined &&
+      params.second_barrier !==
+        null &&
+      String(
+        params.second_barrier
+      ) !== ''
+    ) {
+      proposalRequest.barrier2 =
+        String(
+          params.second_barrier
+        )
+    }
+
+    let lastError:
+      unknown = null
+
+    for (
+      let attempt = 1;
+      attempt <= 3;
+      attempt += 1
+    ) {
+      try {
+        if (shouldStop()) {
+          throw new Error(
+            'Bot stop requested.'
+          )
+        }
+
+        notify(
+          'info',
+          'Requesting proposal for ' +
+            ct +
+            ' with stake ' +
+            stake,
+          {
+            event: 'proposal',
+            stake,
+            contractType: ct
+          }
+        )
+
+        const proposalResponse =
+          await ws.send(
+            proposalRequest
+          )
+
+        if (
+          proposalResponse &&
+          proposalResponse.error
+        ) {
+          throw new Error(
+            proposalResponse.error.message ||
+              'Proposal request failed.'
+          )
+        }
+
+        const proposal =
+          proposalResponse &&
+          proposalResponse.proposal
+
+        if (!proposal) {
+          throw new Error(
+            'Deriv returned no proposal.'
+          )
+        }
+
+        const proposalId =
+          String(
+            proposal.id || ''
+          )
+
+        if (!proposalId) {
+          throw new Error(
+            'Deriv proposal has no id.'
+          )
+        }
+
+        lastAskPrice =
+          number(
+            proposal.ask_price,
+            stake
+          )
+
+        lastPayout =
+          number(
+            proposal.payout,
+            0
+          )
+
+        const buyResponse =
+          await ws.send({
+            buy: proposalId,
+            price: lastAskPrice
+          })
+
+        if (
+          buyResponse &&
+          buyResponse.error
+        ) {
+          throw new Error(
+            buyResponse.error.message ||
+              'Buy request failed.'
+          )
+        }
+
+        const buy =
+          buyResponse &&
+          buyResponse.buy
+
+        if (!buy) {
+          throw new Error(
+            'Deriv returned no buy response.'
+          )
+        }
+
+        const contractId =
+          number(
+            buy.contract_id,
+            0
+          )
+
+        if (!contractId) {
+          throw new Error(
+            'Deriv returned no contract id.'
+          )
+        }
+
+        openContractId =
+          contractId
+
+        lastBuyPrice =
+          number(
+            buy.buy_price,
+            lastAskPrice
+          )
+
+        if (
+          buy.payout !== undefined
+        ) {
+          lastPayout =
+            number(
+              buy.payout,
+              lastPayout
+            )
+        }
+
+        notify(
+          'success',
+          'Contract purchased: ' +
+            contractId,
+          {
+            event: 'purchase',
+            contractId,
+            stake,
+            payout: lastPayout,
+            contractType: ct
+          }
+        )
+
+        if (options.onTrade) {
+          options.onTrade(
+            contractId
+          )
+        }
+
+        await waitForContractSettlement(
+          contractId
+        )
+
+        return contractId
+      } catch (error) {
+        lastError = error
+
+        writeConsole(
+          'error',
+          error
+        )
+
+        if (
+          attempt < 3
+        ) {
+          await sleep(
+            attempt * 1000
+          )
+        }
+      }
+    }
+
+    throw (
+      lastError instanceof Error
+        ? lastError
+        : new Error(
+            'Unable to purchase contract.'
+          )
+    )
+  }
+
+  async function sellAtMarket(): Promise<void> {
+    if (
+      openContractId === null
+    ) {
+      throw new Error(
+        'There is no open contract to sell.'
+      )
+    }
+
+    const contractId =
+      openContractId
+
+    const response =
+      await ws.send({
+        sell: contractId,
+        price: 0
       })
 
-      // Fallback: poll every 2 seconds in case subscription updates stop
-      // arriving (this is what causes bots to stall after a few trades)
-      const poll = async () => {
-        if (settled) return
-        if (options.shouldStop?.()) { finish(); return }
-        try {
-          const res = await ws.send({ proposal_open_contract: 1, contract_id: contractId })
-          if (settled) return
-          if (res.proposal_open_contract) {
-            handleContract(res.proposal_open_contract)
-          }
-        } catch {
-          // ignore poll errors — will retry
-        }
-        if (!settled) {
-          pollTimer = setTimeout(poll, 2000)
-        }
+    if (
+      response &&
+      response.error
+    ) {
+      throw new Error(
+        response.error.message ||
+          'Unable to sell contract.'
+      )
+    }
+
+    notify(
+      'success',
+      'Contract sold: ' +
+        contractId,
+      {
+        event: 'trade_sold',
+        contractId,
+        profit: 0,
+        stake: lastBuyPrice,
+        payout: lastPayout,
+        contractType:
+          currentContractType
       }
-      pollTimer = setTimeout(poll, 2000)
-    })
+    )
   }
 
-  ws.subscribe({ ticks: params.symbol }, (data: any) => {
-    if (data.tick) {
-      const quote = parseFloat(data.tick.quote)
-      lastTick = quote
-      tickHistory = [...tickHistory.slice(-99), quote]
+  function isContractOpen(): boolean {
+    return openContractId !== null
+  }
+
+  function isSellAvailable(): boolean {
+    return openContractId !== null
+  }
+
+  function getAskPrice(): number {
+    return lastAskPrice
+  }
+
+  function getPayout(): number {
+    return lastPayout
+  }
+
+  function getSellPrice(): number {
+    return lastPayout
+  }
+
+  function getTick(): number {
+    if (
+      tickHistory.length === 0
+    ) {
+      return 0
     }
-  }).catch(() => {})
+
+    return tickHistory[
+      tickHistory.length - 1
+    ]
+  }
+
+  function getTicks(): number[] {
+    return tickHistory.slice()
+  }
+
+  function getLastDigit(): number {
+    return getLastDigitFromQuote(
+      getTick()
+    )
+  }
+
+  function getLastDigitList(): number[] {
+    return tickHistory.map(
+      getLastDigitFromQuote
+    )
+  }
+
+  function getDirection(): string {
+    if (
+      tickHistory.length < 2
+    ) {
+      return ''
+    }
+
+    const current =
+      tickHistory[
+        tickHistory.length - 1
+      ]
+
+    const previous =
+      tickHistory[
+        tickHistory.length - 2
+      ]
+
+    if (current > previous) {
+      return 'up'
+    }
+
+    if (current < previous) {
+      return 'down'
+    }
+
+    return 'same'
+  }
+
+  function getBalance(): number {
+    return number(
+      account.balance,
+      0
+    )
+  }
+
+  function getLastResult(): string {
+    return lastResult
+  }
+
+  function getDetails(
+    detail: string
+  ): string | number {
+    const normalized =
+      String(detail)
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+
+    switch (normalized) {
+      case 'profit':
+      case 'last_profit':
+        return lastProfit
+
+      case 'buy_price':
+        return lastBuyPrice
+
+      case 'ask_price':
+        return lastAskPrice
+
+      case 'payout':
+        return lastPayout
+
+      case 'result':
+      case 'last_result':
+        return lastResult
+
+      case 'contract_id':
+        return openContractId || 0
+
+      case 'stake':
+      case 'amount':
+        return currentStake
+
+      case 'barrier':
+      case 'prediction':
+        return currentBarrier
+
+      case 'total_profit':
+        return totalProfit
+
+      case 'total_runs':
+        return totalRuns
+
+      case 'balance':
+        return getBalance()
+
+      case 'last_digit':
+        return getLastDigit()
+
+      case 'tick':
+      case 'quote':
+        return getTick()
+
+      default:
+        return ''
+    }
+  }
+
+  function getTotalProfit(): number {
+    return totalProfit
+  }
+
+  function getTotalRuns(): number {
+    return totalRuns
+  }
+
+  function setStake(
+    amount: number
+  ): void {
+    const value =
+      number(amount, NaN)
+
+    if (
+      !Number.isFinite(value) ||
+      value <= 0
+    ) {
+      throw new Error(
+        'Stake must be greater than zero.'
+      )
+    }
+
+    currentStake = value
+  }
+
+  function getStake(): number {
+    return currentStake
+  }
+
+  function setBarrier(
+    barrier: string | number
+  ): void {
+    currentBarrier =
+      String(barrier)
+  }
+
+  function getBarrier(): string {
+    return currentBarrier
+  }
+
+  function sleep(
+    ms: number
+  ): Promise<void> {
+    const delay =
+      Math.max(
+        0,
+        number(ms, 0)
+      )
+
+    return new Promise(
+      resolve => {
+        setTimeout(
+          resolve,
+          delay
+        )
+      }
+    )
+  }
+
+  async function tickDelay(
+    count: number
+  ): Promise<void> {
+    const target =
+      Math.max(
+        1,
+        Math.floor(
+          number(count, 1)
+        )
+      )
+
+    const startingLength =
+      tickHistory.length
+
+    const targetLength =
+      startingLength + target
+
+    while (
+      tickHistory.length <
+      targetLength
+    ) {
+      if (shouldStop()) {
+        return
+      }
+
+      await sleep(250)
+    }
+  }
+
+  const tickSubscription =
+    ws.send({
+      ticks: params.symbol,
+      subscribe: 1
+    })
+      .then(() => {
+        notify(
+          'info',
+          'Tick stream connected for ' +
+            params.symbol,
+          {
+            event: 'info'
+          }
+        )
+      })
+      .catch(error => {
+        writeConsole(
+          'warn',
+          'Unable to subscribe to ticks.'
+        )
+
+        writeConsole(
+          'warn',
+          error
+        )
+      })
+
+  void tickSubscription
+
+  const originalOnMessage =
+    (ws as any).onMessage
+
+  if (
+    typeof originalOnMessage ===
+    'function'
+  ) {
+    ;(ws as any).onMessage =
+      function (
+        message: any
+      ): void {
+        try {
+          if (
+            message &&
+            message.tick
+          ) {
+            const quote =
+              number(
+                message.tick.quote,
+                NaN
+              )
+
+            if (
+              Number.isFinite(quote)
+            ) {
+              tickHistory.push(
+                quote
+              )
+
+              if (
+                tickHistory.length >
+                100
+              ) {
+                tickHistory.shift()
+              }
+            }
+          }
+        } catch (error) {
+          writeConsole(
+            'warn',
+            error
+          )
+        }
+
+        originalOnMessage(message)
+      }
+  }
 
   return {
-    async purchase(contractType?: string): Promise<number> {
-      if (options.shouldStop?.()) throw new Error('Bot stopped')
-      const ct = contractType || currentContractType
+    purchase,
+    sellAtMarket,
 
-      const digitContractsRequiringBarrier = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER']
-      const proposalReq: Record<string, unknown> = {
-        proposal: 1,
-        amount: currentStake,
-        basis: 'stake',
-        contract_type: ct,
-        currency: params.currency,
-        duration: params.duration,
-        duration_unit: params.duration_unit,
-        underlying_symbol: params.symbol,
-      }
-      if (digitContractsRequiringBarrier.includes(ct) && params.prediction !== undefined) {
-        proposalReq.barrier = String(params.prediction)
-      }
+    isContractOpen,
+    isSellAvailable,
 
-      // Retry the proposal+buy up to 3 times — a transient API error or
-      // rate-limit should not kill the bot loop.
-      let lastError: unknown = null
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (options.shouldStop?.()) throw new Error('Bot stopped')
-        try {
-          const proposalRes = await ws.send(proposalReq)
-          const proposal = proposalRes.proposal
-          if (!proposal) throw new Error(proposalRes.error?.message || 'No proposal returned')
+    getAskPrice,
+    getPayout,
+    getSellPrice,
 
-          lastAskPrice = parseFloat(proposal.ask_price)
-          lastProposalPayout = parseFloat(proposal.payout)
+    getTick,
+    getTicks,
+    getLastDigit,
+    getLastDigitList,
+    getDirection,
 
-          const buyRes = await ws.send({ buy: proposal.id, price: proposal.ask_price })
-          const buyData = buyRes.buy
-          if (!buyData) throw new Error(buyRes.error?.message || 'Buy failed')
+    getBalance,
+    getLastResult,
+    getDetails,
 
-          const contractId = buyData.contract_id
-          openContractId = contractId
-          lastBuyPrice = parseFloat(buyData.buy_price)
-          lastPayout = lastProposalPayout
+    getTotalProfit,
+    getTotalRuns,
 
-          options.onTrade?.(contractId)
-          notify('info', `Purchased ${ct} for ${buyData.buy_price} ${params.currency}`, { event: 'purchased', stake: parseFloat(buyData.buy_price), contractId, symbol: params.symbol, contractType: ct })
+    setStake,
+    getStake,
 
-          await waitForContractSettlement(contractId)
-          return contractId
-        } catch (err) {
-          lastError = err
-          if (options.shouldStop?.()) throw new Error('Bot stopped')
-          const msg = err instanceof Error ? err.message : String(err)
-          if (attempt < 2) {
-            notify('warn', `Trade attempt ${attempt + 1} failed: ${msg}. Retrying...`)
-            await new Promise((r) => setTimeout(r, 1000))
-          }
-        }
-      }
-      throw lastError instanceof Error ? lastError : new Error('Purchase failed after retries')
-    },
+    setBarrier,
+    getBarrier,
 
-    async sellAtMarket(): Promise<void> {
-      if (openContractId === null) return
-      try {
-        await ws.send({ sell: openContractId, price: 0 })
-        notify('info', 'Selling contract at market...')
-      } catch {
-        notify('error', 'Failed to sell contract')
-      }
-    },
-
-    isContractOpen(): boolean {
-      return openContractId !== null
-    },
-
-    isSellAvailable(): boolean {
-      return sellAvailable
-    },
-
-    getAskPrice(): number {
-      return lastAskPrice
-    },
-
-    getPayout(): number {
-      return lastProposalPayout
-    },
-
-    getSellPrice(): number {
-      return currentSellPrice
-    },
-
-    getTick(): number {
-      return lastTick
-    },
-
-    getTicks(): number[] {
-      return tickHistory
-    },
-
-    getLastDigit(): number {
-      return lastTick ? lastTick % 10 : 0
-    },
-
-    getLastDigitList(): number[] {
-      return tickHistory.map((t) => t % 10)
-    },
-
-    getDirection(): string {
-      if (tickHistory.length < 2) return ''
-      const prev = tickHistory[tickHistory.length - 2]
-      const curr = tickHistory[tickHistory.length - 1]
-      if (curr > prev) return 'rise'
-      if (curr < prev) return 'fall'
-      return ''
-    },
-
-    getBalance(): number {
-      return account.balance
-    },
-
-    getLastResult(): string {
-      return lastResult
-    },
-
-    getDetails(detail: string): string | number {
-      switch (detail) {
-        case '1': return String(openContractId ?? '')
-        case '2': return lastBuyPrice
-        case '3': return lastPayout
-        case '4': return lastProfit
-        case '5': return lastContractType
-        case '6': return lastEntryTickTime ?? ''
-        case '7': return lastEntryTick ?? ''
-        case '8': return lastExitTickTime ?? ''
-        case '9': return lastExitTick ?? ''
-        case '10': return lastBarrier ?? ''
-        case '11': return lastResult
-        default: return ''
-      }
-    },
-
-    getTotalProfit(): number {
-      return totalProfit
-    },
-
-    getTotalRuns(): number {
-      return totalRuns
-    },
-
-    setStake(amount: number): void {
-      currentStake = amount
-    },
-
-    getStake(): number {
-      return currentStake
-    },
-
-    shouldStop(): boolean {
-      return options.shouldStop?.() ?? false
-    },
+    shouldStop,
 
     notify,
+    console: writeConsole,
 
-    console(type: string, message: unknown): void {
-      const msg = typeof message === 'string' ? message : String(message)
-      const journalType: NotificationType = type === 'warn' ? 'warn' : type === 'error' ? 'error' : 'info'
-      notify(journalType, msg)
-    },
-
-    async sleep(ms: number): Promise<void> {
-      return new Promise((resolve) => setTimeout(resolve, ms))
-    },
-
-    async tickDelay(count: number): Promise<void> {
-      const startLen = tickHistory.length
-      while (tickHistory.length < startLen + count) {
-        if (options.shouldStop?.()) return
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
-    },
+    sleep,
+    tickDelay
   }
 }
+
+export default createBotApi

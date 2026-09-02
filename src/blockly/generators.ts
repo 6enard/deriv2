@@ -1,267 +1,603 @@
 import * as Blockly from 'blockly'
 import { javascriptGenerator } from 'blockly/javascript'
 
-let generatorsRegistered = false
 
-export function registerGenerators(): void {
-  if (generatorsRegistered) return
-  generatorsRegistered = true
 
-  // ── Root blocks: emit nothing (handled by generateBotCode) ──
-  javascriptGenerator.forBlock['trade_definition'] = () => ''
-  javascriptGenerator.forBlock['before_purchase'] = () => ''
-  javascriptGenerator.forBlock['during_purchase'] = () => ''
-  javascriptGenerator.forBlock['after_purchase'] = () => ''
+function unsupportedValue(block: Blockly.Block): string {
+  return [
+    '(function(){throw new Error(',
+    JSON.stringify(
+      'Unsupported Blockly value block: ' +
+        block.type +
+        '. This block is not implemented in this bot engine.'
+    ),
+    ')})()'
+  ].join('')
+}
 
-  // ── Trade definition sub-blocks: emit nothing (params extracted separately) ──
-  javascriptGenerator.forBlock['trade_definition_market'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_tradetype'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_contracttype'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_candleinterval'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_restartbuysell'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_restartonerror'] = () => ''
-  javascriptGenerator.forBlock['trade_definition_tradeoptions'] = () => ''
-
-  // ── Purchase conditions ──
-  javascriptGenerator.forBlock['purchase'] = function (block: Blockly.Block): string {
-    const purchaseList = block.getFieldValue('PURCHASE_LIST') || ''
-    return `await Bot.purchase(${JSON.stringify(purchaseList)});\n`
-  }
-
-  javascriptGenerator.forBlock['ask_price'] = function (): [string, number] {
-    return [`Bot.getAskPrice()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['payout'] = function (): [string, number] {
-    return [`Bot.getPayout()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  // ── Sell conditions ──
-  javascriptGenerator.forBlock['check_sell'] = function (): [string, number] {
-    return [`Bot.isSellAvailable()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['sell_at_market'] = function (): string {
-    return `await Bot.sellAtMarket();\n`
-  }
-
-  javascriptGenerator.forBlock['sell_price'] = function (): [string, number] {
-    return [`Bot.getSellPrice()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  // ── Trade results ──
-  javascriptGenerator.forBlock['contract_check_result'] = function (block: Blockly.Block): [string, number] {
-    const result = block.getFieldValue('CHECK_RESULT')
-    return [`Bot.getLastResult() === ${JSON.stringify(result)}`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['read_details'] = function (block: Blockly.Block): [string, number] {
-    const detail = block.getFieldValue('DETAIL_INDEX')
-    return [`Bot.getDetails(${JSON.stringify(detail)})`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['trade_again'] = function (): string {
-    return `return 'restart';\n`
-  }
-
-  // ── Tick analysis ──
-  javascriptGenerator.forBlock['tick'] = function (): [string, number] {
-    return [`Bot.getTick()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['ticks'] = function (): [string, number] {
-    return [`Bot.getTicks()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['last_digit'] = function (): [string, number] {
-    return [`Bot.getLastDigit()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['check_direction'] = function (block: Blockly.Block): [string, number] {
-    const direction = block.getFieldValue('CHECK_DIRECTION')
-    return [`Bot.getDirection() === ${JSON.stringify(direction)}`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['stat'] = function (): [string, number] {
-    return [`Bot.getLastDigitList()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  // ── Indicators (stubs) ──
-  const indicatorStmtStub = function (block: Blockly.Block): string {
-    return `/* indicator ${block.type} not yet implemented */\n`
-  }
-  javascriptGenerator.forBlock['sma_statement'] = indicatorStmtStub
-  javascriptGenerator.forBlock['ema_statement'] = indicatorStmtStub
-  javascriptGenerator.forBlock['rsi_statement'] = indicatorStmtStub
-  javascriptGenerator.forBlock['bb_statement'] = indicatorStmtStub
-
-  const indicatorOutStub = function (): [string, number] {
-    return [`0`, javascriptGenerator.ORDER_ATOMIC]
-  }
-  javascriptGenerator.forBlock['smaa_statement'] = indicatorOutStub
-  javascriptGenerator.forBlock['emaa_statement'] = indicatorOutStub
-  javascriptGenerator.forBlock['rsia_statement'] = indicatorOutStub
-  javascriptGenerator.forBlock['bba_statement'] = indicatorOutStub
-  javascriptGenerator.forBlock['macda_statement'] = indicatorOutStub
-
-  // ── Miscellaneous ──
-  javascriptGenerator.forBlock['balance'] = function (block: Blockly.Block): [string, number] {
-    const balanceType = block.getFieldValue('BALANCE_TYPE')
-    if (balanceType === 'STR') {
-      return [`String(Bot.getBalance())`, javascriptGenerator.ORDER_ATOMIC]
-    }
-    return [`Bot.getBalance()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['notify'] = function (block: Blockly.Block): string {
-    const type = block.getFieldValue('NOTIFICATION_TYPE')
-    const message = javascriptGenerator.valueToCode(block, 'MESSAGE', javascriptGenerator.ORDER_NONE) || '""'
-    return `Bot.notify(${JSON.stringify(type)}, ${message});\n`
-  }
-
-  javascriptGenerator.forBlock['console'] = function (block: Blockly.Block): string {
-    const type = block.getFieldValue('CONSOLE_TYPE') || 'log'
-    const message = javascriptGenerator.valueToCode(block, 'MESSAGE', javascriptGenerator.ORDER_NONE) || '""'
-    return `Bot.console(${JSON.stringify(type)}, ${message});\n`
-  }
-
-  javascriptGenerator.forBlock['total_profit'] = function (): [string, number] {
-    return [`Bot.getTotalProfit()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['total_runs'] = function (): [string, number] {
-    return [`Bot.getTotalRuns()`, javascriptGenerator.ORDER_ATOMIC]
-  }
-
-  javascriptGenerator.forBlock['block_holder'] = function (): string {
+function registerEmpty(type: string): void {
+  javascriptGenerator.forBlock[type] = function (): [string, number] | string {
     return ''
   }
+}
 
-  // ── Stake management ──
-  javascriptGenerator.forBlock['set_stake'] = function (block: Blockly.Block): string {
-    const value = javascriptGenerator.valueToCode(block, 'STAKE', javascriptGenerator.ORDER_NONE) || '0'
-    return `Bot.setStake(${value});\n`
-  }
+/*
+ * Root / configuration blocks
+ */
+registerEmpty('trade_definition')
+registerEmpty('trade_definition_market')
+registerEmpty('trade_definition_tradetype')
+registerEmpty('trade_definition_contracttype')
+registerEmpty('trade_definition_candleinterval')
+registerEmpty('trade_definition_restartbuysell')
+registerEmpty('trade_definition_restartonerror')
+registerEmpty('trade_definition_tradeoptions')
 
-  javascriptGenerator.forBlock['get_stake'] = function (): [string, number] {
-    return [`Bot.getStake()`, javascriptGenerator.ORDER_ATOMIC]
-  }
+/*
+ * Trade execution
+ */
+javascriptGenerator.forBlock['purchase'] = function (block: Blockly.Block): string {
+  const contractType =
+    javascriptGenerator.valueToCode(
+      block,
+      'PURCHASE_LIST',
+      javascriptGenerator.ORDER_NONE
+    ) || JSON.stringify('')
 
-  // ── Time ──
-  javascriptGenerator.forBlock['epoch'] = function (): [string, number] {
-    return [`Math.floor(Date.now() / 1000)`, javascriptGenerator.ORDER_ATOMIC]
-  }
+  return [
+    'await Bot.purchase(',
+    contractType,
+    ');'
+  ].join('')
+}
 
-  javascriptGenerator.forBlock['timeout'] = function (block: Blockly.Block): string {
-    const seconds = javascriptGenerator.valueToCode(block, 'SECONDS', javascriptGenerator.ORDER_NONE) || '0'
-    const stack = javascriptGenerator.statementToCode(block, 'TIMEOUTSTACK')
-    return `await (async () => { await Bot.sleep((${seconds}) * 1000); ${stack} })();\n`
-  }
+javascriptGenerator.forBlock['sell_at_market'] = function (): string {
+  return 'await Bot.sellAtMarket();'
+}
 
-  javascriptGenerator.forBlock['tick_delay'] = function (block: Blockly.Block): string {
-    const ticks = javascriptGenerator.valueToCode(block, 'TICKDELAYVALUE', javascriptGenerator.ORDER_NONE) || '0'
-    const stack = javascriptGenerator.statementToCode(block, 'TICKDELAYSTACK')
-    return `await (async () => { await Bot.tickDelay((${ticks})); ${stack} })();\n`
-  }
+javascriptGenerator.forBlock['is_contract_open'] = function (): [string, number] {
+  return ['Bot.isContractOpen()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
 
-  javascriptGenerator.forBlock['todatetime'] = function (block: Blockly.Block): [string, number] {
-    const ts = javascriptGenerator.valueToCode(block, 'TIMESTAMP', javascriptGenerator.ORDER_NONE) || '0'
-    return [`new Date((${ts}) * 1000).toISOString()`, javascriptGenerator.ORDER_ATOMIC]
-  }
+javascriptGenerator.forBlock['is_sell_available'] = function (): [string, number] {
+  return ['Bot.isSellAvailable()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
 
-  javascriptGenerator.forBlock['totimestamp'] = function (block: Blockly.Block): [string, number] {
-    const dt = javascriptGenerator.valueToCode(block, 'DATETIME', javascriptGenerator.ORDER_NONE) || '""'
-    return [`Math.floor(new Date(${dt}).getTime() / 1000)`, javascriptGenerator.ORDER_ATOMIC]
-  }
+javascriptGenerator.forBlock['ask_price'] = function (): [string, number] {
+  return ['Bot.getAskPrice()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
 
-  // ── Candle tools (stubs) ──
-  javascriptGenerator.forBlock['is_candle_black'] = function (): [string, number] {
-    return [`false`, javascriptGenerator.ORDER_ATOMIC]
-  }
-  javascriptGenerator.forBlock['ohlc_values_in_list'] = function (): [string, number] {
-    return [`[]`, javascriptGenerator.ORDER_ATOMIC]
-  }
-  javascriptGenerator.forBlock['read_ohlc_obj'] = function (): [string, number] {
-    return [`null`, javascriptGenerator.ORDER_ATOMIC]
-  }
+javascriptGenerator.forBlock['payout'] = function (): [string, number] {
+  return ['Bot.getPayout()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
 
-  // ── Custom Text blocks (bot.deriv.com compatibility) ──
-  javascriptGenerator.forBlock['text_join'] = function (block: Blockly.Block): string {
-    const varName = javascriptGenerator.nameDB_.getName(
-      block.getFieldValue('VARIABLE'), Blockly.Names.NameType.VARIABLE,
+javascriptGenerator.forBlock['sell_price'] = function (): [string, number] {
+  return ['Bot.getSellPrice()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Tick / market data
+ */
+javascriptGenerator.forBlock['tick'] = function (): [string, number] {
+  return ['Bot.getTick()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['ticks'] = function (): [string, number] {
+  return ['Bot.getTicks()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['last_digit'] = function (): [string, number] {
+  return ['Bot.getLastDigit()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['last_digit_list'] = function (): [string, number] {
+  return ['Bot.getLastDigitList()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['check_direction'] = function (): [string, number] {
+  return ['Bot.getDirection()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Contract result
+ */
+javascriptGenerator.forBlock['check_sell'] = function (): [string, number] {
+  return ['Bot.isSellAvailable()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['contract_check_result'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const field =
+    block.getFieldValue('CHECK_RESULT') ||
+    block.getFieldValue('RESULT') ||
+    'win'
+
+  return [
+    'Bot.getLastResult() === ' + JSON.stringify(field),
+    javascriptGenerator.ORDER_EQUALITY
+  ]
+}
+
+javascriptGenerator.forBlock['read_details'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const detail =
+    block.getFieldValue('DETAIL_INDEX') ||
+    block.getFieldValue('DETAIL') ||
+    ''
+
+  return [
+    'Bot.getDetails(' + JSON.stringify(detail) + ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+javascriptGenerator.forBlock['trade_again'] = function (): string {
+  return 'await Bot.purchase();'
+}
+
+/*
+ * Statistics
+ */
+javascriptGenerator.forBlock['stat'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const stat =
+    block.getFieldValue('STAT') ||
+    block.getFieldValue('STAT_TYPE') ||
+    ''
+
+  return [
+    'Bot.getDetails(' + JSON.stringify(stat) + ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+javascriptGenerator.forBlock['total_profit'] = function (): [string, number] {
+  return ['Bot.getTotalProfit()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+javascriptGenerator.forBlock['total_runs'] = function (): [string, number] {
+  return ['Bot.getTotalRuns()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Stake
+ */
+javascriptGenerator.forBlock['set_stake'] = function (
+  block: Blockly.Block
+): string {
+  const amount =
+    javascriptGenerator.valueToCode(
+      block,
+      'STAKE',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    javascriptGenerator.valueToCode(
+      block,
+      'AMOUNT',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    '0'
+
+  return 'Bot.setStake(Number(' + amount + '));'
+}
+
+javascriptGenerator.forBlock['get_stake'] = function (): [string, number] {
+  return ['Bot.getStake()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Barrier
+ */
+javascriptGenerator.forBlock['set_barrier'] = function (
+  block: Blockly.Block
+): string {
+  const barrier =
+    javascriptGenerator.valueToCode(
+      block,
+      'BARRIER',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    JSON.stringify(
+      block.getFieldValue('BARRIER') ||
+        block.getFieldValue('PREDICTION') ||
+        ''
     )
-    const parts: string[] = []
-    let b = block.getInputTargetBlock('STACK')
-    while (b) {
-      const generatorFn = (javascriptGenerator.forBlock as Record<string, (b: Blockly.Block) => unknown>)[b.type]
-      const value = generatorFn ? generatorFn(b) : ''
-      parts.push(Array.isArray(value) ? value[0] : value)
-      b = b.getNextBlock()
-    }
-    return `${varName} = [${parts.join(', ')}].join(" ");\n`
+
+  return 'Bot.setBarrier(' + barrier + ');'
+}
+
+javascriptGenerator.forBlock['get_barrier'] = function (): [string, number] {
+  return ['Bot.getBarrier()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Account
+ */
+javascriptGenerator.forBlock['balance'] = function (): [string, number] {
+  return ['Bot.getBalance()', javascriptGenerator.ORDER_FUNCTION_CALL]
+}
+
+/*
+ * Notifications
+ */
+javascriptGenerator.forBlock['notify'] = function (
+  block: Blockly.Block
+): string {
+  const type =
+    block.getFieldValue('TYPE') ||
+    block.getFieldValue('NOTIFICATION_TYPE') ||
+    'info'
+
+  const message =
+    javascriptGenerator.valueToCode(
+      block,
+      'MESSAGE',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    JSON.stringify(
+      block.getFieldValue('MESSAGE') ||
+        block.getFieldValue('TEXT') ||
+        ''
+    )
+
+  return (
+    'Bot.notify(' +
+    JSON.stringify(type) +
+    ', String(' +
+    message +
+    '));'
+  )
+}
+
+javascriptGenerator.forBlock['console'] = function (
+  block: Blockly.Block
+): string {
+  const type =
+    block.getFieldValue('TYPE') ||
+    block.getFieldValue('LEVEL') ||
+    'info'
+
+  const message =
+    javascriptGenerator.valueToCode(
+      block,
+      'MESSAGE',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    JSON.stringify(
+      block.getFieldValue('MESSAGE') ||
+        block.getFieldValue('TEXT') ||
+        ''
+    )
+
+  return (
+    'Bot.console(' +
+    JSON.stringify(type) +
+    ', ' +
+    message +
+    ');'
+  )
+}
+
+/*
+ * Timing
+ */
+javascriptGenerator.forBlock['sleep'] = function (
+  block: Blockly.Block
+): string {
+  const ms =
+    javascriptGenerator.valueToCode(
+      block,
+      'MS',
+      javascriptGenerator.ORDER_NONE
+    ) || '1000'
+
+  return 'await Bot.sleep(Number(' + ms + '));'
+}
+
+javascriptGenerator.forBlock['tick_delay'] = function (
+  block: Blockly.Block
+): string {
+  const count =
+    javascriptGenerator.valueToCode(
+      block,
+      'TICKS',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    javascriptGenerator.valueToCode(
+      block,
+      'COUNT',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    '1'
+
+  return 'await Bot.tickDelay(Number(' + count + '));'
+}
+
+/*
+ * Time helpers
+ */
+javascriptGenerator.forBlock['epoch'] = function (): [string, number] {
+  return [
+    'Math.floor(Date.now() / 1000)',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+javascriptGenerator.forBlock['timeout'] = function (
+  block: Blockly.Block
+): string {
+  const duration =
+    javascriptGenerator.valueToCode(
+      block,
+      'SECONDS',
+      javascriptGenerator.ORDER_NONE
+    ) || '1'
+
+  return 'await Bot.sleep(Number(' + duration + ') * 1000);'
+}
+
+javascriptGenerator.forBlock['todatetime'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const value =
+    javascriptGenerator.valueToCode(
+      block,
+      'VALUE',
+      javascriptGenerator.ORDER_NONE
+    ) || 'Date.now() / 1000'
+
+  return [
+    'new Date(Number(' + value + ') * 1000).toLocaleString()',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+javascriptGenerator.forBlock['totimestamp'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const value =
+    javascriptGenerator.valueToCode(
+      block,
+      'VALUE',
+      javascriptGenerator.ORDER_NONE
+    ) || 'Date.now()'
+
+  return [
+    'Math.floor(new Date(' + value + ').getTime() / 1000)',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+/*
+ * Generic text blocks
+ */
+javascriptGenerator.forBlock['text_join'] = function (
+  block: Blockly.Block
+): [string, number] {
+  const count =
+  Number(
+    (block as unknown as { itemCount_?: number }).itemCount_ || 0
+  )
+  const parts: string[] = []
+
+  for (let i = 0; i < count; i += 1) {
+    parts.push(
+      javascriptGenerator.valueToCode(
+        block,
+        'ADD' + i,
+        javascriptGenerator.ORDER_NONE
+      ) || JSON.stringify('')
+    )
   }
 
-  javascriptGenerator.forBlock['text_statement'] = function (block: Blockly.Block): [string, number] {
-    const text = javascriptGenerator.valueToCode(block, 'TEXT', javascriptGenerator.ORDER_ATOMIC) || '""'
-    return [`String(${text})`, javascriptGenerator.ORDER_ATOMIC]
+  return [
+    '[' + parts.join(', ') + '].join("")',
+    javascriptGenerator.ORDER_FUNCTION_CALL
+  ]
+}
+
+javascriptGenerator.forBlock['text_statement'] = function (
+  block: Blockly.Block
+): string {
+  const text =
+    javascriptGenerator.valueToCode(
+      block,
+      'TEXT',
+      javascriptGenerator.ORDER_NONE
+    ) ||
+    JSON.stringify(
+      block.getFieldValue('TEXT') || ''
+    )
+
+  return 'String(' + text + ');'
+}
+
+/*
+ * Blockly control / container blocks
+ */
+javascriptGenerator.forBlock['block_holder'] = function (
+  block: Blockly.Block
+): string {
+  return javascriptGenerator.statementToCode(block, 'DO')
+}
+
+javascriptGenerator.forBlock['trade_definition_market'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_tradetype'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_contracttype'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_candleinterval'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_restartbuysell'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_restartonerror'] = function (): string {
+  return ''
+}
+
+javascriptGenerator.forBlock['trade_definition_tradeoptions'] = function (): string {
+  return ''
+}
+
+/*
+ * Unsupported blocks
+ *
+ * We deliberately throw instead of returning fake values.
+ * This prevents a bot from silently trading using incorrect data.
+ */
+const unsupportedTypes = [
+  'sma',
+  'ema',
+  'bollinger',
+  'rsi',
+  'macd',
+  'stochastic',
+  'ichimoku',
+  'awesome_oscillator',
+  'wma',
+  'williams_r',
+  'candle',
+  'candle_open',
+  'candle_close',
+  'candle_high',
+  'candle_low',
+  'candle_color',
+  'ohlc',
+  'indicator'
+]
+
+for (const type of unsupportedTypes) {
+  javascriptGenerator.forBlock[type] = function (
+    block: Blockly.Block
+  ): [string, number] {
+    return [
+      unsupportedValue(block),
+      javascriptGenerator.ORDER_FUNCTION_CALL
+    ]
   }
 }
 
-export function generateBotCode(workspace: Blockly.WorkspaceSvg): string | null {
-  registerGenerators()
-  javascriptGenerator.init(workspace)
+/*
+ * Catch blocks that exist in the workspace but do not have
+ * a generator registered above.
+ */
+function generateStatementChain(
+  first: Blockly.Block | null
+): string {
+  const output: string[] = []
+  let current = first
 
-  const topBlocks = workspace.getTopBlocks(false)
-  const tradeDef = topBlocks.find((b) => b.type === 'trade_definition')
-  const beforePurchase = topBlocks.find((b) => b.type === 'before_purchase')
-  const duringPurchase = topBlocks.find((b) => b.type === 'during_purchase')
-  const afterPurchase = topBlocks.find((b) => b.type === 'after_purchase')
+  while (current) {
+    const generated = javascriptGenerator.blockToCode(current)
 
-  if (!beforePurchase || !afterPurchase) return null
+    if (typeof generated === 'string') {
+      output.push(generated)
+    } else if (Array.isArray(generated)) {
+      output.push(generated[0])
+    }
 
-  const initCode = tradeDef
-    ? javascriptGenerator.statementToCode(tradeDef as Blockly.Block, 'INITIALIZATION')
-    : ''
+    current = current.getNextBlock()
+  }
 
-  const beforeCode = javascriptGenerator.statementToCode(
-    beforePurchase as Blockly.Block,
-    'BEFOREPURCHASE_STACK',
-  )
-  const afterCode = javascriptGenerator.statementToCode(
-    afterPurchase as Blockly.Block,
-    'AFTERPURCHASE_STACK',
-  )
+  return output.join('\n')
+}
 
-  let duringCode = ''
-  if (duringPurchase) {
-    duringCode = javascriptGenerator.statementToCode(
-      duringPurchase as Blockly.Block,
-      'DURING_PURCHASE_STACK',
+/*
+ * Main bot program generator
+ */
+export function generateBotCode(
+  workspace: Blockly.Workspace
+): string {
+  const roots = workspace.getTopBlocks(true)
+
+  const tradeDefinition =
+    roots.find(
+      block =>
+        block.type === 'trade_definition' ||
+        block.type === 'trade'
+    ) || null
+
+  const before =
+    roots.find(block => block.type === 'before_purchase') || null
+
+  const during =
+    roots.find(block => block.type === 'during_purchase') || null
+
+  const after =
+    roots.find(block => block.type === 'after_purchase') || null
+
+  const sections: string[] = []
+
+  sections.push('async function runBot() {')
+  sections.push('  Bot.notify("info", "Bot started");')
+
+  if (tradeDefinition) {
+    sections.push(
+      '  // Trade definition loaded from Blockly workspace'
     )
   }
 
-  const code = `${initCode}
-while (!Bot.shouldStop()) {
-  try {
-${beforeCode}
-    if (Bot.shouldStop()) break;
-    while (Bot.isContractOpen()) {
-      if (Bot.shouldStop()) break;
-${duringCode}
-      await Bot.sleep(100);
+  if (before) {
+    const code = generateStatementChain(before.getNextBlock())
+
+    if (code.trim()) {
+      sections.push('  // Before purchase')
+      sections.push(
+        code
+          .split('\n')
+          .map(line => '  ' + line)
+          .join('\n')
+      )
     }
-    if (Bot.shouldStop()) break;
-    const _action = await (async () => {
-${afterCode}
-    })();
-    if (_action === 'stop') break;
-  } catch (e) {
-    if (Bot.shouldStop()) break;
-    Bot.notify('error', 'Trade error: ' + (e && e.message ? e.message : String(e)));
-    await Bot.sleep(2000);
   }
-  await Bot.sleep(250);
-}`
-  javascriptGenerator.finish('')
-  return code
+
+  if (during) {
+    const code = generateStatementChain(during.getNextBlock())
+
+    if (code.trim()) {
+      sections.push('  // During purchase')
+      sections.push(
+        code
+          .split('\n')
+          .map(line => '  ' + line)
+          .join('\n')
+      )
+    }
+  }
+
+  if (after) {
+    const code = generateStatementChain(after.getNextBlock())
+
+    if (code.trim()) {
+      sections.push('  // After purchase')
+      sections.push(
+        code
+          .split('\n')
+          .map(line => '  ' + line)
+          .join('\n')
+      )
+    }
+  }
+
+  sections.push('  Bot.notify("success", "Bot finished");')
+  sections.push('}')
+  sections.push('')
+  sections.push('return runBot();')
+
+  return sections.join('\n')
 }
+
+export default javascriptGenerator

@@ -117,7 +117,7 @@ export default function Dashboard() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
         <p className="text-sm text-text-secondary">
-          Manage your trading bots, explore free strategies, build custom bots, and create quick strategies.
+          Manage your trading Bots, explore free strategies, build custom bots, and create quick strategies.
         </p>
       </div>
 

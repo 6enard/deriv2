@@ -1,21 +1,22 @@
+
 import * as Blockly from 'blockly'
 import 'blockly/blocks'
 
 import { Colours, darkThemeOverrides } from './colours'
-
 import {
   setGlobalMarketOptions,
   type RawSymbol,
 } from './blocks'
-
-
 import { toolbox } from './toolbox'
 import { defaultWorkspaceXml } from './defaultWorkspace'
 
 let themeRegistered = false
 
 function applyColours() {
-  const B = Blockly as unknown as { Colours: Record<string, unknown> }
+  const B = Blockly as unknown as {
+    Colours: Record<string, unknown>
+  }
+
   B.Colours = Colours
 }
 
@@ -64,7 +65,9 @@ export function ensureRegistered() {
   registerTheme()
 }
 
-export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
+export function createWorkspace(
+  container: HTMLElement,
+): Blockly.WorkspaceSvg {
   ensureRegistered()
 
   const mobile =
@@ -104,35 +107,62 @@ export function createWorkspace(container: HTMLElement): Blockly.WorkspaceSvg {
   })
 }
 
-export function loadDefaultWorkspace(workspace: Blockly.WorkspaceSvg) {
+export function loadDefaultWorkspace(
+  workspace: Blockly.WorkspaceSvg,
+) {
   workspace.clear()
 
-  const dom =
-    Blockly.utils.xml.textToDom(defaultWorkspaceXml)
+  const dom = Blockly.utils.xml.textToDom(
+    defaultWorkspaceXml,
+  )
 
   Blockly.Xml.domToWorkspace(dom, workspace)
 }
 
-export function workspaceToXml(workspace: Blockly.WorkspaceSvg) {
+export function workspaceToXml(
+  workspace: Blockly.WorkspaceSvg,
+) {
   return Blockly.Xml.domToText(
     Blockly.Xml.workspaceToDom(workspace),
   )
 }
 
-/* ---------------------------------------------------------
-   XML MIGRATION
---------------------------------------------------------- */
+/* =========================================================
+   XML COMPATIBILITY
+========================================================= */
 
 const BLOCK_RENAMES: Record<string, string> = {
   trade: 'trade_definition',
   tradeOptions: 'trade_definition_tradeoptions',
+  trade_options: 'trade_definition_tradeoptions',
+
   market: 'trade_definition_market',
+  tradeMarket: 'trade_definition_market',
+
+  tradeType: 'trade_definition_tradetype',
+  trade_type: 'trade_definition_tradetype',
+
+  contractType: 'trade_definition_contracttype',
+  contract_type: 'trade_definition_contracttype',
+
+  candleInterval: 'trade_definition_candleinterval',
+
   check_result: 'contract_check_result',
+  contract_check_result: 'contract_check_result',
+
   tickdelay: 'tick_delay',
+  tick_delay: 'tick_delay',
+
   math_number_positive: 'math_number',
+
+  buy: 'purchase',
+  purchase_conditions: 'before_purchase',
 }
 
-const FIELD_RENAMES: Record<string, Record<string, string>> = {
+const FIELD_RENAMES: Record<
+  string,
+  Record<string, string>
+> = {
   read_details: {
     DETAILS: 'DETAIL_INDEX',
   },
@@ -145,117 +175,273 @@ const FIELD_RENAMES: Record<string, Record<string, string>> = {
   console: {
     VALUE: 'MESSAGE',
   },
+
+  notify: {
+    VALUE: 'MESSAGE',
+  },
+
+  contract_check_result: {
+    RESULT: 'CHECK_RESULT',
+    CHECKRESULT: 'CHECK_RESULT',
+  },
+}
+
+const VALUE_FIELD_ALIASES: Record<string, string[]> = {
+  DURATION: [
+    'DURATION',
+    'DURATION_VALUE',
+    'DURATIONVALUE',
+  ],
+
+  AMOUNT: [
+    'AMOUNT',
+    'STAKE',
+    'STAKE_AMOUNT',
+    'AMOUNT_VALUE',
+  ],
+
+  PREDICTION: [
+    'PREDICTION',
+    'PREDICTION_VALUE',
+  ],
+
+  BARRIER: [
+    'BARRIER',
+    'BARRIER_VALUE',
+  ],
+
+  SECOND_BARRIER: [
+    'SECOND_BARRIER',
+    'SECONDBARRIER',
+    'SECOND_BARRIER_VALUE',
+  ],
 }
 
 function renameBlocks(root: Element) {
   const blocks = Array.from(
     root.querySelectorAll('block,shadow'),
-  ) as Element[]
+  )
 
-  blocks.forEach((block) => {
+  for (const block of blocks) {
     const type = block.getAttribute('type')
-    if (!type) return
 
-    if (BLOCK_RENAMES[type]) {
-      block.setAttribute(
-        'type',
-        BLOCK_RENAMES[type],
-      )
+    if (!type) continue
+
+    const replacement = BLOCK_RENAMES[type]
+
+    if (replacement) {
+      block.setAttribute('type', replacement)
     }
-  })
+  }
 }
 
 function renameFields(root: Element) {
   const blocks = Array.from(
     root.querySelectorAll('block,shadow'),
-  ) as Element[]
+  )
 
-  blocks.forEach((block) => {
+  for (const block of blocks) {
     const type = block.getAttribute('type')
-    if (!type) return
 
-    const map = FIELD_RENAMES[type]
-    if (!map) return
+    if (!type) continue
 
-    Array.from(block.children).forEach((child) => {
-      if (child.tagName !== 'field') return
+    const mapping = FIELD_RENAMES[type]
+
+    if (!mapping) continue
+
+    for (const child of Array.from(block.children)) {
+      if (child.tagName !== 'field') continue
 
       const name = child.getAttribute('name')
-      if (!name) return
 
-      if (map[name]) {
+      if (!name) continue
+
+      if (mapping[name]) {
         child.setAttribute(
           'name',
-          map[name],
+          mapping[name],
         )
       }
-    })
-  })
+    }
+  }
 }
 
-function normalizeCheckboxes(root: Element) {
-  const targets = [
-    ['trade_definition_restartbuysell', 'TIME_MACHINE_ENABLED'],
-    ['trade_definition_restartonerror', 'RESTARTONERROR'],
-    ['notify', 'NOTIFICATION_SOUND'],
-  ]
+function normalizeXmlBooleans(root: Element) {
+  const fields = Array.from(
+    root.querySelectorAll('field'),
+  )
 
-  targets.forEach(([type, field]) => {
-    root
-      .querySelectorAll(`block[type="${type}"]`)
-      .forEach((block) => {
-        const el = Array.from(block.children).find(
-          (c) =>
-            c.tagName === 'field' &&
-            c.getAttribute('name') === field,
-        )
+  for (const field of fields) {
+    const value = field.textContent
+      ?.trim()
+      .toUpperCase()
 
-        if (!el) return
+    if (value === 'TRUE') {
+      field.textContent = 'TRUE'
+    } else if (value === 'FALSE') {
+      field.textContent = 'FALSE'
+    }
+  }
+}
 
-        const value =
-          el.textContent?.trim().toUpperCase()
+function normalizeLegacyInputNames(root: Element) {
+  const blocks = Array.from(
+    root.querySelectorAll('block,shadow'),
+  )
 
-        if (value === 'TRUE') el.textContent = 'TRUE'
-        if (value === 'FALSE') el.textContent = 'FALSE'
-      })
-  })
+  for (const block of blocks) {
+    const type = block.getAttribute('type')
+
+    if (
+      type !== 'trade_definition_tradeoptions' &&
+      type !== 'trade_definition'
+    ) {
+      continue
+    }
+
+    for (const input of Array.from(
+      block.querySelectorAll(':scope > value, :scope > statement'),
+    )) {
+      const name = input.getAttribute('name')
+
+      if (!name) continue
+
+      if (
+        name === 'STAKE' ||
+        name === 'STAKE_AMOUNT'
+      ) {
+        input.setAttribute('name', 'AMOUNT')
+      }
+
+      if (
+        name === 'DURATION_VALUE'
+      ) {
+        input.setAttribute('name', 'DURATION')
+      }
+    }
+  }
+}
+
+function ensureMathNumberShadow(
+  block: Element,
+  inputName: string,
+  defaultValue: string,
+) {
+  const value = Array.from(block.children).find(
+    (child) =>
+      child.tagName === 'value' &&
+      child.getAttribute('name') === inputName,
+  )
+
+  if (!value) return
+
+  const hasBlock = Array.from(
+    value.children,
+  ).some(
+    (child) =>
+      child.tagName === 'block' ||
+      child.tagName === 'shadow',
+  )
+
+  if (hasBlock) return
+
+  const doc = block.ownerDocument
+
+  if (!doc) return
+
+  const shadow = doc.createElement('shadow')
+  shadow.setAttribute(
+    'type',
+    'math_number',
+  )
+
+  const field = doc.createElement('field')
+  field.setAttribute('name', 'NUM')
+  field.textContent = defaultValue
+
+  shadow.appendChild(field)
+  value.appendChild(shadow)
+}
+
+function repairTradeOptions(root: Element) {
+  const optionsBlocks = Array.from(
+    root.querySelectorAll(
+      'block[type="trade_definition_tradeoptions"]',
+    ),
+  )
+
+  for (const block of optionsBlocks) {
+    ensureMathNumberShadow(
+      block,
+      'DURATION',
+      '1',
+    )
+
+    ensureMathNumberShadow(
+      block,
+      'AMOUNT',
+      '1',
+    )
+  }
 }
 
 function migrateLegacyTrade(root: Element) {
   const legacyTrades = Array.from(
-    root.querySelectorAll('block[type="trade_definition"]'),
+    root.querySelectorAll(
+      'block[type="trade_definition"]',
+    ),
   )
 
-  legacyTrades.forEach((trade) => {
-    const hasTradeStack =
+  for (const trade of legacyTrades) {
+    const existingOptions =
       trade.querySelector(
         ':scope > statement[name="TRADE_OPTIONS"]',
       )
 
-    if (hasTradeStack) return
+    if (existingOptions) continue
 
     const fields = new Map<string, string>()
 
-    Array.from(trade.children).forEach((child) => {
-      if (child.tagName === 'field') {
-        fields.set(
-          child.getAttribute('name') || '',
-          child.textContent || '',
-        )
-      }
-    })
+    for (const child of Array.from(
+      trade.children,
+    )) {
+      if (child.tagName !== 'field') continue
 
-    if (!fields.size) return
+      const name = child.getAttribute('name')
 
-    const doc = trade.ownerDocument!
+      if (!name) continue
 
-    const statement =
-      doc.createElement('statement')
+      fields.set(
+        name,
+        child.textContent || '',
+      )
+    }
+
+    if (!fields.size) continue
+
+    const doc = trade.ownerDocument
+
+    if (!doc) continue
+
+    const statement = doc.createElement(
+      'statement',
+    )
 
     statement.setAttribute(
       'name',
       'TRADE_OPTIONS',
     )
+
+    const addField = (
+      parent: Element,
+      name: string,
+      value: string,
+    ) => {
+      const field = doc.createElement('field')
+      field.setAttribute('name', name)
+      field.textContent = value
+      parent.appendChild(field)
+    }
 
     const market =
       doc.createElement('block')
@@ -265,34 +451,28 @@ function migrateLegacyTrade(root: Element) {
       'trade_definition_market',
     )
 
-    const addField = (
-      parent: Element,
-      name: string,
-      value: string,
-    ) => {
-      const f =
-        doc.createElement('field')
-      f.setAttribute('name', name)
-      f.textContent = value
-      parent.appendChild(f)
-    }
-
     addField(
       market,
       'MARKET_LIST',
-      fields.get('MARKET_LIST') || '',
+      fields.get('MARKET_LIST') ||
+        fields.get('MARKET') ||
+        'synthetic_index',
     )
 
     addField(
       market,
       'SUBMARKET_LIST',
-      fields.get('SUBMARKET_LIST') || '',
+      fields.get('SUBMARKET_LIST') ||
+        fields.get('SUBMARKET') ||
+        '',
     )
 
     addField(
       market,
       'SYMBOL_LIST',
-      fields.get('SYMBOL_LIST') || '',
+      fields.get('SYMBOL_LIST') ||
+        fields.get('SYMBOL') ||
+        '',
     )
 
     const tradeType =
@@ -306,13 +486,17 @@ function migrateLegacyTrade(root: Element) {
     addField(
       tradeType,
       'TRADETYPECAT_LIST',
-      fields.get('TRADETYPECAT_LIST') || '',
+      fields.get('TRADETYPECAT_LIST') ||
+        fields.get('TRADETYPECAT') ||
+        '',
     )
 
     addField(
       tradeType,
       'TRADETYPE_LIST',
-      fields.get('TRADETYPE_LIST') || '',
+      fields.get('TRADETYPE_LIST') ||
+        fields.get('TRADETYPE') ||
+        '',
     )
 
     const contract =
@@ -326,7 +510,10 @@ function migrateLegacyTrade(root: Element) {
     addField(
       contract,
       'TYPE_LIST',
-      fields.get('TYPE_LIST') || '',
+      fields.get('TYPE_LIST') ||
+        fields.get('CONTRACT_TYPE') ||
+        fields.get('CONTRACTTYPE') ||
+        '',
     )
 
     const candle =
@@ -340,7 +527,8 @@ function migrateLegacyTrade(root: Element) {
     addField(
       candle,
       'CANDLEINTERVAL_LIST',
-      fields.get('CANDLEINTERVAL_LIST') || '60',
+      fields.get('CANDLEINTERVAL_LIST') ||
+        '60',
     )
 
     const restartBuy =
@@ -354,7 +542,9 @@ function migrateLegacyTrade(root: Element) {
     addField(
       restartBuy,
       'TIME_MACHINE_ENABLED',
-      fields.get('TIME_MACHINE_ENABLED') || 'FALSE',
+      fields.get(
+        'TIME_MACHINE_ENABLED',
+      ) || 'FALSE',
     )
 
     const restartError =
@@ -368,69 +558,81 @@ function migrateLegacyTrade(root: Element) {
     addField(
       restartError,
       'RESTARTONERROR',
-      fields.get('RESTARTONERROR') || 'TRUE',
+      fields.get(
+        'RESTARTONERROR',
+      ) || 'TRUE',
     )
 
-    const next1 =
-      doc.createElement('next')
+    const next1 = doc.createElement('next')
     next1.appendChild(tradeType)
     market.appendChild(next1)
 
-    const next2 =
-      doc.createElement('next')
+    const next2 = doc.createElement('next')
     next2.appendChild(contract)
     tradeType.appendChild(next2)
 
-    const next3 =
-      doc.createElement('next')
+    const next3 = doc.createElement('next')
     next3.appendChild(candle)
     contract.appendChild(next3)
 
-    const next4 =
-      doc.createElement('next')
+    const next4 = doc.createElement('next')
     next4.appendChild(restartBuy)
     candle.appendChild(next4)
 
-    const next5 =
-      doc.createElement('next')
+    const next5 = doc.createElement('next')
     next5.appendChild(restartError)
     restartBuy.appendChild(next5)
 
     statement.appendChild(market)
 
-    Array.from(trade.children)
-      .filter(
-        (c) => c.tagName === 'field',
-      )
-      .forEach((c) => trade.removeChild(c))
+    for (const child of Array.from(
+      trade.children,
+    )) {
+      if (child.tagName === 'field') {
+        trade.removeChild(child)
+      }
+    }
 
     trade.insertBefore(
       statement,
       trade.firstChild,
     )
-  })
+  }
 }
 
 function migrateXml(root: Element) {
   renameBlocks(root)
   renameFields(root)
-  normalizeCheckboxes(root)
+  normalizeXmlBooleans(root)
+  normalizeLegacyInputNames(root)
   migrateLegacyTrade(root)
+  repairTradeOptions(root)
 
   return root
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    LOAD XML
---------------------------------------------------------- */
+========================================================= */
 
 export function loadFromXml(
   workspace: Blockly.WorkspaceSvg,
   xmlText: string,
 ) {
   try {
+    if (
+      !xmlText ||
+      !xmlText.trim()
+    ) {
+      throw new Error(
+        'Empty XML file.',
+      )
+    }
+
     const dom =
-      Blockly.utils.xml.textToDom(xmlText)
+      Blockly.utils.xml.textToDom(
+        xmlText,
+      )
 
     migrateXml(dom)
 
@@ -449,22 +651,28 @@ export function loadFromXml(
       '[Bot XML Loader]',
       error,
     )
+
     return false
   }
 }
 
-export function isValidBotXml(xml: string) {
+export function isValidBotXml(
+  xml: string,
+) {
   try {
+    if (!xml.trim()) return false
+
     Blockly.utils.xml.textToDom(xml)
+
     return true
   } catch {
     return false
   }
 }
 
-/* ---------------------------------------------------------
-   TRADE PARAM EXTRACTION
---------------------------------------------------------- */
+/* =========================================================
+   TRADE PARAMS
+========================================================= */
 
 export interface TradeParams {
   symbol: string
@@ -475,6 +683,8 @@ export interface TradeParams {
   amount: number
   currency: string
   prediction?: number
+  barrier?: string
+  second_barrier?: string
 }
 
 export type TradeParamsResult =
@@ -488,31 +698,163 @@ export type TradeParamsResult =
       missingField: string
     }
 
-function numberValue(
-  block: Blockly.Block,
-  name: string,
-) {
-  const target =
-    block.getInputTargetBlock(name)
-
-  if (!target) return undefined
-
-  const raw =
-    target.getFieldValue('NUM')
-
+function finiteNumber(
+  value: unknown,
+): number | undefined {
   if (
-    raw === undefined ||
-    raw === null ||
-    raw === ''
+    value === undefined ||
+    value === null ||
+    value === ''
   ) {
     return undefined
   }
 
-  const n = Number(raw)
+  const number = Number(value)
 
-  return Number.isFinite(n)
-    ? n
+  return Number.isFinite(number)
+    ? number
     : undefined
+}
+
+function readNumericBlock(
+  block: Blockly.Block | null,
+): number | undefined {
+  if (!block) return undefined
+
+  const direct = finiteNumber(
+    block.getFieldValue('NUM'),
+  )
+
+  if (direct !== undefined) {
+    return direct
+  }
+
+  const value = block.getFieldValue('VALUE')
+
+  const valueNumber = finiteNumber(value)
+
+  if (valueNumber !== undefined) {
+    return valueNumber
+  }
+
+  return undefined
+}
+
+function numberValue(
+  block: Blockly.Block,
+  inputNames: string | string[],
+) {
+  const names = Array.isArray(
+    inputNames,
+  )
+    ? inputNames
+    : [inputNames]
+
+  for (const name of names) {
+    const target =
+      block.getInputTargetBlock(name)
+
+    const value =
+      readNumericBlock(target)
+
+    if (value !== undefined) {
+      return value
+    }
+
+    const fieldValue =
+      finiteNumber(
+        block.getFieldValue(name),
+      )
+
+    if (fieldValue !== undefined) {
+      return fieldValue
+    }
+  }
+
+  return undefined
+}
+
+function textValue(
+  block: Blockly.Block,
+  names: string[],
+) {
+  for (const name of names) {
+    const value =
+      block.getFieldValue(name)
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ''
+    ) {
+      return String(value)
+    }
+  }
+
+  return ''
+}
+
+function getTradeChain(
+  root: Blockly.Block,
+) {
+  const blocks: Blockly.Block[] = []
+
+  let block =
+    root.getInputTargetBlock(
+      'TRADE_OPTIONS',
+    )
+
+  while (block) {
+    blocks.push(block)
+    block = block.getNextBlock()
+  }
+
+  return blocks
+}
+
+function findBlockByType(
+  blocks: Blockly.Block[],
+  type: string,
+) {
+  return blocks.find(
+    (block) => block.type === type,
+  )
+}
+
+function getOptionBlock(
+  root: Blockly.Block,
+) {
+  const direct =
+    root.getInputTargetBlock(
+      'SUBMARKET',
+    )
+
+  if (
+    direct?.type ===
+    'trade_definition_tradeoptions'
+  ) {
+    return direct
+  }
+
+  const candidates =
+    root.getDescendants(true)
+
+  return (
+    candidates.find(
+      (block) =>
+        block.type ===
+        'trade_definition_tradeoptions',
+    ) || null
+  )
+}
+
+
+
+function getOptionalText(
+  block: Blockly.Block,
+  names: string[],
+) {
+  return textValue(block, names)
 }
 
 export function extractTradeParams(
@@ -522,171 +864,281 @@ export function extractTradeParams(
     workspace
       .getTopBlocks(false)
       .find(
-        (b) =>
-          b.type === 'trade_definition',
+        (block) =>
+          block.type ===
+          'trade_definition',
       )
 
-  if (!root)
+  if (!root) {
     return {
       ok: false,
-      missingField: 'trade_definition',
+      missingField:
+        'trade_definition',
     }
-
-  let symbol = ''
-  let tradeType = ''
-  let contractType = ''
-
-  let block =
-    root.getInputTargetBlock(
-      'TRADE_OPTIONS',
-    )
-
-  while (block) {
-    if (
-      block.type ===
-      'trade_definition_market'
-    ) {
-      symbol =
-        String(
-          block.getFieldValue(
-            'SYMBOL_LIST',
-          ) || '',
-        )
-    }
-
-    if (
-      block.type ===
-      'trade_definition_tradetype'
-    ) {
-      tradeType =
-        String(
-          block.getFieldValue(
-            'TRADETYPE_LIST',
-          ) || '',
-        )
-    }
-
-    if (
-      block.type ===
-      'trade_definition_contracttype'
-    ) {
-      contractType =
-        String(
-          block.getFieldValue(
-            'TYPE_LIST',
-          ) || '',
-        )
-    }
-
-    block = block.getNextBlock()
   }
 
-  if (!symbol)
+  const chain =
+    getTradeChain(root)
+
+  const market =
+    findBlockByType(
+      chain,
+      'trade_definition_market',
+    )
+
+  const tradeTypeBlock =
+    findBlockByType(
+      chain,
+      'trade_definition_tradetype',
+    )
+
+  const contractBlock =
+    findBlockByType(
+      chain,
+      'trade_definition_contracttype',
+    )
+
+  let symbol =
+    market
+      ? textValue(market, [
+          'SYMBOL_LIST',
+          'SYMBOL',
+        ])
+      : ''
+
+  let tradeType =
+    tradeTypeBlock
+      ? textValue(tradeTypeBlock, [
+          'TRADETYPE_LIST',
+          'TRADE_TYPE',
+        ])
+      : ''
+
+  let contractType =
+    contractBlock
+      ? textValue(contractBlock, [
+          'TYPE_LIST',
+          'CONTRACT_TYPE',
+        ])
+      : ''
+
+  /*
+   * Legacy XML sometimes stores these fields directly
+   * on the root trade_definition block.
+   */
+  if (!symbol) {
+    symbol = textValue(root, [
+      'SYMBOL_LIST',
+      'SYMBOL',
+    ])
+  }
+
+  if (!tradeType) {
+    tradeType = textValue(root, [
+      'TRADETYPE_LIST',
+      'TRADETYPE',
+    ])
+  }
+
+  if (!contractType) {
+    contractType = textValue(root, [
+      'TYPE_LIST',
+      'CONTRACT_TYPE',
+      'CONTRACTTYPE',
+    ])
+  }
+
+  if (!symbol) {
     return {
       ok: false,
       missingField: 'symbol',
     }
+  }
 
-  if (!contractType)
+  if (!contractType) {
     return {
       ok: false,
-      missingField: 'contract_type',
-    }
-
-  const options =
-    root.getInputTargetBlock('SUBMARKET')
-
-  if (
-    !options ||
-    options.type !==
-      'trade_definition_tradeoptions'
-  ) {
-    return {
-      ok: false,
-      missingField: 'trade_options',
+      missingField:
+        'contract_type',
     }
   }
 
-  const duration =
-    numberValue(options, 'DURATION')
+  const options =
+    getOptionBlock(root)
 
-  const amount =
-    numberValue(options, 'AMOUNT')
-
-  const prediction =
-    numberValue(options, 'PREDICTION')
-
-  if (duration === undefined)
+  if (!options) {
     return {
       ok: false,
-      missingField: 'duration',
+      missingField:
+        'trade_options',
     }
+  }
 
-  if (amount === undefined)
+  const repairedInputs: string[] = []
+
+  let duration =
+    numberValue(
+      options,
+      VALUE_FIELD_ALIASES.DURATION,
+    )
+
+  let amount =
+    numberValue(
+      options,
+      VALUE_FIELD_ALIASES.AMOUNT,
+    )
+
+  const prediction =
+    numberValue(
+      options,
+      VALUE_FIELD_ALIASES.PREDICTION,
+    )
+
+  if (
+    duration === undefined
+  ) {
+    duration = 1
+    repairedInputs.push(
+      'duration',
+    )
+  }
+
+  if (
+    amount === undefined
+  ) {
     return {
       ok: false,
       missingField: 'amount',
     }
+  }
 
-  const durationUnit =
-    String(
-      options.getFieldValue(
-        'DURATIONTYPE_LIST',
-      ) || '',
+  let durationUnit =
+    textValue(options, [
+      'DURATIONTYPE_LIST',
+      'DURATION_UNIT',
+      'DURATIONUNIT',
+    ])
+
+  let currency =
+    textValue(options, [
+      'CURRENCY_LIST',
+      'CURRENCY',
+    ])
+
+  /*
+   * Safe defaults for legacy XML.
+   * Currency is still validated at runtime against
+   * the authenticated account where possible.
+   */
+  if (!durationUnit) {
+    durationUnit = 't'
+    repairedInputs.push(
+      'duration_unit',
+    )
+  }
+
+  if (!currency) {
+    currency = 'USD'
+    repairedInputs.push(
+      'currency',
+    )
+  }
+
+  const barrier =
+    getOptionalText(
+      options,
+      VALUE_FIELD_ALIASES.BARRIER,
     )
 
-  const currency =
-    String(
-      options.getFieldValue(
-        'CURRENCY_LIST',
-      ) || '',
+  const secondBarrier =
+    getOptionalText(
+      options,
+      VALUE_FIELD_ALIASES.SECOND_BARRIER,
     )
 
-  const requiresPrediction = [
+  const digitContracts = [
     'DIGITMATCH',
     'DIGITDIFF',
     'DIGITOVER',
     'DIGITUNDER',
-  ].includes(contractType)
+  ]
 
   if (
-    requiresPrediction &&
-    prediction === undefined
+    digitContracts.includes(
+      contractType,
+    ) &&
+    prediction === undefined &&
+    !barrier
   ) {
     return {
       ok: false,
-      missingField: 'prediction',
+      missingField:
+        'prediction',
     }
   }
 
+  const normalizedPrediction =
+    prediction !== undefined
+      ? prediction
+      : finiteNumber(barrier)
+
   return {
     ok: true,
+
     params: {
       symbol,
-      contract_type: contractType,
-      trade_type: tradeType,
+      contract_type:
+        contractType,
+      trade_type:
+        tradeType,
       duration,
-      duration_unit: durationUnit,
+      duration_unit:
+        durationUnit,
       amount,
       currency,
-      prediction,
+      prediction:
+        normalizedPrediction,
+      barrier:
+        barrier ||
+        (
+          normalizedPrediction !==
+          undefined
+            ? String(
+                normalizedPrediction,
+              )
+            : undefined
+        ),
+      second_barrier:
+        secondBarrier ||
+        undefined,
     },
-    repairedInputs: [],
+
+    repairedInputs,
   }
 }
 
-/* ---------------------------------------------------------
+/* =========================================================
    SAFE IMPORT
---------------------------------------------------------- */
+========================================================= */
 
 export async function loadBotXmlSafely(
   workspace: Blockly.WorkspaceSvg,
   xml: string,
-  fetchSymbolsIfNeeded: () => Promise<RawSymbol[] | null>,
-  currentlyLoadedSymbols: RawSymbol[] | null,
+  fetchSymbolsIfNeeded: () => Promise<
+    RawSymbol[] | null
+  >,
+  currentlyLoadedSymbols:
+    | RawSymbol[]
+    | null,
 ): Promise<
-  | { ok: true; repaired: boolean }
-  | { ok: false; reason: string }
+  | {
+      ok: true
+      repaired: boolean
+    }
+  | {
+      ok: false
+      reason: string
+    }
 > {
   try {
     let symbols =
@@ -698,54 +1150,77 @@ export async function loadBotXmlSafely(
     }
 
     if (symbols?.length) {
-      setGlobalMarketOptions(symbols)
+      setGlobalMarketOptions(
+        symbols,
+      )
+    }
+
+    const valid =
+      isValidBotXml(xml)
+
+    if (!valid) {
+      return {
+        ok: false,
+        reason:
+          'The uploaded file is not valid Blockly XML.',
+      }
     }
 
     const ok =
-      loadFromXml(workspace, xml)
+      loadFromXml(
+        workspace,
+        xml,
+      )
 
     if (!ok) {
       return {
         ok: false,
         reason:
-          'Unable to load this Deriv bot XML.',
+          'Unable to load this Deriv bot XML. The file may contain unsupported blocks.',
       }
     }
 
+    const params =
+      extractTradeParams(
+        workspace,
+      )
+
     return {
       ok: true,
-      repaired: false,
+      repaired:
+        params.ok &&
+        params.repairedInputs.length >
+          0,
     }
   } catch (error) {
-    console.error(error)
+    console.error(
+      '[Bot XML Import]',
+      error,
+    )
 
     return {
       ok: false,
       reason:
-        'Unexpected error while importing bot.',
+        error instanceof Error
+          ? error.message
+          : 'Unknown XML import error.',
     }
   }
 }
 
 export {
-  defaultWorkspaceXml,
-}
-
-export {
-  generateBotCode,
-  registerGenerators,
-} from './generators'
-
-export {
-  createBotApi,
-  type BotApi,
-  type BotApiOptions,
-  type NotificationType,
-  type NotifyData,
+  createBotApi
 } from './botApi'
 
+export type {
+  BotApi,
+  NotificationType,
+  NotifyData,
+} from './botApi'
 export {
-  setGlobalMarketOptions,
-  getPurchaseListOptions,
-  type RawSymbol,
-} from './blocks'
+  generateBotCode
+} from './generators'
+  
+export {
+  setGlobalMarketOptions
+}

@@ -108,15 +108,15 @@ export function useBotRunner(
       showToast('info', `Some trade values needed correcting (${paramsResult.repairedInputs.join(', ')}) — please verify before relying on this bot.`)
     }
 
-    const code = generateBotCode(workspace)
-    if (!code) {
-      showToast('error', 'Add Purchase conditions and Trade results blocks before running.')
-      return
-    }
+   const code = generateBotCode(workspace)
 
-    stopRef.current = false
-    setIsRunning(true)
-    setHasRunOnce(true)
+if (!code) {
+  showToast(
+    'error',
+    'This bot is incomplete. Make sure it contains Trade Definition, Before Purchase and After Purchase blocks.',
+  )
+  return
+}
 
     const botApi: BotApi = createBotApi(ws, account, params, {
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
