@@ -61,7 +61,7 @@ function buildRedirectUri(): string {
     return `${window.location.origin}/callback`
   }
 
-  return 'https://www.traderkit.pro/callback'
+  return 'https://deriv1.vercel.app/callback'
 }
 
 export const DERIV_REDIRECT_URI =
