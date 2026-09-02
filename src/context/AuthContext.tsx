@@ -15,7 +15,8 @@ import {
   getStoredOAuthState,
 } from '../lib/oauth'
 import {
-  DERIV_CLIENT_ID,
+   DERIV_CLIENT_ID,
+  DERIV_APP_ID,
   DERIV_REDIRECT_URI,
   OPTIONS_API_BASE,
   ADMIN_ACCOUNT_IDS,
