@@ -161,7 +161,11 @@ export default function BotBuilder() {
 
             checkLoadedFields(workspaceRef.current)
           } else {
-            showToast('error', result.reason)
+            if (result.loaded) {
+              checkLoadedFields(workspaceRef.current)
+            } else {
+              showToast('error', result.reason)
+            }
           }
         } else {
           showToast('success', 'Markets loaded.')
@@ -252,14 +256,29 @@ export default function BotBuilder() {
     (workspace: Blockly.WorkspaceSvg) => {
       const result = extractTradeParams(workspace)
 
-      if (
-        !result.ok &&
-        (result.missingField === 'symbol' ||
-          result.missingField === 'contract_type')
-      ) {
+      if (!result.ok) {
+        const field = result.missingField
+        const messages: Record<string, string> = {
+          market:
+            'This bot is missing a market selection. Please choose a market in the Trade Parameters block before running.',
+          symbol:
+            "This bot's market selection didn't load correctly. Please reselect a market and symbol in the Trade Parameters block.",
+          'trade type':
+            'This bot is missing a trade type. Please select a trade type in the Trade Parameters block before running.',
+          'contract type':
+            'This bot is missing a contract type. Please select a contract type in the Trade Parameters block before running.',
+          'trade options':
+            'This bot is missing trade options (stake, duration, etc.). Please set them in the Trade Parameters block before running.',
+          duration:
+            'This bot is missing a trade duration. Please set a duration in the Trade Parameters block before running.',
+          'stake amount':
+            'This bot is missing a stake amount. Please set a stake amount in the Trade Parameters block before running.',
+        }
+
         showToast(
           'error',
-          "This bot's market selection didn't load correctly. Please reselect a symbol in the Trade Definition block.",
+          messages[field] ||
+            `This bot is missing: ${field}. Please set it in the Trade Parameters block before running.`,
         )
       }
     },
@@ -292,7 +311,14 @@ export default function BotBuilder() {
         setWorkspaceModified(false)
         checkLoadedFields(workspace)
       } else {
-        showToast('error', result.reason)
+        if (result.loaded) {
+          // Bot loaded into workspace but has missing/incomplete trade params.
+          // The blocks are visible — guide the user to fill in what's missing.
+          setWorkspaceModified(false)
+          checkLoadedFields(workspace)
+        } else {
+          showToast('error', result.reason)
+        }
       }
     },
     [showToast, fetchSymbols, symbols, checkLoadedFields],

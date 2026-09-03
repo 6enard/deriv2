@@ -183,32 +183,90 @@ const BLOCK_RENAMES: Record<string, string> = {
   contractType: 'trade_definition_contracttype',
   contract_type: 'trade_definition_contracttype',
   candleInterval: 'trade_definition_candleinterval',
+  candle_interval: 'trade_definition_candleinterval',
+  restartbuysell: 'trade_definition_restartbuysell',
+  restart_buy_sell: 'trade_definition_restartbuysell',
+  restartonerror: 'trade_definition_restartonerror',
+  restart_on_error: 'trade_definition_restartonerror',
+  trade_definition_restart: 'trade_definition_restartonerror',
   check_result: 'contract_check_result',
   contract_check_result: 'contract_check_result',
+  result_check: 'contract_check_result',
   tickdelay: 'tick_delay',
   tick_delay: 'tick_delay',
   math_number_positive: 'math_number',
   buy: 'purchase',
   purchase_conditions: 'before_purchase',
+  before_purchase_conditions: 'before_purchase',
+  during_purchase_conditions: 'during_purchase',
+  after_purchase_conditions: 'after_purchase',
+  sell_conditions: 'during_purchase',
+  trade_results: 'after_purchase',
+  trade_definition_purchase: 'before_purchase',
+  trade_definition_during_purchase: 'during_purchase',
+  trade_definition_after_purchase: 'after_purchase',
+  submarket: 'trade_definition_tradeoptions',
+  trade_definition_trade_options: 'trade_definition_tradeoptions',
 }
 
 const FIELD_RENAMES: Record<string, Record<string, string>> = {
   read_details: {
     DETAILS: 'DETAIL_INDEX',
+    DETAIL: 'DETAIL_INDEX',
   },
   tick_delay: {
     TICKS: 'TICKDELAYVALUE',
     TIMEOUTSTACK: 'TICKDELAYSTACK',
+    DELAYSTACK: 'TICKDELAYSTACK',
   },
   console: {
     VALUE: 'MESSAGE',
+    TEXT: 'MESSAGE',
   },
   notify: {
     VALUE: 'MESSAGE',
+    TEXT: 'MESSAGE',
+    MSG: 'MESSAGE',
   },
   contract_check_result: {
     RESULT: 'CHECK_RESULT',
     CHECKRESULT: 'CHECK_RESULT',
+    RESULTS: 'CHECK_RESULT',
+  },
+  trade_definition_market: {
+    MARKET: 'MARKET_LIST',
+    SUBMARKET: 'SUBMARKET_LIST',
+    SYMBOL: 'SYMBOL_LIST',
+    UNDERLYING_SYMBOL: 'SYMBOL_LIST',
+  },
+  trade_definition_tradetype: {
+    TRADETYPECAT: 'TRADETYPECAT_LIST',
+    TRADE_TYPE_CAT: 'TRADETYPECAT_LIST',
+    TRADETYPE: 'TRADETYPE_LIST',
+    TRADE_TYPE: 'TRADETYPE_LIST',
+  },
+  trade_definition_contracttype: {
+    TYPE: 'TYPE_LIST',
+    CONTRACT_TYPE: 'TYPE_LIST',
+  },
+  trade_definition_candleinterval: {
+    CANDLEINTERVAL: 'CANDLEINTERVAL_LIST',
+    CANDLE_INTERVAL: 'CANDLEINTERVAL_LIST',
+    INTERVAL: 'CANDLEINTERVAL_LIST',
+  },
+  trade_definition_tradeoptions: {
+    DURATIONTYPE: 'DURATIONTYPE_LIST',
+    DURATION_TYPE: 'DURATIONTYPE_LIST',
+    CURRENCY: 'CURRENCY_LIST',
+  },
+  purchase: {
+    PURCHASE: 'PURCHASE_LIST',
+    CONTRACT_TYPE: 'PURCHASE_LIST',
+    TYPE: 'PURCHASE_LIST',
+  },
+  trade_definition_restartbuysell: {
+    TIME_MACHINE: 'TIME_MACHINE_ENABLED',
+    RESTARTBUYSELL: 'TIME_MACHINE_ENABLED',
   },
 }
 
@@ -436,6 +494,231 @@ function repairTradeOptions(root: Element) {
 }
 
 /* =========================================================
+ENSURE TRADE PARAMETER BLOCKS
+Injects missing candle interval, restart buy/sell, and
+restart on error blocks into legacy bot XML that predates
+them. Also ensures missing field elements are created on
+existing blocks so dropdown repair can fill them.
+========================================================= */
+
+function ensureFieldElement(
+  block: Element,
+  name: string,
+  value: string,
+): void {
+  if (findDirectField(block, name)) return
+
+  const doc = block.ownerDocument
+  if (!doc) return
+
+  const field = doc.createElement('field')
+  field.setAttribute('name', name)
+  field.textContent = value
+  block.appendChild(field)
+}
+
+function ensureTradeParameterBlocks(root: Element) {
+  const marketBlock = root.querySelector(
+    'block[type="trade_definition_market"]',
+  )
+  if (!marketBlock) return
+
+  // Ensure market block has all three field elements
+  ensureFieldElement(marketBlock, 'MARKET_LIST', '')
+  ensureFieldElement(marketBlock, 'SUBMARKET_LIST', '')
+  ensureFieldElement(marketBlock, 'SYMBOL_LIST', '')
+
+  // Walk the chain of blocks inside TRADE_OPTIONS to find
+  // the last block, then append any missing trade parameter blocks.
+  const tradeDefinition = root.querySelector(
+    'block[type="trade_definition"]',
+  )
+
+  if (!tradeDefinition) return
+
+  const tradeOptionsStatement = Array.from(
+    tradeDefinition.children,
+  ).find(
+    (child) =>
+      child.tagName === 'statement' &&
+      child.getAttribute('name') === 'TRADE_OPTIONS',
+  )
+
+  if (!tradeOptionsStatement) return
+
+  // Find all existing trade parameter block types in the chain
+  const existingTypes = new Set<string>()
+  let cursor: Element | null = marketBlock
+  let lastInChain: Element = marketBlock
+
+  while (cursor) {
+    const type = cursor.getAttribute('type')
+    if (type) existingTypes.add(type)
+    lastInChain = cursor
+
+    const nextContainer: Element | undefined = Array.from(cursor.children).find(
+      (child) => child.tagName === 'next',
+    )
+
+    const childBlock: Element | null = nextContainer
+      ? (nextContainer.querySelector(':scope > block') as Element | null)
+      : null
+    cursor = childBlock
+  }
+
+  const doc = root.ownerDocument
+  if (!doc) return
+
+  // The standard order: market -> tradetype -> contracttype ->
+  // candleinterval -> restartbuysell -> restartonerror
+  const missingBlocks: Array<{
+    type: string
+    field: string
+    value: string
+  }> = []
+
+  if (!existingTypes.has('trade_definition_candleinterval')) {
+    missingBlocks.push({
+      type: 'trade_definition_candleinterval',
+      field: 'CANDLEINTERVAL_LIST',
+      value: '60',
+    })
+  }
+
+  if (!existingTypes.has('trade_definition_restartbuysell')) {
+    missingBlocks.push({
+      type: 'trade_definition_restartbuysell',
+      field: 'TIME_MACHINE_ENABLED',
+      value: 'false',
+    })
+  }
+
+  if (!existingTypes.has('trade_definition_restartonerror')) {
+    missingBlocks.push({
+      type: 'trade_definition_restartonerror',
+      field: 'RESTARTONERROR',
+      value: 'true',
+    })
+  }
+
+  if (missingBlocks.length === 0) return
+
+  let appendTarget = lastInChain
+
+  for (const missing of missingBlocks) {
+    // Check if appendTarget already has a <next> — if so, follow it
+    // (shouldn't happen since we walked the chain, but be safe)
+    const existingNext = Array.from(appendTarget.children).find(
+      (child) => child.tagName === 'next',
+    )
+
+    if (existingNext) {
+      const innerBlock = existingNext.querySelector(':scope > block')
+      if (innerBlock) {
+        appendTarget = innerBlock as Element
+        continue
+      }
+    }
+
+    // Create <next> wrapping the new block
+    const nextEl = doc.createElement('next')
+    const newBlock = doc.createElement('block')
+    newBlock.setAttribute('type', missing.type)
+
+    const field = doc.createElement('field')
+    field.setAttribute('name', missing.field)
+    field.textContent = missing.value
+    newBlock.appendChild(field)
+
+    nextEl.appendChild(newBlock)
+    appendTarget.appendChild(nextEl)
+    appendTarget = newBlock
+  }
+}
+
+/* =========================================================
+ENSURE ROOT BLOCKS
+Ensures the four mandatory root blocks exist in the XML.
+Some very old or minimal bot files may only contain a
+trade_definition block without before_purchase,
+during_purchase, or after_purchase.
+========================================================= */
+
+function ensureRootBlocks(root: Element) {
+  const doc = root.ownerDocument
+  if (!doc) return
+
+  const hasBefore = root.querySelector('block[type="before_purchase"]')
+  const hasDuring = root.querySelector('block[type="during_purchase"]')
+  const hasAfter = root.querySelector('block[type="after_purchase"]')
+  const hasTradeDef = root.querySelector('block[type="trade_definition"]')
+
+  if (!hasTradeDef) return // Can't fix if there's no trade definition at all
+
+  if (!hasBefore) {
+    const before = doc.createElement('block')
+    before.setAttribute('type', 'before_purchase')
+    before.setAttribute('x', '0')
+    before.setAttribute('y', '576')
+
+    const stmt = doc.createElement('statement')
+    stmt.setAttribute('name', 'BEFOREPURCHASE_STACK')
+
+    const purchase = doc.createElement('block')
+    purchase.setAttribute('type', 'purchase')
+
+    const field = doc.createElement('field')
+    field.setAttribute('name', 'PURCHASE_LIST')
+    field.textContent = ''
+    purchase.appendChild(field)
+
+    stmt.appendChild(purchase)
+    before.appendChild(stmt)
+    root.appendChild(before)
+  }
+
+  if (!hasDuring) {
+    const during = doc.createElement('block')
+    during.setAttribute('type', 'during_purchase')
+    during.setAttribute('x', '720')
+    during.setAttribute('y', '0')
+
+    const stmt = doc.createElement('statement')
+    stmt.setAttribute('name', 'DURING_PURCHASE_STACK')
+
+    const ctrlIf = doc.createElement('block')
+    ctrlIf.setAttribute('type', 'controls_if')
+
+    const ifValue = doc.createElement('value')
+    ifValue.setAttribute('name', 'IF0')
+
+    const checkSell = doc.createElement('block')
+    checkSell.setAttribute('type', 'check_sell')
+    ifValue.appendChild(checkSell)
+    ctrlIf.appendChild(ifValue)
+    stmt.appendChild(ctrlIf)
+    during.appendChild(stmt)
+    root.appendChild(during)
+  }
+
+  if (!hasAfter) {
+    const after = doc.createElement('block')
+    after.setAttribute('type', 'after_purchase')
+    after.setAttribute('x', '720')
+    after.setAttribute('y', '248')
+
+    const stmt = doc.createElement('statement')
+    stmt.setAttribute('name', 'AFTERPURCHASE_STACK')
+
+    const tradeAgain = doc.createElement('block')
+    tradeAgain.setAttribute('type', 'trade_again')
+    stmt.appendChild(tradeAgain)
+    after.appendChild(stmt)
+    root.appendChild(after)
+  }
+}
+
+/* =========================================================
 DROPDOWN XML REPAIR
 ========================================================= */
 
@@ -455,6 +738,11 @@ function repairMarketFields(root: Element) {
   )
 
   if (!marketBlock) return
+
+  // Ensure field elements exist even if the legacy XML omitted them
+  ensureFieldElement(marketBlock, 'MARKET_LIST', '')
+  ensureFieldElement(marketBlock, 'SUBMARKET_LIST', '')
+  ensureFieldElement(marketBlock, 'SYMBOL_LIST', '')
 
   const marketField = findDirectField(marketBlock, 'MARKET_LIST')
   const submarketField = findDirectField(marketBlock, 'SUBMARKET_LIST')
@@ -494,6 +782,9 @@ function repairTradeDefinitionFields(root: Element) {
   )
 
   for (const block of tradeTypes) {
+    ensureFieldElement(block, 'TRADETYPECAT_LIST', '')
+    ensureFieldElement(block, 'TRADETYPE_LIST', '')
+
     const category = findDirectField(block, 'TRADETYPECAT_LIST')
     const type = findDirectField(block, 'TRADETYPE_LIST')
 
@@ -514,6 +805,8 @@ function repairTradeDefinitionFields(root: Element) {
   )
 
   for (const block of contracts) {
+    ensureFieldElement(block, 'TYPE_LIST', '')
+
     const field = findDirectField(block, 'TYPE_LIST')
 
     if (field && !field.textContent?.trim()) {
@@ -573,6 +866,8 @@ function repairPurchaseField(root: Element) {
   }
 
   for (const purchase of purchases) {
+    ensureFieldElement(purchase, 'PURCHASE_LIST', '')
+
     const field = findDirectField(purchase, 'PURCHASE_LIST')
     if (!field || field.textContent?.trim()) continue
 
@@ -588,6 +883,8 @@ function migrateXml(root: Element) {
   normalizeXmlBooleans(root)
   migrateLegacyVariables(root)
   repairLegacyTextJoin(root)
+  ensureRootBlocks(root)
+  ensureTradeParameterBlocks(root)
   repairMarketFields(root)
   repairTradeDefinitionFields(root)
   repairPurchaseField(root)
@@ -961,15 +1258,21 @@ export function extractTradeParams(
 SAFE BOT XML LOAD
 ========================================================= */
 
+export type LoadBotResult =
+  | { ok: true; repaired: boolean }
+  | {
+      ok: false
+      reason: string
+      missingField?: string
+      loaded: boolean
+    }
+
 export async function loadBotXmlSafely(
   workspace: Blockly.WorkspaceSvg,
   xml: string,
   fetchSymbolsIfNeeded: () => Promise<RawSymbol[] | null>,
   currentlyLoadedSymbols: RawSymbol[] | null,
-): Promise<
-  | { ok: true; repaired: boolean }
-  | { ok: false; reason: string }
-> {
+): Promise<LoadBotResult> {
   try {
     let symbols = currentlyLoadedSymbols
 
@@ -985,6 +1288,7 @@ export async function loadBotXmlSafely(
       return {
         ok: false,
         reason: 'The uploaded file is not valid Blockly XML.',
+        loaded: false,
       }
     }
 
@@ -995,6 +1299,7 @@ export async function loadBotXmlSafely(
         ok: false,
         reason:
           'Unable to load this Deriv bot XML. The file may contain unsupported blocks.',
+        loaded: false,
       }
     }
 
@@ -1004,6 +1309,8 @@ export async function loadBotXmlSafely(
       return {
         ok: false,
         reason: 'Missing or invalid trade field: ' + params.missingField,
+        missingField: params.missingField,
+        loaded: true,
       }
     }
 
@@ -1020,6 +1327,7 @@ export async function loadBotXmlSafely(
         error instanceof Error
           ? error.message
           : 'Unknown XML import error.',
+      loaded: false,
     }
   }
 }
