@@ -68,48 +68,48 @@ STATEMENT GENERATION
 function generateStatementChain(
 first: Blockly.Block | null,
 ): string {
-const output: string[] = []
+if (!first) {
+return ''
+}
 
-let current = first
-
-while (current) {
+/*
+ * Blockly's javascriptGenerator.scrub_ already walks
+ * block.nextConnection.targetBlock() and recursively
+ * appends its code — that's how workspaceToCode() chains
+ * a whole stack from a single blockToCode() call. Manually
+ * walking getNextBlock() here too (as this used to) made
+ * every block after the first get generated once via this
+ * loop AND once again via scrub_'s own recursion for each
+ * earlier block — producing cascading duplicate output
+ * (variables re-assigned repeatedly, notifications firing
+ * more than once, etc.). A single blockToCode(first) call
+ * already returns the code for the entire chain.
+ */
 const generated =
 javascriptGenerator.blockToCode(
-current,
+first,
 )
 
 if (
-  typeof generated ===
-  'string'
+typeof generated ===
+'string'
 ) {
-  if (
-    generated.trim()
-  ) {
-    output.push(
-      generated,
-    )
-  }
-} else if (
-  Array.isArray(generated)
-) {
-  const code =
-    generated[0]
-
-  if (
-    typeof code ===
-    'string' &&
-    code.trim()
-  ) {
-    output.push(code)
-  }
+return generated
 }
 
-current =
-  current.getNextBlock()
+if (
+Array.isArray(generated)
+) {
+const code =
+generated[0]
 
+return typeof code ===
+'string'
+? code
+: ''
 }
 
-return output.join('\n')
+return ''
 }
 
 function getFirstStatementInputName(
@@ -344,7 +344,16 @@ javascriptGenerator.ORDER_FUNCTION_CALL,
 javascriptGenerator.forBlock[
 'trade_again'
 ] = function (): string {
-return 'await Bot.purchase();'
+/*
+ * Restarts the before/purchase/after cycle from the
+ * top (checking Bot.shouldStop() again first) instead
+ * of ending the run. The outer loop in generateBotCode
+ * wraps the whole cycle in a while() and `break`s at the
+ * end unless trade_again was reached, so this must be a
+ * `continue` — it must NOT call Bot.purchase() itself,
+ * that already happened in during_purchase.
+ */
+return 'continue;'
 }
 
 /* =========================================================
@@ -1159,7 +1168,52 @@ if (
   sections.push(
     '  // Trade definition loaded from Blockly workspace',
   )
+
+  const initializationTarget =
+    tradeDefinition.getInputTargetBlock(
+      'INITIALIZATION',
+    )
+
+  const initCode =
+    initializationTarget
+      ? generateStatementChain(
+          initializationTarget,
+        )
+      : ''
+
+  if (
+    initCode.trim()
+  ) {
+    sections.push(
+      '  // Initialization',
+    )
+
+    sections.push(
+      initCode
+        .split('\n')
+        .map(
+          (line) =>
+            '  ' +
+            line,
+        )
+        .join('\n'),
+    )
+  }
 }
+
+/*
+ * The before/during/after cycle is wrapped in a loop
+ * so a bot that calls "Trade again" keeps trading until
+ * either the workspace decides not to (falls through to
+ * the trailing `break`) or the person clicks Stop
+ * (Bot.shouldStop() becomes true and the loop exits
+ * before starting another cycle). Bots that never use
+ * "Trade again" naturally run exactly once, matching
+ * standard Deriv Bot behaviour.
+ */
+sections.push(
+  '  while (!Bot.shouldStop()) {',
+)
 
 if (before) {
   const code =
@@ -1171,7 +1225,7 @@ if (before) {
     code.trim()
   ) {
     sections.push(
-      '  // Before purchase',
+      '    // Before purchase',
     )
 
     sections.push(
@@ -1179,7 +1233,7 @@ if (before) {
         .split('\n')
         .map(
           (line) =>
-            '  ' +
+            '    ' +
             line,
         )
         .join('\n'),
@@ -1197,7 +1251,7 @@ if (during) {
     code.trim()
   ) {
     sections.push(
-      '  // During purchase',
+      '    // During purchase',
     )
 
     sections.push(
@@ -1205,7 +1259,7 @@ if (during) {
         .split('\n')
         .map(
           (line) =>
-            '  ' +
+            '    ' +
             line,
         )
         .join('\n'),
@@ -1223,7 +1277,7 @@ if (after) {
     code.trim()
   ) {
     sections.push(
-      '  // After purchase',
+      '    // After purchase',
     )
 
     sections.push(
@@ -1231,13 +1285,21 @@ if (after) {
         .split('\n')
         .map(
           (line) =>
-            '  ' +
+            '    ' +
             line,
         )
         .join('\n'),
     )
   }
 }
+
+sections.push(
+  '    break;',
+)
+
+sections.push(
+  '  }',
+)
 
 sections.push(
   '  Bot.notify("success", "Bot finished");',
