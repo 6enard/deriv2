@@ -1033,4 +1033,4 @@ export type {
   NotifyData,
 } from './botApi'
 
-export { generateBotCode } from './generator'
+export { generateBotCode } from './generators'
