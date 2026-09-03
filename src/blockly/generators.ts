@@ -1749,6 +1749,12 @@ javascriptGenerator.forBlock[
       '1',
     )
 
+  const interval =
+    getFieldValue(
+      block,
+      ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+    ) || 'default'
+
   return [
     'await Bot.readOHLC(' +
       JSON.stringify(
@@ -1759,6 +1765,8 @@ javascriptGenerator.forBlock[
       ) +
       ', ' +
       index +
+      ', ' +
+      JSON.stringify(interval) +
       ')',
     javascriptGenerator.ORDER_FUNCTION_CALL,
   ]

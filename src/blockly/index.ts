@@ -16,6 +16,7 @@ import {
   getFirstTradeTypeValue,
   getFirstContractTypeValue,
   getFirstPurchaseValue,
+  tradeTypeCategoryAliases,
 } from './blocks'
 
 import { toolbox } from './toolbox'
@@ -877,10 +878,128 @@ function repairPurchaseField(root: Element) {
   }
 }
 
+function redistributeLegacyTradeFields(root: Element) {
+  const tradeDef = root.querySelector('block[type="trade_definition"]')
+  if (!tradeDef) return
+
+  const doc = root.ownerDocument
+  if (!doc) return
+
+  const tradeOptionsStmt = Array.from(tradeDef.children).find(
+    (child) =>
+      child.tagName === 'statement' &&
+      child.getAttribute('name') === 'TRADE_OPTIONS',
+  )
+  if (!tradeOptionsStmt) return
+
+  const fieldMap: Record<string, { blockType: string; fieldName: string }> = {
+    MARKET_LIST: { blockType: 'trade_definition_market', fieldName: 'MARKET_LIST' },
+    SUBMARKET_LIST: { blockType: 'trade_definition_market', fieldName: 'SUBMARKET_LIST' },
+    SYMBOL_LIST: { blockType: 'trade_definition_market', fieldName: 'SYMBOL_LIST' },
+    TRADETYPECAT_LIST: { blockType: 'trade_definition_tradetype', fieldName: 'TRADETYPECAT_LIST' },
+    TRADETYPE_LIST: { blockType: 'trade_definition_tradetype', fieldName: 'TRADETYPE_LIST' },
+    TYPE_LIST: { blockType: 'trade_definition_contracttype', fieldName: 'TYPE_LIST' },
+    CANDLEINTERVAL_LIST: { blockType: 'trade_definition_candleinterval', fieldName: 'CANDLEINTERVAL_LIST' },
+    TIME_MACHINE_ENABLED: { blockType: 'trade_definition_restartbuysell', fieldName: 'TIME_MACHINE_ENABLED' },
+    RESTARTONERROR: { blockType: 'trade_definition_restartonerror', fieldName: 'RESTARTONERROR' },
+  }
+
+  const fieldsToMove: Array<{ name: string; value: string }> = []
+  for (const child of Array.from(tradeDef.children)) {
+    if (child.tagName !== 'field') continue
+    const name = child.getAttribute('name')
+    if (!name || !fieldMap[name]) continue
+    const value = child.textContent?.trim() || ''
+    if (!value) continue
+    fieldsToMove.push({ name, value })
+  }
+
+  if (fieldsToMove.length === 0) return
+
+  const existingBlocks = new Map<string, Element>()
+  let cursor: Element | null = tradeOptionsStmt.querySelector(':scope > block')
+  while (cursor) {
+    const type = cursor.getAttribute('type')
+    if (type) existingBlocks.set(type, cursor)
+    const nextEl = Array.from(cursor.children).find((c) => c.tagName === 'next')
+    cursor = nextEl ? (nextEl.querySelector(':scope > block') as Element | null) : null
+  }
+
+  let lastInChain: Element | null = null
+  cursor = tradeOptionsStmt.querySelector(':scope > block')
+  while (cursor) {
+    lastInChain = cursor
+    const nextEl = Array.from(cursor.children).find((c) => c.tagName === 'next')
+    cursor = nextEl ? (nextEl.querySelector(':scope > block') as Element | null) : null
+  }
+
+  for (const { name, value } of fieldsToMove) {
+    const target = fieldMap[name]
+    let targetBlock = existingBlocks.get(target.blockType)
+
+    if (!targetBlock) {
+      const newBlock = doc.createElement('block')
+      newBlock.setAttribute('type', target.blockType)
+      newBlock.setAttribute('deletable', 'false')
+      newBlock.setAttribute('movable', 'false')
+
+      const field = doc.createElement('field')
+      field.setAttribute('name', target.fieldName)
+      field.textContent = value
+      newBlock.appendChild(field)
+
+      if (lastInChain) {
+        const nextEl = doc.createElement('next')
+        nextEl.appendChild(newBlock)
+        lastInChain.appendChild(nextEl)
+      } else {
+        tradeOptionsStmt.appendChild(newBlock)
+      }
+      lastInChain = newBlock
+      existingBlocks.set(target.blockType, newBlock)
+    } else {
+      let fieldEl = findDirectField(targetBlock, target.fieldName)
+      if (!fieldEl) {
+        fieldEl = doc.createElement('field')
+        fieldEl.setAttribute('name', target.fieldName)
+        targetBlock.appendChild(fieldEl)
+      }
+      if (!fieldEl.textContent?.trim()) {
+        fieldEl.textContent = value
+      }
+    }
+  }
+
+  for (const child of Array.from(tradeDef.children)) {
+    if (child.tagName !== 'field') continue
+    const name = child.getAttribute('name')
+    if (name && fieldMap[name]) {
+      tradeDef.removeChild(child)
+    }
+  }
+}
+
+function normalizeTradeTypeCategories(root: Element) {
+  const blocks = Array.from(
+    root.querySelectorAll('block[type="trade_definition_tradetype"]'),
+  )
+  for (const block of blocks) {
+    const field = findDirectField(block, 'TRADETYPECAT_LIST')
+    if (!field) continue
+    const value = field.textContent?.trim() || ''
+    const mapped = tradeTypeCategoryAliases[value]
+    if (mapped) {
+      field.textContent = mapped
+    }
+  }
+}
+
 function migrateXml(root: Element) {
   renameBlocks(root)
   renameFields(root)
   normalizeXmlBooleans(root)
+  redistributeLegacyTradeFields(root)
+  normalizeTradeTypeCategories(root)
   migrateLegacyVariables(root)
   repairLegacyTextJoin(root)
   ensureRootBlocks(root)

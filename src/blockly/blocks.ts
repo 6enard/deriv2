@@ -28,6 +28,13 @@ const tradeTypeCategoryOptions: [string, string][] = [
 ['Accumulator', 'accumulator'],
 ]
 
+export const tradeTypeCategoryAliases: Record<string, string> = {
+callput: 'updown',
+call_put: 'updown',
+rise_fall: 'updown',
+asian: 'updown',
+}
+
 const tradeTypeOptionsByCategory: Record<string, [string, string][]> = {
 updown: [
 ['Rise/Fall', 'risefall'],
@@ -1844,12 +1851,17 @@ defineBlock(
 defineBlock(
   'read_ohlc',
   () => ({
-    message0: 'Read OHLC %1 index %2',
+    message0: 'Read OHLC %1 interval %2 index %3',
     args0: [
       {
         type: 'field_dropdown',
         name: 'OHLCFIELD_LIST',
         options: candleFieldOptions,
+      },
+      {
+        type: 'field_dropdown',
+        name: 'CANDLEINTERVAL_LIST',
+        options: candleIntervalOptions,
       },
       {
         type: 'input_value',
