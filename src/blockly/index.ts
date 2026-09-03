@@ -885,12 +885,17 @@ function redistributeLegacyTradeFields(root: Element) {
   const doc = root.ownerDocument
   if (!doc) return
 
-  const tradeOptionsStmt = Array.from(tradeDef.children).find(
+  let tradeOptionsStmt = Array.from(tradeDef.children).find(
     (child) =>
       child.tagName === 'statement' &&
       child.getAttribute('name') === 'TRADE_OPTIONS',
   )
-  if (!tradeOptionsStmt) return
+
+  if (!tradeOptionsStmt) {
+    tradeOptionsStmt = doc.createElement('statement')
+    tradeOptionsStmt.setAttribute('name', 'TRADE_OPTIONS')
+    tradeDef.appendChild(tradeOptionsStmt)
+  }
 
   const fieldMap: Record<string, { blockType: string; fieldName: string }> = {
     MARKET_LIST: { blockType: 'trade_definition_market', fieldName: 'MARKET_LIST' },
@@ -942,6 +947,7 @@ function redistributeLegacyTradeFields(root: Element) {
       newBlock.setAttribute('type', target.blockType)
       newBlock.setAttribute('deletable', 'false')
       newBlock.setAttribute('movable', 'false')
+      newBlock.setAttribute('id', Blockly.utils.idGenerator.genUid())
 
       const field = doc.createElement('field')
       field.setAttribute('name', target.fieldName)
