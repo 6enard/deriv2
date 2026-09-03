@@ -1332,7 +1332,9 @@ for (
     name ===
       'PURCHASE_LIST' ||
     name ===
-      'VAR'
+      'VAR' ||
+    name ===
+      'VARIABLE'
   ) {
     continue
   }
