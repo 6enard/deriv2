@@ -81,6 +81,17 @@ export interface BotApi {
   tickDelay(
     count: number,
   ): Promise<void>
+
+  /*
+   * Forgets any active tick/contract
+   * subscriptions for this BotApi instance.
+   * Callers MUST call this once a run has
+   * finished or been stopped, otherwise the
+   * next run's subscribe() call for the same
+   * symbol will be rejected by the API with
+   * an "AlreadySubscribed" error.
+   */
+  cleanup(): Promise<void>
 }
 
 export interface BotApiOptions {
@@ -1380,9 +1391,7 @@ export function createBotApi(
    * The runner should call the cleanup hook
    * below if it wants explicit cleanup.
    */
-  const api: BotApi & {
-    cleanup?: () => Promise<void>
-  } = {
+  const api: BotApi = {
     purchase,
     sellAtMarket,
 
