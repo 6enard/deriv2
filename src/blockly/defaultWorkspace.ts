@@ -1,7 +1,7 @@
 // Default workspace template ported from deriv-com/bot's scratch/xml/main.xml.
 // This loads the four mandatory root blocks when the workspace is first created.
 
-export const defaultWorkspaceXml = <xml xmlns="https://developers.google.com/blockly/xml" collection="false" is_dbot="true">
+export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/blockly/xml" collection="false" is_dbot="true">
   <block type="trade_definition" x="0" y="0">
     <statement name="TRADE_OPTIONS">
       <block type="trade_definition_market" deletable="false" movable="false">
@@ -79,4 +79,4 @@ export const defaultWorkspaceXml = <xml xmlns="https://developers.google.com/blo
       </block>
     </statement>
   </block>
-</xml>
+</xml>`
