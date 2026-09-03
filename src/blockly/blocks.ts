@@ -2140,7 +2140,7 @@ defineBlock(
 'text_join_legacy',
 () => ({
 message0:
-'create text %1',
+'create text',
 
 args0: [
   {
