@@ -79,4 +79,4 @@ export const defaultWorkspaceXml = <xml xmlns="https://developers.google.com/blo
       </block>
     </statement>
   </block>
-</xml>`
+</xml>
