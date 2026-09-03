@@ -60,6 +60,8 @@ export function useBotRunner(
       return
     }
 
+    stopRef.current = false
+
     const paramsResult = extractTradeParams(workspace)
     if (!paramsResult.ok) {
       const messages: Record<string, string> = {
@@ -180,6 +182,11 @@ if (!code) {
         showToast('error', errorMessage(err, 'Bot execution failed.'))
       }
     } finally {
+      // Always release tick/contract subscriptions, whether the run
+      // finished, was stopped, or threw — otherwise the next run's
+      // subscribe() call for the same symbol is rejected by the API
+      // with an "AlreadySubscribed" error.
+      await botApi.cleanup().catch(() => {})
       setIsRunning(false)
     }
   }, [workspaceRef, ws, account, options, subscribeToContract, showToast, refreshBalance])
