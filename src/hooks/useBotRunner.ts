@@ -169,6 +169,8 @@ if (!code) {
     })
 
     try {
+      setIsRunning(true)
+      setHasRunOnce(true)
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
       const fn = new AsyncFunction('Bot', code)
       await fn(botApi)
