@@ -45,6 +45,111 @@ export interface BotApi {
   getLastDigitList(): number[]
   getDirection(): string
 
+  getOHLC(
+    index?: number,
+    interval?: string | number,
+  ): Promise<Record<string, number>>
+
+  getOHLCValues(
+    field?: string,
+    interval?: string | number,
+  ): Promise<number[]>
+
+  readOHLC(
+    field: string,
+    index?: number,
+    interval?: string | number,
+  ): Promise<number>
+
+  readOHLCObject(
+    candle: unknown,
+    field: string,
+  ): number
+
+  isCandleBlack(
+    candle: unknown,
+  ): boolean
+
+  getCurrentCandleTime(
+    interval?: string | number,
+  ): Promise<number>
+
+  isNewCandle(
+    interval?: string | number,
+  ): Promise<boolean>
+
+  getSMA(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getSMAArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getEMA(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getEMAArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getRSI(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getRSIArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getBollingerBands(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+    multiplierUp?: number,
+    multiplierDown?: number,
+  ): Promise<{
+    middle: number
+    upper: number
+    lower: number
+  }>
+
+  getBollingerBandsArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+    multiplierUp?: number,
+    multiplierDown?: number,
+  ): Promise<Array<{
+    middle: number
+    upper: number
+    lower: number
+  }>>
+
+  getMACDArray(
+    field?: string,
+    interval?: string | number,
+    fastPeriod?: number,
+    slowPeriod?: number,
+    signalPeriod?: number,
+  ): Promise<Array<{
+    macd: number
+    signal: number
+    histogram: number
+  }>>
+
   getBalance(): number
   getLastResult(): string
   getDetails(
@@ -429,6 +534,752 @@ export function createBotApi(
 
       throw error
     }
+  }
+
+
+  /* =======================================================
+  CANDLE / INDICATOR DATA
+  ======================================================= */
+
+  const candleCache =
+    new Map<
+      string,
+      Array<Record<string, number>>
+    >()
+
+  const candleTimeCache =
+    new Map<string, number>()
+
+  function granularityFromInterval(
+    interval?: string | number,
+  ): number {
+    const raw =
+      interval === undefined ||
+      interval === null ||
+      String(interval) === '' ||
+      String(interval) === 'default'
+        ? params.candle_interval
+        : interval
+
+    const value = number(raw, 60)
+
+    return Math.max(
+      60,
+      Math.floor(value),
+    )
+  }
+
+  function normalizeCandle(
+    candle: any,
+  ): Record<string, number> {
+    return {
+      epoch: number(candle?.epoch, 0),
+      open: number(candle?.open, 0),
+      high: number(candle?.high, 0),
+      low: number(candle?.low, 0),
+      close: number(candle?.close, 0),
+    }
+  }
+
+  async function fetchOHLC(
+    interval?: string | number,
+  ): Promise<Array<Record<string, number>>> {
+    const granularity =
+      granularityFromInterval(interval)
+
+    const cacheKey =
+      String(granularity)
+
+    const response =
+      await ws.send({
+        ticks_history:
+          params.symbol,
+        end: 'latest',
+        count: 200,
+        style: 'candles',
+        granularity,
+      })
+
+    if (response?.error) {
+      throw new Error(
+        response.error.message ||
+          'Unable to retrieve candle history.',
+      )
+    }
+
+    const candles =
+      Array.isArray(
+        response?.candles,
+      )
+        ? response.candles.map(
+            normalizeCandle,
+          )
+        : []
+
+    if (!candles.length) {
+      throw new Error(
+        'Deriv returned no candle data.',
+      )
+    }
+
+    candleCache.set(
+      cacheKey,
+      candles,
+    )
+
+    return candles
+  }
+
+  async function getCandleHistory(
+    interval?: string | number,
+  ): Promise<Array<Record<string, number>>> {
+    const granularity =
+      granularityFromInterval(interval)
+
+    const cacheKey =
+      String(granularity)
+
+    const cached =
+      candleCache.get(cacheKey)
+
+    if (
+      cached &&
+      cached.length
+    ) {
+      try {
+        return await fetchOHLC(
+          granularity,
+        )
+      } catch {
+        return cached.slice()
+      }
+    }
+
+    return fetchOHLC(
+      granularity,
+    )
+  }
+
+  function candleIndexValue(
+    index: number,
+    candles: Array<Record<string, number>>,
+  ): Record<string, number> {
+    const normalized =
+      Math.max(
+        1,
+        Math.floor(
+          number(index, 1),
+        ),
+      )
+
+    const position =
+      candles.length -
+      normalized
+
+    if (
+      position < 0
+    ) {
+      return candles[0] || {
+        epoch: 0,
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+      }
+    }
+
+    return (
+      candles[position] ||
+      candles[candles.length - 1]
+    )
+  }
+
+  async function getOHLC(
+    index = 1,
+    interval?: string | number,
+  ): Promise<Record<string, number>> {
+    const candles =
+      await getCandleHistory(
+        interval,
+      )
+
+    return candleIndexValue(
+      index,
+      candles,
+    )
+  }
+
+  async function getOHLCValues(
+    field = 'close',
+    interval?: string | number,
+  ): Promise<number[]> {
+    const candles =
+      await getCandleHistory(
+        interval,
+      )
+
+    const key =
+      ['open', 'high', 'low', 'close', 'epoch'].includes(
+        String(field).toLowerCase(),
+      )
+        ? String(field).toLowerCase()
+        : 'close'
+
+    return candles.map(
+      (candle) =>
+        number(
+          candle[key],
+          0,
+        ),
+    )
+  }
+
+  async function readOHLC(
+    field: string,
+    index = 1,
+    interval?: string | number,
+  ): Promise<number> {
+    const candle =
+      await getOHLC(
+        index,
+        interval,
+      )
+
+    return readOHLCObject(
+      candle,
+      field,
+    )
+  }
+
+  function readOHLCObject(
+    candle: unknown,
+    field: string,
+  ): number {
+    if (
+      !candle ||
+      typeof candle !== 'object'
+    ) {
+      return 0
+    }
+
+    const key =
+      String(field)
+        .toLowerCase()
+
+    const value =
+      (candle as Record<string, unknown>)[
+        key
+      ]
+
+    return number(
+      value,
+      0,
+    )
+  }
+
+  function isCandleBlack(
+    candle: unknown,
+  ): boolean {
+    return (
+      readOHLCObject(
+        candle,
+        'close',
+      ) <
+      readOHLCObject(
+        candle,
+        'open',
+      )
+    )
+  }
+
+  async function getCurrentCandleTime(
+    interval?: string | number,
+  ): Promise<number> {
+    const candle =
+      await getOHLC(
+        1,
+        interval,
+      )
+
+    return number(
+      candle.epoch,
+      0,
+    )
+  }
+
+  async function isNewCandle(
+    interval?: string | number,
+  ): Promise<boolean> {
+    const current =
+      await getCurrentCandleTime(
+        interval,
+      )
+
+    const key =
+      String(
+        granularityFromInterval(
+          interval,
+        ),
+      )
+
+    const previous =
+      candleTimeCache.get(key)
+
+    candleTimeCache.set(
+      key,
+      current,
+    )
+
+    return (
+      previous !== undefined &&
+      previous !== current
+    )
+  }
+
+  function rollingSMA(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    const result: number[] = []
+    let sum = 0
+
+    for (
+      let i = 0;
+      i < values.length;
+      i += 1
+    ) {
+      sum += values[i]
+
+      if (i >= p) {
+        sum -= values[i - p]
+      }
+
+      result.push(
+        sum /
+          Math.min(
+            i + 1,
+            p,
+          ),
+      )
+    }
+
+    return result
+  }
+
+  function rollingEMA(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    if (!values.length) {
+      return []
+    }
+
+    const alpha =
+      2 / (p + 1)
+
+    const result =
+      new Array<number>(
+        values.length,
+      )
+
+    result[0] =
+      values[0]
+
+    for (
+      let i = 1;
+      i < values.length;
+      i += 1
+    ) {
+      result[i] =
+        alpha * values[i] +
+        (1 - alpha) *
+          result[i - 1]
+    }
+
+    return result
+  }
+
+  function rollingRSI(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    if (values.length < 2) {
+      return values.map(
+        () => 50,
+      )
+    }
+
+    const result =
+      new Array<number>(
+        values.length,
+      )
+
+    result[0] = 50
+
+    let gain = 0
+    let loss = 0
+
+    for (
+      let i = 1;
+      i < values.length;
+      i += 1
+    ) {
+      const delta =
+        values[i] -
+        values[i - 1]
+
+      const currentGain =
+        Math.max(
+          delta,
+          0,
+        )
+
+      const currentLoss =
+        Math.max(
+          -delta,
+          0,
+        )
+
+      if (i <= p) {
+        gain += currentGain
+        loss += currentLoss
+      } else {
+        gain =
+          (gain * (p - 1) +
+            currentGain) /
+          p
+
+        loss =
+          (loss * (p - 1) +
+            currentLoss) /
+          p
+      }
+
+      if (loss === 0) {
+        result[i] =
+          gain === 0
+            ? 50
+            : 100
+      } else {
+        const rs =
+          gain / loss
+
+        result[i] =
+          100 -
+          100 / (1 + rs)
+      }
+    }
+
+    return result
+  }
+
+  async function getSMAArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingSMA(
+      values,
+      period,
+    )
+  }
+
+  async function getSMA(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getSMAArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getEMAArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingEMA(
+      values,
+      period,
+    )
+  }
+
+  async function getEMA(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getEMAArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getRSIArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingRSI(
+      values,
+      period,
+    )
+  }
+
+  async function getRSI(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getRSIArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getBollingerBandsArray(
+    field = 'close',
+    interval?: string | number,
+    period = 20,
+    multiplierUp = 2,
+    multiplierDown = 2,
+  ): Promise<Array<{
+    middle: number
+    upper: number
+    lower: number
+  }>> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 20),
+        ),
+      )
+
+    const up =
+      number(
+        multiplierUp,
+        2,
+      )
+
+    const down =
+      number(
+        multiplierDown,
+        2,
+      )
+
+    const result:
+      Array<{
+        middle: number
+        upper: number
+        lower: number
+      }> = []
+
+    for (
+      let i = 0;
+      i < values.length;
+      i += 1
+    ) {
+      const start =
+        Math.max(
+          0,
+          i - p + 1,
+        )
+
+      const window =
+        values.slice(
+          start,
+          i + 1,
+        )
+
+      const middle =
+        window.reduce(
+          (sum, value) =>
+            sum + value,
+          0,
+        ) / window.length
+
+      const variance =
+        window.reduce(
+          (sum, value) =>
+            sum +
+            Math.pow(
+              value - middle,
+              2,
+            ),
+          0,
+        ) / window.length
+
+      const deviation =
+        Math.sqrt(
+          variance,
+        )
+
+      result.push({
+        middle,
+        upper:
+          middle +
+          up * deviation,
+        lower:
+          middle -
+          down * deviation,
+      })
+    }
+
+    return result
+  }
+
+  async function getBollingerBands(
+    field = 'close',
+    interval?: string | number,
+    period = 20,
+    multiplierUp = 2,
+    multiplierDown = 2,
+  ): Promise<{
+    middle: number
+    upper: number
+    lower: number
+  }> {
+    const values =
+      await getBollingerBandsArray(
+        field,
+        interval,
+        period,
+        multiplierUp,
+        multiplierDown,
+      )
+
+    return (
+      values[
+        values.length - 1
+      ] || {
+        middle: 0,
+        upper: 0,
+        lower: 0,
+      }
+    )
+  }
+
+  async function getMACDArray(
+    field = 'close',
+    interval?: string | number,
+    fastPeriod = 12,
+    slowPeriod = 26,
+    signalPeriod = 9,
+  ): Promise<Array<{
+    macd: number
+    signal: number
+    histogram: number
+  }>> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    const fast =
+      rollingEMA(
+        values,
+        fastPeriod,
+      )
+
+    const slow =
+      rollingEMA(
+        values,
+        slowPeriod,
+      )
+
+    const macdLine =
+      values.map(
+        (_, index) =>
+          fast[index] -
+          slow[index],
+      )
+
+    const signal =
+      rollingEMA(
+        macdLine,
+        signalPeriod,
+      )
+
+    return macdLine.map(
+      (macd, index) => ({
+        macd,
+        signal:
+          signal[index] || 0,
+        histogram:
+          macd -
+          (signal[index] || 0),
+      }),
+    )
   }
 
   /* =======================================================
@@ -1407,6 +2258,24 @@ export function createBotApi(
     getLastDigit,
     getLastDigitList,
     getDirection,
+
+    getOHLC,
+    getOHLCValues,
+    readOHLC,
+    readOHLCObject,
+    isCandleBlack,
+    getCurrentCandleTime,
+    isNewCandle,
+
+    getSMA,
+    getSMAArray,
+    getEMA,
+    getEMAArray,
+    getRSI,
+    getRSIArray,
+    getBollingerBands,
+    getBollingerBandsArray,
+    getMACDArray,
 
     getBalance,
     getLastResult,

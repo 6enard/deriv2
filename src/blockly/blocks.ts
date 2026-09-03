@@ -1695,6 +1695,350 @@ indicatorOutput(
 'MACD Array',
 )
 
+
+/* =========================================================
+INDICATOR / CANDLE COMPATIBILITY BLOCKS
+========================================================= */
+
+const candleFieldOptions: [string, string][] = [
+  ['Open', 'open'],
+  ['High', 'high'],
+  ['Low', 'low'],
+  ['Close', 'close'],
+  ['Epoch', 'epoch'],
+];
+
+const candleIntervalOptions: [string, string][] = [
+  ['Default', 'default'],
+  ['1 minute', '60'],
+  ['2 minutes', '120'],
+  ['3 minutes', '180'],
+  ['5 minutes', '300'],
+  ['10 minutes', '600'],
+  ['15 minutes', '900'],
+  ['30 minutes', '1800'],
+  ['1 hour', '3600'],
+  ['2 hours', '7200'],
+  ['4 hours', '14400'],
+  ['8 hours', '28800'],
+  ['1 day', '86400'],
+];
+
+function defineIndicatorInputBlock(
+  name: string,
+  label: string,
+  inputName: string,
+) {
+  defineBlock(
+    name,
+    () => ({
+      message0: `${label}: %1`,
+      args0: [
+        {
+          type: 'input_value',
+          name: inputName,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: Colours.Base.colour,
+    }),
+  );
+}
+
+defineIndicatorInputBlock(
+  'input_list',
+  'Input',
+  'INPUT_LIST',
+);
+
+defineIndicatorInputBlock(
+  'period',
+  'Period',
+  'PERIOD',
+);
+
+defineIndicatorInputBlock(
+  'fast_ema_period',
+  'Fast EMA period',
+  'FAST_EMA_PERIOD',
+);
+
+defineIndicatorInputBlock(
+  'slow_ema_period',
+  'Slow EMA period',
+  'SLOW_EMA_PERIOD',
+);
+
+defineIndicatorInputBlock(
+  'signal_ema_period',
+  'Signal EMA period',
+  'SIGNAL_EMA_PERIOD',
+);
+
+defineIndicatorInputBlock(
+  'std_dev_multiplier_up',
+  'Std. dev. multiplier up',
+  'STD_DEV_MULTIPLIER_UP',
+);
+
+defineIndicatorInputBlock(
+  'std_dev_multiplier_down',
+  'Std. dev. multiplier down',
+  'STD_DEV_MULTIPLIER_DOWN',
+);
+
+defineBlock(
+  'ohlc',
+  () => ({
+    message0: 'OHLC values %1',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'CANDLEINTERVAL_LIST',
+        options: candleIntervalOptions,
+      },
+    ],
+    output: 'Array',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'ohlc_values',
+  () => ({
+    message0: 'OHLC values %1 interval %2',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'OHLCFIELD_LIST',
+        options: candleFieldOptions,
+      },
+      {
+        type: 'field_dropdown',
+        name: 'CANDLEINTERVAL_LIST',
+        options: candleIntervalOptions,
+      },
+    ],
+    output: 'Array',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'get_ohlc',
+  () => ({
+    message0: 'Get OHLC candle %1',
+    args0: [
+      {
+        type: 'input_value',
+        name: 'CANDLEINDEX',
+        check: 'Number',
+      },
+    ],
+    output: null,
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'read_ohlc',
+  () => ({
+    message0: 'Read OHLC %1 index %2',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'OHLCFIELD_LIST',
+        options: candleFieldOptions,
+      },
+      {
+        type: 'input_value',
+        name: 'CANDLEINDEX',
+        check: 'Number',
+      },
+    ],
+    output: 'Number',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'read_ohlc_obj',
+  () => ({
+    message0: 'Read %1 from OHLC object %2',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'OHLCFIELD_LIST',
+        options: candleFieldOptions,
+      },
+      {
+        type: 'input_value',
+        name: 'OHLCOBJ',
+      },
+    ],
+    output: null,
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'is_candle_black',
+  () => ({
+    message0: 'Candle is black %1',
+    args0: [
+      {
+        type: 'input_value',
+        name: 'OHLCOBJ',
+      },
+    ],
+    output: 'Boolean',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'ohlc_values_in_list',
+  () => ({
+    message0: 'OHLC values in list',
+    output: 'Array',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'tick_analysis',
+  () => ({
+    message0: 'Tick analysis %1',
+    args0: [
+      {
+        type: 'input_statement',
+        name: 'TICKANALYSIS_STACK',
+      },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'current_candle_time',
+  () => ({
+    message0: 'Current candle time',
+    output: 'Number',
+    colour: Colours.Base.colour,
+  }),
+);
+
+defineBlock(
+  'is_new_candle',
+  () => ({
+    message0: 'Is new candle',
+    output: 'Boolean',
+    colour: Colours.Base.colour,
+  }),
+);
+
+
+/* OFFICIAL / LEGACY VALUE INDICATORS */
+
+function defineValueIndicator(
+  name: string,
+  label: string,
+) {
+  defineBlock(
+    name,
+    () => ({
+      message0: `${label} %1 period %2`,
+      args0: [
+        {
+          type: 'input_value',
+          name: 'INPUT',
+        },
+        {
+          type: 'input_value',
+          name: 'PERIOD',
+          check: 'Number',
+        },
+      ],
+      output: 'Array',
+      colour: Colours.Base.colour,
+    }),
+  );
+}
+
+defineValueIndicator(
+  'sma',
+  'SMA',
+)
+
+defineValueIndicator(
+  'ema',
+  'EMA',
+)
+
+defineValueIndicator(
+  'rsi',
+  'RSI',
+)
+
+defineValueIndicator(
+  'bb',
+  'Bollinger Bands',
+)
+
+defineValueIndicator(
+  'smaa',
+  'SMA Array',
+)
+
+defineValueIndicator(
+  'emaa',
+  'EMA Array',
+)
+
+defineValueIndicator(
+  'rsia',
+  'RSI Array',
+)
+
+defineValueIndicator(
+  'bba',
+  'Bollinger Bands Array',
+)
+
+defineBlock(
+  'macda',
+  () => ({
+    message0:
+      'MACD %1 fast %2 slow %3 signal %4',
+    args0: [
+      {
+        type: 'input_value',
+        name: 'INPUT',
+      },
+      {
+        type: 'input_value',
+        name: 'FAST_EMA_PERIOD',
+        check: 'Number',
+      },
+      {
+        type: 'input_value',
+        name: 'SLOW_EMA_PERIOD',
+        check: 'Number',
+      },
+      {
+        type: 'input_value',
+        name: 'SIGNAL_EMA_PERIOD',
+        check: 'Number',
+      },
+    ],
+    output: 'Array',
+    colour: Colours.Base.colour,
+  }),
+);
+
 /* MISC */
 
 defineBlock(
@@ -1991,50 +2335,6 @@ args0: [
 ],
 
 output: 'Number',
-
-colour:
-  Colours.Base.colour,
-
-}),
-)
-
-/* CANDLE */
-
-defineBlock(
-'is_candle_black',
-() => ({
-message0:
-'Candle is black',
-
-output: 'Boolean',
-
-colour:
-  Colours.Base.colour,
-
-}),
-)
-
-defineBlock(
-'ohlc_values_in_list',
-() => ({
-message0:
-'OHLC values in list',
-
-output: 'Array',
-
-colour:
-  Colours.Base.colour,
-
-}),
-)
-
-defineBlock(
-'read_ohlc_obj',
-() => ({
-message0:
-'Read OHLC object',
-
-output: null,
 
 colour:
   Colours.Base.colour,

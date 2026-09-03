@@ -1661,6 +1661,7 @@ currency: string
 prediction?: number
 barrier?: string
 second_barrier?: string
+candle_interval?: string | number
 }
 
 export type TradeParamsResult =

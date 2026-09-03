@@ -16,12 +16,12 @@ block.type +
 }
 
 function getFieldValue(
-block: Blockly.Block,
+block: Blockly.Block | null,
 names: string[],
 ): string {
 for (const name of names) {
 const value =
-block.getFieldValue(name)
+block?.getFieldValue(name)
 
 if (
   value !== undefined &&
@@ -1059,29 +1059,841 @@ block,
 )
 }
 
+
+/* =========================================================
+INDICATORS
+========================================================= */
+
+function numericValueFromInput(
+  block: Blockly.Block,
+  inputNames: string[],
+  fallback: number,
+): number {
+  for (const inputName of inputNames) {
+    const target =
+      block.getInputTargetBlock(inputName)
+
+    if (!target) {
+      continue
+    }
+
+    const generated =
+      javascriptGenerator.blockToCode(target)
+
+    const code =
+      Array.isArray(generated)
+        ? generated[0]
+        : generated
+
+    if (typeof code === 'string') {
+      const parsed = Number(code.replace(/;$/, '').trim())
+
+      if (Number.isFinite(parsed)) {
+        return parsed
+      }
+    }
+
+    const field =
+      Number(target.getFieldValue('NUM'))
+
+    if (Number.isFinite(field)) {
+      return field
+    }
+  }
+
+  return fallback
+}
+
+function indicatorInputConfig(
+  block: Blockly.Block,
+): {
+  field: string
+  interval: string | number
+  period: number
+} {
+  let field = 'close'
+  let interval: string | number = 'default'
+  let period = 14
+
+  const statement =
+    block.getInputTargetBlock('STATEMENT')
+
+  let current = statement
+
+  while (current) {
+    if (
+      current.type === 'input_list' ||
+      current.type === 'ohlc' ||
+      current.type === 'ohlc_values'
+    ) {
+      const selectedField =
+        getFieldValue(
+          current,
+          ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+        )
+
+      if (selectedField) {
+        field = selectedField
+      }
+
+      const selectedInterval =
+        getFieldValue(
+          current,
+          ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+        )
+
+      if (selectedInterval) {
+        interval = selectedInterval
+      }
+
+      const input =
+        current.getInputTargetBlock(
+          'INPUT_LIST',
+        )
+
+      if (input) {
+        const nestedField =
+          getFieldValue(
+            input,
+            ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+          )
+
+        if (nestedField) {
+          field = nestedField
+        }
+
+        const nestedInterval =
+          getFieldValue(
+            input,
+            ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+          )
+
+        if (nestedInterval) {
+          interval = nestedInterval
+        }
+      }
+    }
+
+    const periodTarget =
+      current.getInputTargetBlock('PERIOD')
+
+    if (periodTarget) {
+      period =
+        numericValueFromInput(
+          current,
+          ['PERIOD'],
+          period,
+        )
+    }
+
+    current =
+      current.getNextBlock()
+  }
+
+  return {
+    field,
+    interval,
+    period: Math.max(1, Math.floor(period)),
+  }
+}
+
+function indicatorConfigFromDirectInputs(
+  block: Blockly.Block,
+): {
+  field: string
+  interval: string | number
+  period: number
+} {
+  const input =
+    block.getInputTargetBlock('INPUT')
+
+  const field =
+    getFieldValue(
+      block,
+      ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+    ) ||
+    getFieldValue(
+      input,
+      ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+    ) ||
+    'close'
+
+  const interval =
+    getFieldValue(
+      block,
+      ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+    ) ||
+    getFieldValue(
+      input,
+      ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+    ) ||
+    'default'
+
+  const period =
+    numericValueFromInput(
+      block,
+      ['PERIOD'],
+      Number(
+        getFieldValue(
+          block,
+          ['PERIOD_VALUE'],
+        ),
+      ) || 14,
+    )
+
+  return {
+    field,
+    interval,
+    period: Math.max(1, Math.floor(period)),
+  }
+}
+
+function indicatorAssignmentCode(
+  block: Blockly.Block,
+  method: string,
+): string {
+  const variableId =
+    block.getFieldValue('VARIABLE')
+
+  const variableName =
+    javascriptGenerator.getVariableName(
+      variableId,
+    )
+
+  const config =
+    indicatorInputConfig(block)
+
+  return (
+    variableName +
+    ' = await Bot.' +
+    method +
+    '(' +
+    JSON.stringify(config.field) +
+    ', ' +
+    JSON.stringify(config.interval) +
+    ', ' +
+    config.period +
+    ');'
+  )
+}
+
+javascriptGenerator.forBlock[
+  'sma_statement'
+] = function (
+  block: Blockly.Block,
+): string {
+  return indicatorAssignmentCode(
+    block,
+    'getSMA',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'ema_statement'
+] = function (
+  block: Blockly.Block,
+): string {
+  return indicatorAssignmentCode(
+    block,
+    'getEMA',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'rsi_statement'
+] = function (
+  block: Blockly.Block,
+): string {
+  return indicatorAssignmentCode(
+    block,
+    'getRSI',
+  )
+}
+
+function numericChildInStatementChain(
+  block: Blockly.Block,
+  type: string,
+  fallback: number,
+): number {
+  let current =
+    block.getInputTargetBlock('STATEMENT')
+
+  while (current) {
+    if (current.type === type) {
+      return numericValueFromInput(
+        current,
+        [
+          type === 'std_dev_multiplier_up'
+            ? 'STD_DEV_MULTIPLIER_UP'
+            : 'STD_DEV_MULTIPLIER_DOWN',
+        ],
+        fallback,
+      )
+    }
+
+    current =
+      current.getNextBlock()
+  }
+
+  return fallback
+}
+
+javascriptGenerator.forBlock[
+  'bb_statement'
+] = function (
+  block: Blockly.Block,
+): string {
+  const variableId =
+    block.getFieldValue('VARIABLE')
+
+  const variableName =
+    javascriptGenerator.getVariableName(
+      variableId,
+    )
+
+  const config =
+    indicatorInputConfig(block)
+
+  const up =
+    numericValueFromInput(
+      block,
+      ['STD_DEV_MULTIPLIER_UP'],
+      numericChildInStatementChain(
+        block,
+        'std_dev_multiplier_up',
+        2,
+      ),
+    )
+
+  const down =
+    numericValueFromInput(
+      block,
+      ['STD_DEV_MULTIPLIER_DOWN'],
+      numericChildInStatementChain(
+        block,
+        'std_dev_multiplier_down',
+        2,
+      ),
+    )
+
+  return (
+    variableName +
+    ' = await Bot.getBollingerBands(' +
+    JSON.stringify(config.field) +
+    ', ' +
+    JSON.stringify(config.interval) +
+    ', ' +
+    config.period +
+    ', ' +
+    up +
+    ', ' +
+    down +
+    ');'
+  )
+}
+
+function indicatorArrayCode(
+  block: Blockly.Block,
+  method: string,
+): [
+  string,
+  number,
+] {
+  const config =
+    indicatorConfigFromDirectInputs(
+      block,
+    )
+
+  return [
+    'await Bot.' +
+      method +
+      '(' +
+      JSON.stringify(config.field) +
+      ', ' +
+      JSON.stringify(config.interval) +
+      ', ' +
+      config.period +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'smaa_statement'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  return indicatorArrayCode(
+    block,
+    'getSMAArray',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'emaa_statement'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  return indicatorArrayCode(
+    block,
+    'getEMAArray',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'rsia_statement'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  return indicatorArrayCode(
+    block,
+    'getRSIArray',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'bba_statement'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const config =
+    indicatorConfigFromDirectInputs(
+      block,
+    )
+
+  return [
+    'await Bot.getBollingerBandsArray(' +
+      JSON.stringify(config.field) +
+      ', ' +
+      JSON.stringify(config.interval) +
+      ', ' +
+      config.period +
+      ', 2, 2)',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+function numericIndicatorParameter(
+  block: Blockly.Block,
+  type: string,
+  inputName: string,
+  fallback: number,
+): number {
+  const direct =
+    numericValueFromInput(
+      block,
+      [inputName],
+      Number.NaN,
+    )
+
+  if (Number.isFinite(direct)) {
+    return direct
+  }
+
+  let current =
+    block.getInputTargetBlock('STATEMENT')
+
+  while (current) {
+    if (current.type === type) {
+      return numericValueFromInput(
+        current,
+        [inputName],
+        fallback,
+      )
+    }
+
+    current =
+      current.getNextBlock()
+  }
+
+  return fallback
+}
+
+javascriptGenerator.forBlock[
+  'macda_statement'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const fast =
+    numericIndicatorParameter(
+      block,
+      'fast_ema_period',
+      'FAST_EMA_PERIOD',
+      12,
+    )
+
+  const slow =
+    numericIndicatorParameter(
+      block,
+      'slow_ema_period',
+      'SLOW_EMA_PERIOD',
+      26,
+    )
+
+  const signal =
+    numericIndicatorParameter(
+      block,
+      'signal_ema_period',
+      'SIGNAL_EMA_PERIOD',
+      9,
+    )
+
+  return [
+    'await Bot.getMACDArray(' +
+      JSON.stringify(
+        getFieldValue(
+          block,
+          ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+        ) ||
+          getFieldValue(
+            block.getInputTargetBlock('INPUT'),
+            ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+          ) ||
+          'close',
+      ) +
+      ', ' +
+      JSON.stringify(
+        getFieldValue(
+          block,
+          ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+        ) ||
+          getFieldValue(
+            block.getInputTargetBlock('INPUT'),
+            ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+          ) ||
+          'default',
+      ) +
+      ', ' +
+      fast +
+      ', ' +
+      slow +
+      ', ' +
+      signal +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+/* Official/legacy indicator aliases. */
+javascriptGenerator.forBlock[
+  'sma'
+] = javascriptGenerator.forBlock[
+  'smaa_statement'
+]
+
+javascriptGenerator.forBlock[
+  'ema'
+] = javascriptGenerator.forBlock[
+  'emaa_statement'
+]
+
+javascriptGenerator.forBlock[
+  'rsi'
+] = javascriptGenerator.forBlock[
+  'rsia_statement'
+]
+
+javascriptGenerator.forBlock[
+  'bb'
+] = javascriptGenerator.forBlock[
+  'bba_statement'
+]
+
+javascriptGenerator.forBlock[
+  'macda'
+] = javascriptGenerator.forBlock[
+  'macda_statement'
+]
+
+javascriptGenerator.forBlock[
+  'smaa'
+] = javascriptGenerator.forBlock[
+  'smaa_statement'
+]
+
+javascriptGenerator.forBlock[
+  'emaa'
+] = javascriptGenerator.forBlock[
+  'emaa_statement'
+]
+
+javascriptGenerator.forBlock[
+  'rsia'
+] = javascriptGenerator.forBlock[
+  'rsia_statement'
+]
+
+javascriptGenerator.forBlock[
+  'bba'
+] = javascriptGenerator.forBlock[
+  'bba_statement'
+]
+
+/* =========================================================
+CANDLES / OHLC
+========================================================= */
+
+function ohlcIntervalCode(
+  block: Blockly.Block,
+): string {
+  return JSON.stringify(
+    getFieldValue(
+      block,
+      ['CANDLEINTERVAL_LIST', 'INTERVAL'],
+    ) || 'default',
+  )
+}
+
+function ohlcFieldCode(
+  block: Blockly.Block,
+): string {
+  return JSON.stringify(
+    getFieldValue(
+      block,
+      ['OHLCFIELD_LIST', 'FIELD', 'PRICE'],
+    ) || 'close',
+  )
+}
+
+javascriptGenerator.forBlock[
+  'ohlc'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  return [
+    'await Bot.getOHLCValues("close", ' +
+      ohlcIntervalCode(block) +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'ohlc_values'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  return [
+    'await Bot.getOHLCValues(' +
+      ohlcFieldCode(block) +
+      ', ' +
+      ohlcIntervalCode(block) +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'ohlc_values_in_list'
+] = function (): [
+  string,
+  number,
+] {
+  return [
+    'await Bot.getOHLCValues("close", "default")',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'get_ohlc'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const index =
+    valueCode(
+      block,
+      ['CANDLEINDEX'],
+      '1',
+    )
+
+  return [
+    'await Bot.getOHLC(' +
+      index +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'read_ohlc'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const index =
+    valueCode(
+      block,
+      ['CANDLEINDEX'],
+      '1',
+    )
+
+  return [
+    'await Bot.readOHLC(' +
+      JSON.stringify(
+        getFieldValue(
+          block,
+          ['OHLCFIELD_LIST', 'FIELD'],
+        ) || 'close',
+      ) +
+      ', ' +
+      index +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'read_ohlc_obj'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const objectCode =
+    valueCode(
+      block,
+      ['OHLCOBJ'],
+      'null',
+    )
+
+  return [
+    'Bot.readOHLCObject(' +
+      objectCode +
+      ', ' +
+      JSON.stringify(
+        getFieldValue(
+          block,
+          ['OHLCFIELD_LIST', 'FIELD'],
+        ) || 'close',
+      ) +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'is_candle_black'
+] = function (
+  block: Blockly.Block,
+): [
+  string,
+  number,
+] {
+  const objectCode =
+    valueCode(
+      block,
+      ['OHLCOBJ'],
+      'null',
+    )
+
+  return [
+    'Bot.isCandleBlack(' +
+      objectCode +
+      ')',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'current_candle_time'
+] = function (): [
+  string,
+  number,
+] {
+  return [
+    'await Bot.getCurrentCandleTime()',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'is_new_candle'
+] = function (): [
+  string,
+  number,
+] {
+  return [
+    'await Bot.isNewCandle()',
+    javascriptGenerator.ORDER_FUNCTION_CALL,
+  ]
+}
+
+javascriptGenerator.forBlock[
+  'tick_analysis'
+] = function (
+  block: Blockly.Block,
+): string {
+  return javascriptGenerator.statementToCode(
+    block,
+    'TICKANALYSIS_STACK',
+  )
+}
+
+/* =========================================================
+CHILD CONFIGURATION BLOCKS
+========================================================= */
+
+for (const type of [
+  'input_list',
+  'period',
+  'fast_ema_period',
+  'slow_ema_period',
+  'signal_ema_period',
+  'std_dev_multiplier_up',
+  'std_dev_multiplier_down',
+]) {
+  javascriptGenerator.forBlock[type] =
+    function (): string {
+      return ''
+    }
+}
+
 /* =========================================================
 KNOWN UNSUPPORTED VALUE BLOCKS
 ========================================================= */
 
 const unsupportedTypes = [
-'sma',
-'ema',
-'bollinger',
-'rsi',
-'macd',
-'stochastic',
-'ichimoku',
-'awesome_oscillator',
-'wma',
-'williams_r',
-'candle',
-'candle_open',
-'candle_close',
-'candle_high',
-'candle_low',
-'candle_color',
-'ohlc',
-'indicator',
+  'bollinger',
+  'stochastic',
+  'ichimoku',
+  'awesome_oscillator',
+  'wma',
+  'williams_r',
+  'candle',
+  'candle_open',
+  'candle_close',
+  'candle_high',
+  'candle_low',
+  'candle_color',
+  'indicator',
 ]
 
 for (
@@ -1151,6 +1963,12 @@ const after =
     'after_purchase',
   )
 
+const tickAnalysis =
+  findWorkspaceBlock(
+    workspace,
+    'tick_analysis',
+  )
+
 const sections: string[] =
   []
 
@@ -1214,6 +2032,30 @@ if (
 sections.push(
   '  while (!Bot.shouldStop()) {',
 )
+
+if (tickAnalysis) {
+  const code =
+    generateBlockStatement(
+      tickAnalysis,
+    )
+
+  if (code.trim()) {
+    sections.push(
+      '    // Tick analysis',
+    )
+
+    sections.push(
+      code
+        .split('\n')
+        .map(
+          (line) =>
+            '    ' +
+            line,
+        )
+        .join('\n'),
+    )
+  }
+}
 
 if (before) {
   const code =
