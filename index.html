@@ -14,10 +14,10 @@
       (function () {
         try {
           var stored = localStorage.getItem('deriv_theme');
-          var theme = stored || 'dark';
+          var theme = stored || 'light';
           document.documentElement.classList.add(theme);
         } catch (e) {
-          document.documentElement.classList.add('dark');
+          document.documentElement.classList.add('light');
         }
       })();
     </script>

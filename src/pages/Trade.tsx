@@ -1101,7 +1101,7 @@ function DigitMeter({ ticks, selectedDigit, contractType, onDigitSelect }: { tic
           <div
             className="absolute bottom-0 transition-all duration-300 ease-out"
             style={{
-              left: `calc(${(lastDigit / 9) * 100}% )`,
+              left: `${(lastDigit + 0.5) * 10}%`,
               transform: 'translateX(-50%)',
             }}
           >

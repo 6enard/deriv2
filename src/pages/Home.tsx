@@ -115,6 +115,7 @@ export default function Home() {
             rounded-full
             bg-brand-red/[0.035]
             blur-[130px]
+            drift
           "
         />
 
@@ -128,6 +129,7 @@ export default function Home() {
             rounded-full
             bg-slate-200/50
             blur-[130px]
+            drift-slow
           "
         />
 
@@ -141,6 +143,7 @@ export default function Home() {
             rounded-full
             bg-slate-200/40
             blur-[130px]
+            float
           "
         />
 
@@ -172,6 +175,7 @@ export default function Home() {
             rounded-full
             bg-brand-red/10
             blur-[140px]
+            drift
           "
         />
 
@@ -185,6 +189,7 @@ export default function Home() {
             rounded-full
             bg-brand-red/5
             blur-[120px]
+            drift-slow
           "
         />
 
@@ -198,6 +203,7 @@ export default function Home() {
             rounded-full
             bg-purple-500/5
             blur-[120px]
+            float
           "
         />
       </div>
@@ -234,6 +240,7 @@ export default function Home() {
               dark:bg-white/[0.035]
               dark:text-text-secondary
               dark:shadow-lg
+              fade-in-down
             "
           >
             <span className="relative flex w-2 h-2">
@@ -283,7 +290,9 @@ export default function Home() {
               font-semibold
               text-slate-400
               dark:text-text-secondary
+              fade-in-up
             "
+            style={{ animationDelay: '0.1s' }}
           >
             <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
 
@@ -303,7 +312,9 @@ export default function Home() {
               font-bold
               tracking-[-0.055em]
               leading-[0.94]
+              fade-in-up
             "
+            style={{ animationDelay: '0.2s' }}
           >
             <span className="block text-slate-950 dark:text-text-primary">
               Trade smarter.
@@ -324,7 +335,9 @@ export default function Home() {
               leading-relaxed
               text-slate-500
               dark:text-text-secondary
+              fade-in-up
             "
+            style={{ animationDelay: '0.35s' }}
           >
             Access global markets through a powerful trading
             platform connected directly to your Deriv account.
@@ -332,7 +345,7 @@ export default function Home() {
 
           {/* CTA */}
 
-          <div className="mt-10 flex flex-col items-center gap-5">
+          <div className="mt-10 flex flex-col items-center gap-5 fade-in-up" style={{ animationDelay: '0.5s' }}>
             {isLoading ? (
               <div
                 className="
@@ -384,7 +397,9 @@ export default function Home() {
                 text-xs
                 text-slate-400
                 dark:text-text-secondary
+                fade-in-up
               "
+              style={{ animationDelay: '0.65s' }}
             >
               <TrustItem text="Secure authentication" />
 
@@ -403,7 +418,7 @@ export default function Home() {
             MARKET TICKER
             =================================================== */}
 
-        <section className="mt-20 sm:mt-24">
+        <section className="mt-20 sm:mt-24 fade-in-up">
           <SectionHeading
             eyebrow="Markets"
             title="Markets at a glance"
@@ -422,7 +437,9 @@ export default function Home() {
               dark:border-white/[0.07]
               dark:bg-white/[0.025]
               dark:shadow-none
+              fade-in-scale
             "
+            style={{ animationDelay: '0.15s' }}
           >
             <div
               className="
@@ -477,7 +494,7 @@ export default function Home() {
             MARKET TABLE
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28">
+        <section className="mt-20 sm:mt-28 fade-in-up">
           <div
             className="
               rounded-2xl
@@ -489,7 +506,9 @@ export default function Home() {
               dark:border-white/[0.07]
               dark:bg-white/[0.025]
               dark:shadow-none
+              fade-in-scale
             "
+            style={{ animationDelay: '0.15s' }}
           >
             <div
               className="
@@ -601,7 +620,7 @@ export default function Home() {
             PRODUCT SECTION
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28">
+        <section className="mt-20 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Products"
             title="Built for every trading style"
@@ -650,6 +669,7 @@ export default function Home() {
             dark:border-white/[0.07]
             dark:bg-white/[0.025]
             dark:shadow-none
+            fade-in-up
           "
         >
           <div
@@ -663,6 +683,7 @@ export default function Home() {
               bg-brand-red/[0.035]
               blur-3xl
               dark:bg-brand-red/5
+              float
             "
           />
 
@@ -677,7 +698,7 @@ export default function Home() {
               lg:p-14
             "
           >
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center slide-in-left">
               <div
                 className="
                   text-[10px]
@@ -755,6 +776,7 @@ export default function Home() {
                 overflow-hidden
                 dark:border-white/[0.07]
                 dark:bg-black/20
+                slide-in-right
               "
             >
               <div
@@ -830,7 +852,7 @@ export default function Home() {
             CAPABILITY STATS
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28">
+        <section className="mt-20 sm:mt-28 fade-in-up">
           <div
             className="
               border-y
@@ -867,7 +889,7 @@ export default function Home() {
             SECURITY
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28">
+        <section className="mt-20 sm:mt-28 fade-in-up">
           <div
             className="
               grid
@@ -939,7 +961,7 @@ export default function Home() {
             HOW IT WORKS
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28">
+        <section className="mt-20 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Getting started"
             title="Start trading in minutes."
@@ -984,6 +1006,7 @@ export default function Home() {
             sm:mt-36
             pb-10
             text-center
+            fade-in-up
           "
         >
           <div
@@ -999,6 +1022,7 @@ export default function Home() {
               bg-brand-red/[0.035]
               blur-3xl
               dark:bg-brand-red/5
+              pulse-ring
             "
           />
 
@@ -1212,6 +1236,7 @@ function MarketRow({
         hover:bg-slate-50
         dark:hover:bg-white/[0.025]
         transition-colors
+        fade-in-up
         ${!last ? 'border-b border-slate-100 dark:border-white/[0.05]' : ''}
       `}
     >
@@ -1320,6 +1345,7 @@ function ProductCard({
         transition-all
         duration-300
         hover:-translate-y-1
+        fade-in-scale
 
         ${
           featured
@@ -1447,6 +1473,7 @@ function BotBlock({
         rounded-xl
         border
         p-4
+        fade-in-up
         ${
           active
             ? `
@@ -1526,6 +1553,7 @@ function Capability({
         px-5
         sm:px-7
         py-7
+        fade-in-up
         ${
           !last
             ? 'border-r border-slate-200 dark:border-white/[0.07]'
@@ -1583,6 +1611,7 @@ function SecurityRow({
         flex
         gap-4
         py-6
+        fade-in-up
         ${
           !last
             ? 'border-b border-slate-200 dark:border-white/[0.07]'
@@ -1651,7 +1680,7 @@ function Step({
   description: string
 }) {
   return (
-    <div>
+    <div className="fade-in-up">
       <div
         className="
           text-2xl
