@@ -424,9 +424,12 @@ export function buildBotXmlFromSignal(
     afterBlocks.push(`      <block type="trade_again"></block>`)
   }
 
-  let afterXml = afterBlocks[0]
-  for (let i = 1; i < afterBlocks.length; i++) {
-    afterXml = afterXml.replace(/\s*$/, `\n        <next>\n${afterBlocks[i]}\n        </next>`)
+  let afterXml = afterBlocks[afterBlocks.length - 1]
+  for (let i = afterBlocks.length - 2; i >= 0; i--) {
+    afterXml = afterBlocks[i].replace(
+      /<\/block>\s*$/,
+      `\n        <next>\n${afterXml}\n        </next>\n      </block>`,
+    )
   }
 
   return `<xml xmlns="https://developers.google.com/blockly/xml" collection="false" is_dbot="true">
