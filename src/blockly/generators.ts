@@ -1977,6 +1977,43 @@ export function generateBotCode(
       'async function runBot() {',
     )
 
+    /*
+     * javascriptGenerator.init(workspace) (above) collects a
+     * `var name1, name2, ...;` declaration for every workspace
+     * variable into definitions_. Normally that line is only ever
+     * emitted by javascriptGenerator.finish(code), but this function
+     * builds the script manually — via blockToCode/
+     * generateStatementChain on individual sub-trees — and never
+     * calls finish(). That meant every workspace variable was
+     * referenced without ever being declared anywhere in the output,
+     * so the moment any block *read* a variable before it had been
+     * assigned (e.g. "if (Expected Profit == null) { ... }" at the
+     * very top of Initialization, before the prompt that sets it)
+     * the generated code threw "X is not defined" and the prompt
+     * never even ran.
+     *
+     * `var` is function-scoped and hoisted, so emitting the
+     * declaration here — as the first line inside runBot(), before
+     * any generated block code runs — fixes every variable
+     * regardless of which sub-tree (Initialization, Tick analysis,
+     * Before/During/After purchase) references it first.
+     */
+    const generatorDefinitions =
+      (javascriptGenerator as unknown as {
+        definitions_?: Record<string, string>
+      }).definitions_ || {}
+
+    for (const definition of Object.values(generatorDefinitions)) {
+      if (!definition || !definition.trim()) continue
+
+      sections.push(
+        definition
+          .split('\n')
+          .map((line) => '  ' + line)
+          .join('\n'),
+      )
+    }
+
     sections.push(
       '  Bot.notify("info", "Bot started");',
     )
