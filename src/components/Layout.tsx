@@ -178,6 +178,16 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      {isAuthenticated && account && (
+        <div className="border-b border-border-default bg-bg-secondary">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <p className="text-sm text-text-secondary">
+              Welcome <span className="font-semibold text-text-primary">{account.account_id}</span>, your profit journey awaits
+            </p>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 pb-20 lg:pb-0">{children}</main>
 
       <footer className="hidden lg:block border-t border-border-default bg-bg-secondary py-4">
