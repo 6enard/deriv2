@@ -8,13 +8,13 @@ import { DerivWS } from '../lib/deriv-ws'
 import { PUBLIC_WS_URL } from '../lib/config'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
-import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, Gauge, Timer } from 'lucide-react'
+import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat } from 'lucide-react'
 
-type BarrierType = 'none' | 'single' | 'double' | 'digit' | 'tick' | 'multiplier' | 'accumulator'
+type BarrierType = 'none' | 'single' | 'digit' | 'multiplier' | 'accumulator'
 
 interface TradeTypeOption {
   contractType: string
-  side: 'up' | 'down' | 'touch' | 'notouch' | 'in' | 'out' | 'digit' | 'multiplier' | 'accumulator' | 'reset' | 'run' | 'tick' | 'turbos' | 'vanilla' | 'asian'
+  side: 'up' | 'down' | 'touch' | 'notouch' | 'digit' | 'multiplier' | 'accumulator' | 'turbos' | 'vanilla'
   displayName: string
   barrierType: BarrierType
 }
@@ -54,50 +54,6 @@ const TRADE_CATEGORIES: TradeCategory[] = [
         types: [
           { contractType: 'HIGHER', side: 'up', displayName: 'Higher', barrierType: 'single' },
           { contractType: 'LOWER', side: 'down', displayName: 'Lower', barrierType: 'single' },
-        ],
-      },
-      {
-        group: 'Ends In / Ends Out',
-        types: [
-          { contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In', barrierType: 'double' },
-          { contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out', barrierType: 'double' },
-          { contractType: 'EXPIRYRANGEE', side: 'in', displayName: 'Ends In (Daily)', barrierType: 'double' },
-          { contractType: 'EXPIRYMISSE', side: 'out', displayName: 'Ends Out (Daily)', barrierType: 'double' },
-        ],
-      },
-      {
-        group: 'Stays In / Goes Out',
-        types: [
-          { contractType: 'RANGE', side: 'in', displayName: 'Stays In', barrierType: 'double' },
-          { contractType: 'UPORDOWN', side: 'out', displayName: 'Goes Out', barrierType: 'double' },
-        ],
-      },
-      {
-        group: 'Asians',
-        types: [
-          { contractType: 'ASIANU', side: 'asian', displayName: 'Asian Up', barrierType: 'none' },
-          { contractType: 'ASIAND', side: 'asian', displayName: 'Asian Down', barrierType: 'none' },
-        ],
-      },
-      {
-        group: 'Reset',
-        types: [
-          { contractType: 'RESETCALL', side: 'reset', displayName: 'Reset Call', barrierType: 'none' },
-          { contractType: 'RESETPUT', side: 'reset', displayName: 'Reset Put', barrierType: 'none' },
-        ],
-      },
-      {
-        group: 'Run High / Low',
-        types: [
-          { contractType: 'RUNHIGH', side: 'run', displayName: 'Run High', barrierType: 'none' },
-          { contractType: 'RUNLOW', side: 'run', displayName: 'Run Low', barrierType: 'none' },
-        ],
-      },
-      {
-        group: 'Tick High / Low',
-        types: [
-          { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'tick' },
-          { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'tick' },
         ],
       },
     ],
@@ -180,10 +136,7 @@ export default function Trade() {
   const [selectedTradeType, setSelectedTradeType] = useState<TradeTypeOption>(ALL_TRADE_TYPES[0])
   const [tradeTypeDropdownOpen, setTradeTypeDropdownOpen] = useState(false)
   const [barrier, setBarrier] = useState('')
-  const [barrierHigh, setBarrierHigh] = useState('')
-  const [barrierLow, setBarrierLow] = useState('')
   const [digit, setDigit] = useState('5')
-  const [selectedTick, setSelectedTick] = useState('5')
   const [cancellation, setCancellation] = useState('60')
   const [growthRate, setGrowthRate] = useState('1')
   const [takeProfit, setTakeProfit] = useState('')
@@ -354,17 +307,9 @@ export default function Trade() {
     }
   }, [selectedTradeType, durationUnit])
 
-  // Tick High/Low contracts require tick-based durations
+  // Daily contracts (CALLE, PUTE) use days as duration unit
   useEffect(() => {
-    if (selectedTradeType.barrierType === 'tick' && durationUnit !== 't') {
-      setDurationUnit('t')
-      setDuration('5')
-    }
-  }, [selectedTradeType, durationUnit])
-
-  // Daily contracts (CALLE, PUTE, EXPIRYRANGEE, EXPIRYMISSE) use days as duration unit
-  useEffect(() => {
-    const dailyTypes = ['CALLE', 'PUTE', 'EXPIRYRANGEE', 'EXPIRYMISSE']
+    const dailyTypes = ['CALLE', 'PUTE']
     if (dailyTypes.includes(selectedTradeType.contractType) && durationUnit !== 'd') {
       setDurationUnit('d')
       setDuration('1')
@@ -413,7 +358,7 @@ export default function Trade() {
     }
 
     const bt = selectedTradeType.barrierType
-    if ((bt === 'single' && !barrier) || (bt === 'double' && (!barrierHigh || !barrierLow)) || (bt === 'tick' && !selectedTick)) {
+    if (bt === 'single' && !barrier) {
       setProposal(null)
       setProposalError(null)
       return
@@ -439,13 +384,8 @@ export default function Trade() {
 
     if (bt === 'single') {
       request.barrier = barrier
-    } else if (bt === 'double') {
-      request.barrier = `${barrierHigh}`
-      request.barrier2 = `${barrierLow}`
     } else if (bt === 'digit') {
       request.barrier = digit
-    } else if (bt === 'tick') {
-      request.selected_tick = parseInt(selectedTick)
     } else if (bt === 'multiplier') {
       request.cancellation = cancellation
       const limitOrder: Record<string, number> = {}
@@ -488,7 +428,7 @@ export default function Trade() {
     return () => {
       cancelled = true
     }
-  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, barrierHigh, barrierLow, digit, selectedTick, cancellation, growthRate, takeProfit, stopLoss])
+  }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, digit, cancellation, growthRate, takeProfit, stopLoss])
 
   const executeTrade = async () => {
     if (!ws || !account || !selectedSymbol) return
@@ -509,13 +449,8 @@ export default function Trade() {
 
       if (bt === 'single') {
         request.barrier = barrier
-      } else if (bt === 'double') {
-        request.barrier = `${barrierHigh}`
-        request.barrier2 = `${barrierLow}`
       } else if (bt === 'digit') {
         request.barrier = digit
-      } else if (bt === 'tick') {
-        request.selected_tick = parseInt(selectedTick)
       } else if (bt === 'multiplier') {
         request.cancellation = cancellation
         const limitOrder: Record<string, number> = {}
@@ -766,26 +701,6 @@ export default function Trade() {
               </div>
             )}
 
-            {/* Tick selector for Tick High/Low contracts */}
-            {selectedTradeType.barrierType === 'tick' && (
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">Selected Tick (1-10)</label>
-                <div className="relative">
-                  <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                  <select
-                    value={selectedTick}
-                    onChange={(e) => setSelectedTick(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
-                  >
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <option key={i} value={String(i + 1)}>{i + 1}</option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-[10px] text-text-muted mt-1">Predict which tick (out of 10) will have the highest/lowest value.</p>
-              </div>
-            )}
-
             {/* Multiplier cancellation duration */}
             {selectedTradeType.barrierType === 'multiplier' && (
               <div className="mb-3">
@@ -858,38 +773,6 @@ export default function Trade() {
               </div>
             )}
 
-            {/* Double barriers for Ends In/Out and Stays In/Goes Out */}
-            {selectedTradeType.barrierType === 'double' && (
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Upper Barrier</label>
-                  <div className="relative">
-                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                    <input
-                      type="text"
-                      value={barrierHigh}
-                      onChange={(e) => setBarrierHigh(e.target.value)}
-                      placeholder="e.g. +0.50"
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Lower Barrier</label>
-                  <div className="relative">
-                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                    <input
-                      type="text"
-                      value={barrierLow}
-                      onChange={(e) => setBarrierLow(e.target.value)}
-                      placeholder="e.g. -0.50"
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">Stake ({account?.currency || 'USD'})</label>
@@ -919,7 +802,7 @@ export default function Trade() {
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    disabled={selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'tick' || selectedTradeType.barrierType === 'accumulator'}
+                    disabled={selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'accumulator'}
                     className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-blue transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="t">ticks</option>
@@ -931,7 +814,7 @@ export default function Trade() {
                 </div>
                 {contractDurationLimits[selectedTradeType.contractType] && (
                   <p className="text-[10px] text-text-muted mt-1">
-                    {(selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'tick' || selectedTradeType.barrierType === 'accumulator')
+                    {(selectedTradeType.barrierType === 'digit' || selectedTradeType.barrierType === 'accumulator')
                       ? `Uses ticks only · ${contractDurationLimits[selectedTradeType.contractType].min}–${contractDurationLimits[selectedTradeType.contractType].max} ticks`
                       : `Min: ${contractDurationLimits[selectedTradeType.contractType].min} · Max: ${contractDurationLimits[selectedTradeType.contractType].max}`}
                   </p>
@@ -973,7 +856,7 @@ export default function Trade() {
 
             <button
               onClick={executeTrade}
-              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading || (selectedTradeType.barrierType === 'tick' && !selectedTick)}
+              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold hover:bg-brand-green-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <TradeTypeIcon option={selectedTradeType} />}
@@ -1098,14 +981,13 @@ function ContractCard({
   onSell: () => void
 }) {
   const ct = contract.contract_type
-  const isUp = ['CALL', 'CALLE', 'HIGHER', 'ONETOUCH', 'MULTUP', 'RESETCALL', 'RUNHIGH', 'TICKHIGH', 'TURBOSLONG', 'VANILLALONGCALL', 'ASIANU'].includes(ct)
-  const isDown = ['PUT', 'PUTE', 'LOWER', 'NOTOUCH', 'MULTDOWN', 'RESETPUT', 'RUNLOW', 'TICKLOW', 'TURBOSSHORT', 'VANILLALONGPUT', 'ASIAND'].includes(ct)
+  const isUp = ['CALL', 'CALLE', 'HIGHER', 'ONETOUCH', 'MULTUP', 'TURBOSLONG', 'VANILLALONGCALL'].includes(ct)
+  const isDown = ['PUT', 'PUTE', 'LOWER', 'NOTOUCH', 'MULTDOWN', 'TURBOSSHORT', 'VANILLALONGPUT'].includes(ct)
   const isDigit = ct.startsWith('DIGIT')
-  const isRange = ['EXPIRYRANGE', 'EXPIRYRANGEE', 'RANGE'].includes(ct)
   const profit = contract.profit
   const isProfit = profit >= 0
-  const label = isUp ? 'UP' : isDown ? 'DOWN' : isDigit ? 'DIGIT' : isRange ? 'IN' : ct
-  const tone = isUp || isRange ? 'green' : isDown ? 'red' : 'blue'
+  const label = isUp ? 'UP' : isDown ? 'DOWN' : isDigit ? 'DIGIT' : ct
+  const tone = isUp ? 'green' : isDown ? 'red' : 'blue'
 
   return (
     <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in">
@@ -1270,16 +1152,10 @@ function TradeTypeIcon({ option }: { option: TradeTypeOption }) {
   if (side === 'down') return <ArrowDown className="w-4 h-4 text-brand-red" />
   if (side === 'touch') return <CheckCircle className="w-4 h-4 text-brand-green" />
   if (side === 'notouch') return <XCircle className="w-4 h-4 text-brand-red" />
-  if (side === 'in') return <CrosshairIcon className="w-4 h-4 text-brand-green" />
-  if (side === 'out') return <CrosshairIcon className="w-4 h-4 text-brand-red" />
   if (side === 'digit') return <Hash className="w-4 h-4 text-brand-blue" />
   if (side === 'multiplier') return <Layers className="w-4 h-4 text-brand-green" />
   if (side === 'accumulator') return <Zap className="w-4 h-4 text-brand-amber" />
-  if (side === 'reset') return <RotateCcw className="w-4 h-4 text-brand-blue" />
-  if (side === 'run') return <Gauge className="w-4 h-4 text-brand-green" />
-  if (side === 'tick') return <Timer className="w-4 h-4 text-brand-blue" />
   if (side === 'turbos') return <Zap className="w-4 h-4 text-brand-green" />
   if (side === 'vanilla') return <Repeat className="w-4 h-4 text-brand-blue" />
-  if (side === 'asian') return <Activity className="w-4 h-4 text-brand-amber" />
   return <CrosshairIcon className="w-4 h-4 text-brand-red" />
 }
