@@ -210,6 +210,18 @@ const BLOCK_RENAMES: Record<string, string> = {
   trade_definition_trade_options: 'trade_definition_tradeoptions',
 }
 
+/* Legacy market codes from old binary.com / Deriv Bot exports, mapped to
+   the market codes the live Deriv API uses today. Self-insertion in
+   marketMenu()/submarketMenu() already stops these from crashing on load,
+   but without this map the Submarket/Symbol dropdowns won't offer the
+   correct list of *other* options if the user tries to edit the block by
+   hand, since submarketOptionsByMarket is keyed by the current API code. */
+const LEGACY_MARKET_ALIASES: Record<string, string> = {
+  volidx: 'synthetic_index',
+  volatility_index: 'synthetic_index',
+  synthetic_indices: 'synthetic_index',
+}
+
 const FIELD_RENAMES: Record<string, Record<string, string>> = {
   read_details: {
     DETAILS: 'DETAIL_INDEX',
@@ -491,6 +503,75 @@ function repairTradeOptions(root: Element) {
   for (const block of blocks) {
     ensureMathNumberShadow(block, 'DURATION', '1')
     ensureMathNumberShadow(block, 'AMOUNT', '1')
+  }
+}
+
+/* =========================================================
+LEGACY NUMERIC FIELD REPAIR
+Very old (pre-2019) binary.com bot XML sometimes stored
+DURATION/AMOUNT/PREDICTION/BARRIER/SECOND_BARRIER as plain
+<field> literals directly on the trade options block instead
+of as <value> inputs wrapping a math_number block. The current
+trade_definition_tradeoptions block only exposes these as
+input_value connections, so a bare <field> is silently dropped
+by Blockly ("ignoring non-existent field") and the value is
+lost. This converts any such legacy field into a proper
+<value><shadow type="math_number">...</shadow></value> before
+the workspace is built.
+========================================================= */
+
+const LEGACY_NUMERIC_TRADE_OPTION_FIELDS = [
+  'DURATION',
+  'AMOUNT',
+  'PREDICTION',
+  'BARRIER',
+  'SECOND_BARRIER',
+]
+
+function convertLegacyNumericFields(root: Element) {
+  const doc = root.ownerDocument
+  if (!doc) return
+
+  const blocks = Array.from(
+    root.querySelectorAll('block[type="trade_definition_tradeoptions"]'),
+  )
+
+  for (const block of blocks) {
+    for (const name of LEGACY_NUMERIC_TRADE_OPTION_FIELDS) {
+      const flatField = Array.from(block.children).find(
+        (child) =>
+          child.tagName === 'field' && child.getAttribute('name') === name,
+      )
+
+      if (!flatField) continue
+
+      const rawValue = flatField.textContent?.trim() || ''
+      block.removeChild(flatField)
+
+      if (!rawValue) continue
+
+      const alreadyHasValue = Array.from(block.children).some(
+        (child) =>
+          child.tagName === 'value' && child.getAttribute('name') === name,
+      )
+
+      if (alreadyHasValue) continue
+
+      const value = doc.createElementNS(root.namespaceURI, 'value')
+      value.setAttribute('name', name)
+
+      const shadow = doc.createElementNS(root.namespaceURI, 'shadow')
+      shadow.setAttribute('type', 'math_number')
+      shadow.setAttribute('id', Blockly.utils.idGenerator.genUid())
+
+      const numField = doc.createElementNS(root.namespaceURI, 'field')
+      numField.setAttribute('name', 'NUM')
+      numField.textContent = rawValue
+
+      shadow.appendChild(numField)
+      value.appendChild(shadow)
+      block.appendChild(value)
+    }
   }
 }
 
@@ -985,6 +1066,23 @@ function redistributeLegacyTradeFields(root: Element) {
   }
 }
 
+function normalizeLegacyMarketCodes(root: Element) {
+  const blocks = Array.from(
+    root.querySelectorAll('block[type="trade_definition_market"]'),
+  )
+
+  for (const block of blocks) {
+    const field = findDirectField(block, 'MARKET_LIST')
+    if (!field) continue
+
+    const value = field.textContent?.trim() || ''
+    const mapped = LEGACY_MARKET_ALIASES[value]
+    if (mapped) {
+      field.textContent = mapped
+    }
+  }
+}
+
 function normalizeTradeTypeCategories(root: Element) {
   const blocks = Array.from(
     root.querySelectorAll('block[type="trade_definition_tradetype"]'),
@@ -1005,7 +1103,9 @@ function migrateXml(root: Element) {
   renameFields(root)
   normalizeXmlBooleans(root)
   redistributeLegacyTradeFields(root)
+  convertLegacyNumericFields(root)
   normalizeTradeTypeCategories(root)
+  normalizeLegacyMarketCodes(root)
   migrateLegacyVariables(root)
   repairLegacyTextJoin(root)
   ensureRootBlocks(root)
