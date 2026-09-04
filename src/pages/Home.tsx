@@ -525,6 +525,53 @@ export default function Home() {
         </section>
 
         {/* ===================================================
+            PLATFORM STATS
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28 fade-in-up">
+          <div
+            className="
+              border-y
+              border-slate-200
+              dark:border-white/[0.07]
+            "
+          >
+            <div className="grid grid-cols-2 lg:grid-cols-4">
+              <PlatformStat
+                icon={Users}
+                target={12400}
+                suffix="+"
+                label="Active Traders"
+              />
+
+              <PlatformStat
+                icon={DollarSign}
+                target={48}
+                prefix="$"
+                suffix="M+"
+                label="Trading Volume"
+              />
+
+              <PlatformStat
+                icon={Clock}
+                target={99.9}
+                suffix="%"
+                decimals={1}
+                label="Uptime"
+              />
+
+              <PlatformStat
+                icon={Layers}
+                target={50}
+                suffix="+"
+                label="Trading Pairs"
+                last
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ===================================================
             MARKET TICKER
             =================================================== */}
 
@@ -954,53 +1001,6 @@ export default function Home() {
                   detail="Profit · Loss · Result"
                 />
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===================================================
-            PLATFORM STATS
-            =================================================== */}
-
-        <section className="mt-20 sm:mt-28 fade-in-up">
-          <div
-            className="
-              border-y
-              border-slate-200
-              dark:border-white/[0.07]
-            "
-          >
-            <div className="grid grid-cols-2 lg:grid-cols-4">
-              <PlatformStat
-                icon={Users}
-                target={12400}
-                suffix="+"
-                label="Active Traders"
-              />
-
-              <PlatformStat
-                icon={DollarSign}
-                target={48}
-                prefix="$"
-                suffix="M+"
-                label="Trading Volume"
-              />
-
-              <PlatformStat
-                icon={Clock}
-                target={99.9}
-                suffix="%"
-                decimals={1}
-                label="Uptime"
-              />
-
-              <PlatformStat
-                icon={Layers}
-                target={50}
-                suffix="+"
-                label="Trading Pairs"
-                last
-              />
             </div>
           </div>
         </section>
