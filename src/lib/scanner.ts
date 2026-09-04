@@ -233,21 +233,7 @@ export function analyzeTicks(
 }
 
 export function filterVolatilitySymbols(symbols: RawSymbol[]): RawSymbol[] {
-  return symbols.filter((s) => {
-    const market = s.market || ''
-    const submarket = s.submarket || ''
-    const name = (s.display_name || s.underlying_symbol_name || '').toLowerCase()
-    return (
-      market === 'synthetic_index' ||
-      submarket === 'random_index' ||
-      submarket === 'synthetic_index' ||
-      name.includes('volatility') ||
-      name.includes('boom') ||
-      name.includes('crash') ||
-      name.includes('jump') ||
-      name.includes('step')
-    )
-  })
+  return symbols.filter((s) => s.market === 'synthetic_index')
 }
 
 export async function scanVolatilityMarkets(
@@ -319,16 +305,24 @@ export function buildBotXmlFromSignal(
   const submarket = result.submarket || 'random_index'
 
   const stake = config?.stake ?? 1
-  const duration = config?.duration ?? 1
-  const durationUnit = config?.durationUnit ?? 't'
   const useMartingale = config?.useMartingale ?? false
   const martingaleMultiplier = config?.martingaleMultiplier ?? 2
   const stopLoss = config?.stopLoss ?? 0
   const takeProfit = config?.takeProfit ?? 0
 
+  // Digit contracts are only offered with tick durations on Deriv.
+  const duration = config?.duration ?? 1
+  const durationUnit = 't'
+
   let tradeType = 'matchesdiffers'
   if (contractType === 'DIGITOVER' || contractType === 'DIGITUNDER') tradeType = 'overunder'
   else if (contractType === 'DIGITEVEN' || contractType === 'DIGITODD') tradeType = 'evenodd'
+
+  // Even/Odd don't use a prediction digit.
+  const needsPrediction =
+    contractType === 'DIGITDIFF' ||
+    contractType === 'DIGITOVER' ||
+    contractType === 'DIGITUNDER'
 
   const afterBlocks: string[] = []
 
@@ -449,7 +443,7 @@ export function buildBotXmlFromSignal(
         <field name="CURRENCY_LIST">USD</field>
         <value name="DURATION"><shadow type="math_number"><field name="NUM">${duration}</field></shadow></value>
         <value name="AMOUNT"><shadow type="math_number"><field name="NUM">${stake}</field></shadow></value>
-        <value name="PREDICTION"><shadow type="math_number"><field name="NUM">${digit}</field></shadow></value>
+        ${needsPrediction ? `<value name="PREDICTION"><shadow type="math_number"><field name="NUM">${digit}</field></shadow></value>` : ''}
       </block>
     </statement>
   </block>

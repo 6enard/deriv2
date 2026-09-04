@@ -32,21 +32,7 @@ export function useScanner() {
         throw new Error('No markets available.')
       }
 
-      const volSymbols = symbols.filter((s) => {
-        const market = s.market || ''
-        const submarket = s.submarket || ''
-        const name = (s.display_name || s.underlying_symbol_name || '').toLowerCase()
-        return (
-          market === 'synthetic_index' ||
-          submarket === 'random_index' ||
-          submarket === 'synthetic_index' ||
-          name.includes('volatility') ||
-          name.includes('boom') ||
-          name.includes('crash') ||
-          name.includes('jump') ||
-          name.includes('step')
-        )
-      })
+      const volSymbols = symbols.filter((s) => s.market === 'synthetic_index')
 
       if (volSymbols.length === 0) {
         throw new Error('No volatility markets found among available symbols.')

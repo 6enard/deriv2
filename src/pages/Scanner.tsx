@@ -397,7 +397,6 @@ function BotConfigModal({
 }) {
   const [stake, setStake] = useState('1')
   const [duration, setDuration] = useState('1')
-  const [durationUnit, setDurationUnit] = useState('t')
   const [useMartingale, setUseMartingale] = useState(false)
   const [martingaleSteps, setMartingaleSteps] = useState('3')
   const [martingaleMultiplier, setMartingaleMultiplier] = useState('2')
@@ -408,7 +407,7 @@ function BotConfigModal({
     onConfirm({
       stake: parseFloat(stake) || 1,
       duration: parseInt(duration) || 1,
-      durationUnit,
+      durationUnit: 't',
       useMartingale,
       martingaleSteps: parseInt(martingaleSteps) || 0,
       martingaleMultiplier: parseFloat(martingaleMultiplier) || 2,
@@ -478,26 +477,15 @@ function BotConfigModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  min="1"
-                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
-                />
-                <select
-                  value={durationUnit}
-                  onChange={(e) => setDurationUnit(e.target.value)}
-                  className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
-                >
-                  <option value="t">ticks</option>
-                  <option value="s">sec</option>
-                  <option value="m">min</option>
-                  <option value="h">hrs</option>
-                </select>
-              </div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration (ticks)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                min="1"
+                max="10"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+              />
             </div>
           </div>
 

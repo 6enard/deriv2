@@ -227,11 +227,7 @@ return [
 ]
 }
 
-if (options.length) {
-return options
-}
-
-return ([['', '']] as T[])
+return options.length ? options : ([['', '']] as T[])
 }
 
 function marketMenu(
