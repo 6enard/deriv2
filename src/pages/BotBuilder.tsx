@@ -490,7 +490,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden bg-bg-primary overflow-hidden h-[calc(100vh-68px)]">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden bg-bg-primary overflow-x-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -739,7 +739,7 @@ export default function BotBuilder() {
             WORKSPACE
         ========================================================== */}
 
-        <div className="relative bg-bg-tertiary h-[45vh] lg:h-auto lg:flex-1 lg:min-h-0">
+        <div className="relative bg-bg-tertiary h-[50vh] lg:h-auto lg:flex-1 lg:min-h-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -859,8 +859,8 @@ export default function BotBuilder() {
           MOBILE RESULTS — always visible
       ========================================================== */}
 
-      <div className="lg:hidden border-t border-border-default bg-bg-secondary shrink-0 flex flex-col">
-        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0">
+      <div className="lg:hidden border-t border-border-default bg-bg-secondary flex flex-col">
+        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0 sticky top-0 bg-bg-secondary z-10">
           <div className="flex items-center gap-2.5">
             <Activity className="w-4 h-4 text-text-secondary" />
 
@@ -883,7 +883,7 @@ export default function BotBuilder() {
           )}
         </div>
 
-        <div className="h-[35vh] min-h-0">
+        <div className="min-h-[300px]">
           <RunResultsPanel
             tab={resultsTab}
             onTabChange={setResultsTab}

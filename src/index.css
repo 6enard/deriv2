@@ -48,6 +48,7 @@ body {
   margin: 0;
   transition: background-color 0.2s ease, color 0.2s ease;
   letter-spacing: -0.011em;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4 {
