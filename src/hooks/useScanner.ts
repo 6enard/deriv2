@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
-import { PUBLIC_WS_URL } from '../lib/config'
+import { DERIV_WS_URL } from '../lib/config'
 import { useMarketData } from './useMarketData'
 import { scanVolatilityMarkets, type ScanResult } from '../lib/scanner'
 
@@ -27,7 +27,7 @@ export function useScanner() {
         syms = fetched
       }
 
-      const ws = new DerivWS(PUBLIC_WS_URL)
+      const ws = new DerivWS(DERIV_WS_URL)
       wsRef.current = ws
       await ws.connect()
 
@@ -46,6 +46,15 @@ export function useScanner() {
       setScanning(false)
     }
   }, [symbols, fetchSymbols])
+
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.disconnect()
+        wsRef.current = null
+      }
+    }
+  }, [])
 
   const clearResults = useCallback(() => {
     setResults([])

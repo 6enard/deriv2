@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useScanner } from '../hooks/useScanner'
 import { useToast } from '../components/Toast'
@@ -10,6 +10,21 @@ export default function Scanner() {
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const autoScanTriggered = useRef(false)
+
+  // Auto-scan on first page load
+  useEffect(() => {
+    if (autoScanTriggered.current) return
+    autoScanTriggered.current = true
+    runScan()
+  }, [runScan])
+
+  // Auto-expand the top result when results arrive
+  useEffect(() => {
+    if (results.length > 0 && !expandedId) {
+      setExpandedId(results[0].symbol)
+    }
+  }, [results, expandedId])
 
   const handleTradeManually = (result: ScanResult, signal: DigitSignal) => {
     const rec = {

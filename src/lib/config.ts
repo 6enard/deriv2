@@ -49,6 +49,8 @@ export const OPTIONS_API_BASE =
 export const PUBLIC_WS_URL =
   'wss://api.derivws.com/trading/v1/options/ws/public'
 
+export const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089'
+
 function buildRedirectUri(): string {
   if (configuredRedirectUri) {
     return configuredRedirectUri

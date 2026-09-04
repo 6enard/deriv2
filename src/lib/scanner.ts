@@ -127,7 +127,7 @@ export function analyzeTicks(
 
   // Matches: over-represented digit has positive edge
   const matchEdge = freq[mostFreqDigit] - 0.1
-  if (matchEdge > 0.005) {
+  if (matchEdge > 0) {
     signals.push({
       contractType: 'DIGITMATCH',
       displayName: `Matches ${mostFreqDigit}`,
@@ -137,16 +137,14 @@ export function analyzeTicks(
     })
   }
 
-  // Differs: bet against the most common digit
-  if (freq[mostFreqDigit] > 0.1) {
-    signals.push({
-      contractType: 'DIGITDIFF',
-      displayName: `Differs ${mostFreqDigit}`,
-      digit: mostFreqDigit,
-      edge: freq[mostFreqDigit] - 0.1,
-      rationale: `Digit ${mostFreqDigit} is over-represented at ${(freq[mostFreqDigit] * 100).toFixed(1)}%, so Differs covers the remaining ${(90 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
-    })
-  }
+  // Differs: always include — covers 90% of outcomes by definition
+  signals.push({
+    contractType: 'DIGITDIFF',
+    displayName: `Differs ${mostFreqDigit}`,
+    digit: mostFreqDigit,
+    edge: Math.max(freq[mostFreqDigit] - 0.1, 0),
+    rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs covers the remaining ${(100 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
+  })
 
   // Over / Under — best thresholds
   let bestOverDigit = 4
@@ -163,7 +161,7 @@ export function analyzeTicks(
     if (ue > bestUnderEdge) { bestUnderEdge = ue; bestUnderDigit = d }
   }
 
-  if (bestOverEdge > 0.005) {
+  if (bestOverEdge > 0) {
     signals.push({
       contractType: 'DIGITOVER',
       displayName: `Over ${bestOverDigit}`,
@@ -173,7 +171,7 @@ export function analyzeTicks(
     })
   }
 
-  if (bestUnderEdge > 0.005) {
+  if (bestUnderEdge > 0) {
     signals.push({
       contractType: 'DIGITUNDER',
       displayName: `Under ${bestUnderDigit}`,
@@ -189,7 +187,7 @@ export function analyzeTicks(
   const evenEdge = eProb - 0.5
   const oddEdge = oProb - 0.5
 
-  if (evenEdge > 0.01) {
+  if (evenEdge > 0) {
     signals.push({
       contractType: 'DIGITEVEN',
       displayName: 'Even',
@@ -197,7 +195,7 @@ export function analyzeTicks(
       rationale: `Even digits appeared ${(eProb * 100).toFixed(1)}% of the time — ${(evenEdge * 100).toFixed(1)}% above the 50% baseline.`,
     })
   }
-  if (oddEdge > 0.01) {
+  if (oddEdge > 0) {
     signals.push({
       contractType: 'DIGITODD',
       displayName: 'Odd',
@@ -207,6 +205,19 @@ export function analyzeTicks(
   }
 
   signals.sort((a, b) => b.edge - a.edge)
+
+  // Always ensure at least one signal — if none met threshold, add a
+  // Differs fallback on the most frequent digit (90% coverage by definition)
+  if (signals.length === 0) {
+    signals.push({
+      contractType: 'DIGITDIFF',
+      displayName: `Differs ${mostFreqDigit}`,
+      digit: mostFreqDigit,
+      edge: 0,
+      rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs covers the remaining ${(100 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
+    })
+  }
+
   const bestSignal = signals.length > 0 ? signals[0] : null
 
   const edgeScore = bestSignal ? Math.min(bestSignal.edge * 500, 50) : 0
