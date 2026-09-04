@@ -493,7 +493,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden bg-bg-primary overflow-x-hidden">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -1229,8 +1229,39 @@ function MobileMenuItem({
 
 /* ============================================================
    EDIT BOT MODAL — form-based parameter editor
-   Lets users edit bot settings without touching blocks.
+   Lets users edit all bot settings without touching blocks.
 ============================================================ */
+
+const TRADE_TYPE_CATEGORIES: Record<string, [string, string][]> = {
+  updown: [['Rise/Fall', 'risefall'], ['Higher/Lower', 'higherlower']],
+  touchnotouch: [['Touch/No Touch', 'touchnotouch']],
+  inout: [['Ends In/Out', 'endsinout'], ['Stays In/Goes Out', 'staysinout']],
+  digits: [['Matches/Differs', 'matchesdiffers'], ['Even/Odd', 'evenodd'], ['Over/Under', 'overunder']],
+  multiplier: [['Multiplier Up/Down', 'multiplier']],
+  accumulator: [['Accumulator', 'accumulator']],
+}
+
+const CONTRACT_TYPES_BY_TRADE_TYPE: Record<string, [string, string][]> = {
+  risefall: [['Rise/Fall (both)', 'both'], ['Rise', 'CALL'], ['Fall', 'PUT']],
+  higherlower: [['Higher/Lower (both)', 'both'], ['Higher', 'CALL'], ['Lower', 'PUT']],
+  touchnotouch: [['Touch/No Touch (both)', 'both'], ['Touch', 'ONETOUCH'], ['No Touch', 'NOTOUCH']],
+  endsinout: [['Ends Between/Outside (both)', 'both'], ['Ends Between', 'EXPIRYRANGE'], ['Ends Outside', 'EXPIRYMISS']],
+  staysinout: [['Stays Between/Goes Outside (both)', 'both'], ['Stays Between', 'RANGE'], ['Goes Outside', 'UPORDOWN']],
+  matchesdiffers: [['Matches/Differs (both)', 'both'], ['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF']],
+  evenodd: [['Even/Odd (both)', 'both'], ['Even', 'DIGITEVEN'], ['Odd', 'DIGITODD']],
+  overunder: [['Over/Under (both)', 'both'], ['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER']],
+  multiplier: [['Multiplier Up/Down (both)', 'both'], ['Up', 'MULTUP'], ['Down', 'MULTDOWN']],
+  accumulator: [['Accumulator (both)', 'both'], ['Accumulate', 'ACCU']],
+}
+
+const CANDLE_INTERVALS: [string, string][] = [
+  ['1 minute', '60'], ['2 minutes', '120'], ['3 minutes', '180'],
+  ['5 minutes', '300'], ['10 minutes', '600'], ['15 minutes', '900'],
+  ['30 minutes', '1800'], ['1 hour', '3600'], ['2 hours', '7200'],
+  ['4 hours', '14400'], ['8 hours', '28800'], ['1 day', '86400'],
+]
+
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD']
 
 function EditBotModal({
   workspaceRef,
@@ -1247,9 +1278,18 @@ function EditBotModal({
   const [duration, setDuration] = useState('5')
   const [durationUnit, setDurationUnit] = useState('t')
   const [prediction, setPrediction] = useState('5')
+  const [barrier, setBarrier] = useState('')
+  const [secondBarrier, setSecondBarrier] = useState('')
   const [restartOnError, setRestartOnError] = useState(true)
+  const [restartBuySell, setRestartBuySell] = useState(false)
   const [symbol, setSymbol] = useState('')
+  const [market, setMarket] = useState('')
+  const [submarket, setSubmarket] = useState('')
+  const [tradeTypeCategory, setTradeTypeCategory] = useState('')
+  const [tradeType, setTradeType] = useState('')
   const [contractType, setContractType] = useState('')
+  const [candleInterval, setCandleInterval] = useState('60')
+  const [selectedCurrency, setSelectedCurrency] = useState(currency || 'USD')
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -1259,20 +1299,45 @@ function EditBotModal({
     const blocks = workspace.getAllBlocks(false)
 
     const marketBlock = blocks.find((b) => b.type === 'trade_definition_market')
+    const tradeTypeBlock = blocks.find((b) => b.type === 'trade_definition_tradetype')
     const contractBlock = blocks.find((b) => b.type === 'trade_definition_contracttype')
-    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
+    const candleBlock = blocks.find((b) => b.type === 'trade_definition_candleinterval')
+    const restartBuySellBlock = blocks.find((b) => b.type === 'trade_definition_restartbuysell')
     const restartBlock = blocks.find((b) => b.type === 'trade_definition_restartonerror')
+    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
 
     if (marketBlock) {
+      setMarket(String(marketBlock.getFieldValue('MARKET_LIST') || ''))
+      setSubmarket(String(marketBlock.getFieldValue('SUBMARKET_LIST') || ''))
       setSymbol(String(marketBlock.getFieldValue('SYMBOL_LIST') || ''))
+    }
+
+    if (tradeTypeBlock) {
+      setTradeTypeCategory(String(tradeTypeBlock.getFieldValue('TRADETYPECAT_LIST') || ''))
+      setTradeType(String(tradeTypeBlock.getFieldValue('TRADETYPE_LIST') || ''))
     }
 
     if (contractBlock) {
       setContractType(String(contractBlock.getFieldValue('TYPE_LIST') || ''))
     }
 
+    if (candleBlock) {
+      setCandleInterval(String(candleBlock.getFieldValue('CANDLEINTERVAL_LIST') || '60'))
+    }
+
+    if (restartBuySellBlock) {
+      const val = restartBuySellBlock.getFieldValue('TIME_MACHINE_ENABLED')
+      setRestartBuySell(val === true || val === 'true' || val === 'TRUE')
+    }
+
+    if (restartBlock) {
+      const val = restartBlock.getFieldValue('RESTARTONERROR')
+      setRestartOnError(val === true || val === 'true' || val === 'TRUE')
+    }
+
     if (optionsBlock) {
       setDurationUnit(String(optionsBlock.getFieldValue('DURATIONTYPE_LIST') || 't'))
+      setSelectedCurrency(String(optionsBlock.getFieldValue('CURRENCY_LIST') || currency || 'USD'))
 
       const durBlock = optionsBlock.getInputTargetBlock('DURATION')
       if (durBlock) {
@@ -1291,15 +1356,22 @@ function EditBotModal({
         const val = predBlock.getFieldValue('NUM')
         if (val) setPrediction(String(val))
       }
-    }
 
-    if (restartBlock) {
-      const val = restartBlock.getFieldValue('RESTARTONERROR')
-      setRestartOnError(val === true || val === 'true' || val === 'TRUE')
+      const barBlock = optionsBlock.getInputTargetBlock('BARRIER')
+      if (barBlock) {
+        const val = barBlock.getFieldValue('NUM')
+        if (val) setBarrier(String(val))
+      }
+
+      const bar2Block = optionsBlock.getInputTargetBlock('SECOND_BARRIER')
+      if (bar2Block) {
+        const val = bar2Block.getFieldValue('NUM')
+        if (val) setSecondBarrier(String(val))
+      }
     }
 
     setLoaded(true)
-  }, [workspaceRef])
+  }, [workspaceRef, currency])
 
   const handleSave = () => {
     const workspace = workspaceRef.current
@@ -1307,45 +1379,69 @@ function EditBotModal({
 
     const blocks = workspace.getAllBlocks(false)
 
-    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
-    if (optionsBlock) {
-      const durBlock = optionsBlock.getInputTargetBlock('DURATION')
-      if (durBlock) {
-        const field = durBlock.getField('NUM')
-        field?.setValue(duration)
-      }
+    const marketBlock = blocks.find((b) => b.type === 'trade_definition_market')
+    if (marketBlock) {
+      marketBlock.getField('MARKET_LIST')?.setValue(market)
+      marketBlock.getField('SUBMARKET_LIST')?.setValue(submarket)
+      marketBlock.getField('SYMBOL_LIST')?.setValue(symbol)
+    }
 
-      const amtBlock = optionsBlock.getInputTargetBlock('AMOUNT')
-      if (amtBlock) {
-        const field = amtBlock.getField('NUM')
-        field?.setValue(stake)
-      }
+    const tradeTypeBlock = blocks.find((b) => b.type === 'trade_definition_tradetype')
+    if (tradeTypeBlock) {
+      tradeTypeBlock.getField('TRADETYPECAT_LIST')?.setValue(tradeTypeCategory)
+      tradeTypeBlock.getField('TRADETYPE_LIST')?.setValue(tradeType)
+    }
 
-      const predBlock = optionsBlock.getInputTargetBlock('PREDICTION')
-      if (predBlock) {
-        const field = predBlock.getField('NUM')
-        field?.setValue(prediction)
-      }
+    const contractBlock = blocks.find((b) => b.type === 'trade_definition_contracttype')
+    if (contractBlock) {
+      contractBlock.getField('TYPE_LIST')?.setValue(contractType)
+    }
 
-      const durTypeField = optionsBlock.getField('DURATIONTYPE_LIST')
-      durTypeField?.setValue(durationUnit)
+    const candleBlock = blocks.find((b) => b.type === 'trade_definition_candleinterval')
+    if (candleBlock) {
+      candleBlock.getField('CANDLEINTERVAL_LIST')?.setValue(candleInterval)
+    }
+
+    const restartBuySellBlock = blocks.find((b) => b.type === 'trade_definition_restartbuysell')
+    if (restartBuySellBlock) {
+      restartBuySellBlock.getField('TIME_MACHINE_ENABLED')?.setValue(restartBuySell ? 'TRUE' : 'FALSE')
     }
 
     const restartBlock = blocks.find((b) => b.type === 'trade_definition_restartonerror')
     if (restartBlock) {
-      const field = restartBlock.getField('RESTARTONERROR')
-      field?.setValue(restartOnError ? 'TRUE' : 'FALSE')
+      restartBlock.getField('RESTARTONERROR')?.setValue(restartOnError ? 'TRUE' : 'FALSE')
+    }
+
+    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
+    if (optionsBlock) {
+      const durBlock = optionsBlock.getInputTargetBlock('DURATION')
+      durBlock?.getField('NUM')?.setValue(duration)
+
+      const amtBlock = optionsBlock.getInputTargetBlock('AMOUNT')
+      amtBlock?.getField('NUM')?.setValue(stake)
+
+      const predBlock = optionsBlock.getInputTargetBlock('PREDICTION')
+      predBlock?.getField('NUM')?.setValue(prediction)
+
+      const barBlock = optionsBlock.getInputTargetBlock('BARRIER')
+      barBlock?.getField('NUM')?.setValue(barrier)
+
+      const bar2Block = optionsBlock.getInputTargetBlock('SECOND_BARRIER')
+      bar2Block?.getField('NUM')?.setValue(secondBarrier)
+
+      optionsBlock.getField('DURATIONTYPE_LIST')?.setValue(durationUnit)
+      optionsBlock.getField('CURRENCY_LIST')?.setValue(selectedCurrency)
     }
 
     onSaved()
   }
 
   const durationUnitLabels: Record<string, string> = {
-    t: 'ticks',
-    s: 'seconds',
-    m: 'minutes',
-    h: 'hours',
+    t: 'ticks', s: 'seconds', m: 'minutes', h: 'hours',
   }
+
+  const tradeTypeOptions = tradeTypeCategory ? TRADE_TYPE_CATEGORIES[tradeTypeCategory] || [] : []
+  const contractTypeOptions = tradeType ? CONTRACT_TYPES_BY_TRADE_TYPE[tradeType] || [] : []
 
   return (
     <div
@@ -1356,7 +1452,7 @@ function EditBotModal({
         className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-bg-secondary border border-border-light shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between">
+        <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center">
               <EditIcon className="w-4 h-4 text-brand-red" />
@@ -1366,7 +1462,7 @@ function EditBotModal({
                 Edit Bot Settings
               </div>
               <h2 className="font-bold text-base text-text-primary mt-0.5">
-                Simple parameter editor
+                Parameter editor
               </h2>
             </div>
           </div>
@@ -1385,82 +1481,222 @@ function EditBotModal({
           </div>
         ) : (
           <div className="p-5 space-y-4">
-            {/* Read-only info */}
-            <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted">Symbol</span>
-                <span className="text-sm font-semibold text-text-primary">{symbol || '—'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted">Contract type</span>
-                <span className="text-sm font-semibold text-text-primary">{contractType || '—'}</span>
-              </div>
-            </div>
-
-            <p className="text-xs text-text-muted leading-relaxed">
-              These are read from the blocks. To change the market or contract type, use the block editor.
-              You can adjust the trade parameters below.
-            </p>
-
-            {/* Stake */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Stake ({currency})
-              </label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            {/* Market */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Market</div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Market</label>
                 <input
-                  type="number"
-                  value={stake}
-                  onChange={(e) => setStake(e.target.value)}
-                  min="0.35"
-                  step="0.01"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  type="text"
+                  value={market}
+                  onChange={(e) => setMarket(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Submarket</label>
+                <input
+                  type="text"
+                  value={submarket}
+                  onChange={(e) => setSubmarket(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Symbol</label>
+                <input
+                  type="text"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-red transition-colors"
                 />
               </div>
             </div>
 
-            {/* Duration */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  min="1"
-                  className="flex-1 px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
-                />
+            {/* Trade type */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Trade Type</div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Category</label>
                 <select
-                  value={durationUnit}
-                  onChange={(e) => setDurationUnit(e.target.value)}
-                  className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  value={tradeTypeCategory}
+                  onChange={(e) => {
+                    setTradeTypeCategory(e.target.value)
+                    const opts = TRADE_TYPE_CATEGORIES[e.target.value] || []
+                    if (opts.length > 0) setTradeType(opts[0][1])
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                 >
-                  <option value="t">ticks</option>
-                  <option value="s">seconds</option>
-                  <option value="m">minutes</option>
-                  <option value="h">hours</option>
+                  <option value="">Select category</option>
+                  {Object.entries(TRADE_TYPE_CATEGORIES).map(([key, opts]) => (
+                    <option key={key} value={key}>{opts[0][0].split('/')[0]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Trade type</label>
+                <select
+                  value={tradeType}
+                  onChange={(e) => {
+                    setTradeType(e.target.value)
+                    const opts = CONTRACT_TYPES_BY_TRADE_TYPE[e.target.value] || []
+                    if (opts.length > 0) setContractType(opts[0][1])
+                  }}
+                  disabled={!tradeTypeOptions.length}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                >
+                  <option value="">Select type</option>
+                  {tradeTypeOptions.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Contract type</label>
+                <select
+                  value={contractType}
+                  onChange={(e) => setContractType(e.target.value)}
+                  disabled={!contractTypeOptions.length}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                >
+                  <option value="">Select contract</option>
+                  {contractTypeOptions.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* Prediction (for digit contracts) */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Prediction / Barrier digit (0-9)
-              </label>
-              <input
-                type="number"
-                value={prediction}
-                onChange={(e) => setPrediction(e.target.value)}
-                min="0"
-                max="9"
-                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
-              />
+            {/* Trade parameters */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Trade Parameters</div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted mb-1">Stake</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <input
+                      type="number"
+                      value={stake}
+                      onChange={(e) => setStake(e.target.value)}
+                      min="0.35"
+                      step="0.01"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted mb-1">Currency</label>
+                  <select
+                    value={selectedCurrency}
+                    onChange={(e) => setSelectedCurrency(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Duration</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    min="1"
+                    className="flex-1 px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                  <select
+                    value={durationUnit}
+                    onChange={(e) => setDurationUnit(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  >
+                    <option value="t">ticks</option>
+                    <option value="s">seconds</option>
+                    <option value="m">minutes</option>
+                    <option value="h">hours</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Prediction / Barrier digit (0-9)</label>
+                <input
+                  type="number"
+                  value={prediction}
+                  onChange={(e) => setPrediction(e.target.value)}
+                  min="0"
+                  max="9"
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted mb-1">Barrier</label>
+                  <input
+                    type="text"
+                    value={barrier}
+                    onChange={(e) => setBarrier(e.target.value)}
+                    placeholder="e.g. +0.50"
+                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted mb-1">Second barrier</label>
+                  <input
+                    type="text"
+                    value={secondBarrier}
+                    onChange={(e) => setSecondBarrier(e.target.value)}
+                    placeholder="e.g. -0.50"
+                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Restart on error */}
-            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4">
+            {/* Chart settings */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Chart Settings</div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-muted mb-1">Candle interval</label>
+                <select
+                  value={candleInterval}
+                  onChange={(e) => setCandleInterval(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                >
+                  {CANDLE_INTERVALS.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Bot behavior */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 space-y-3">
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Bot Behavior</div>
+
+              <button
+                onClick={() => setRestartBuySell(!restartBuySell)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-9 h-5 rounded-full transition-colors relative ${restartBuySell ? 'bg-brand-red' : 'bg-bg-hover'}`}>
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${restartBuySell ? 'translate-x-4' : 'translate-x-0.5'}`}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-text-primary">Restart buy/sell on error</span>
+                </div>
+                <span className="text-xs text-text-muted">
+                  {restartBuySell ? 'Enabled' : 'Disabled'}
+                </span>
+              </button>
+
               <button
                 onClick={() => setRestartOnError(!restartOnError)}
                 className="w-full flex items-center justify-between"
@@ -1477,9 +1713,6 @@ function EditBotModal({
                   {restartOnError ? 'Enabled' : 'Disabled'}
                 </span>
               </button>
-              <p className="text-[10px] text-text-muted mt-2 leading-relaxed">
-                When enabled, the bot automatically restarts after an error instead of stopping.
-              </p>
             </div>
 
             {/* Summary */}
@@ -1487,7 +1720,7 @@ function EditBotModal({
               <p className="text-xs text-text-secondary leading-relaxed">
                 The bot will trade <span className="font-semibold text-text-primary">{contractType || '—'}</span> on{' '}
                 <span className="font-semibold text-text-primary">{symbol || '—'}</span> with a stake of{' '}
-                <span className="font-semibold text-text-primary">{stake} {currency}</span> for{' '}
+                <span className="font-semibold text-text-primary">{stake} {selectedCurrency}</span> for{' '}
                 <span className="font-semibold text-text-primary">{duration} {durationUnitLabels[durationUnit] || 'ticks'}</span>.
               </p>
             </div>
@@ -1495,7 +1728,7 @@ function EditBotModal({
         )}
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-t border-border-default flex items-center gap-3">
+        <div className="sticky bottom-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-t border-border-default flex items-center gap-3 z-10">
           <button
             onClick={handleSave}
             disabled={!loaded}
