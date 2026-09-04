@@ -186,6 +186,30 @@ export default function Trade() {
     return () => { cancelled = true }
   }, [fetchSymbols, showToastCallback])
 
+  // Apply scan recommendation if present (from AI Scanner page)
+  useEffect(() => {
+    const raw = sessionStorage.getItem('scan_recommendation')
+    if (!raw) return
+    sessionStorage.removeItem('scan_recommendation')
+    try {
+      const rec = JSON.parse(raw) as { symbol: string; contractType: string; digit?: number }
+      if (rec.symbol) setSelectedSymbol(rec.symbol)
+      const tradeType = ALL_TRADE_TYPES.find((t) => t.contractType === rec.contractType)
+      if (tradeType) setSelectedTradeType(tradeType)
+      if (rec.digit !== undefined) setDigit(String(rec.digit))
+      if (rec.contractType === 'DIGITEVEN' || rec.contractType === 'DIGITODD') {
+        setDurationUnit('t')
+        setDuration('1')
+      } else {
+        setDurationUnit('t')
+        setDuration('5')
+      }
+      showToastCallback('info', `Scanner recommendation loaded: ${rec.contractType.replace('DIGIT', '')}${rec.digit !== undefined ? ' ' + rec.digit : ''} on ${rec.symbol}`)
+    } catch {
+      // ignore malformed recommendation
+    }
+  }, [showToastCallback])
+
   // Subscribe to ticks — use forget(subscription_id) to stop old stream before starting new one
   useEffect(() => {
     if (!ws || !selectedSymbol) return

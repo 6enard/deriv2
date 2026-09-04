@@ -13,6 +13,7 @@ import Trade from './pages/Trade'
 import Portfolio from './pages/Portfolio'
 import History from './pages/History'
 import BotBuilder from './pages/BotBuilder'
+import Scanner from './pages/Scanner'
 import Admin from './pages/Admin'
 
 export default function App() {
@@ -48,6 +49,11 @@ export default function App() {
           <Route path="/bot-builder" element={
             <ProtectedRoute>
               <Layout><BotBuilder /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/scanner" element={
+            <ProtectedRoute>
+              <Layout><Scanner /></Layout>
             </ProtectedRoute>
           } />
           <Route path="/admin" element={

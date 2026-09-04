@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -16,6 +16,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/trade', label: 'Trade', icon: TrendingUp },
+    { to: '/scanner', label: 'AI Scanner', icon: ScannerIcon },
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
     { to: '/history', label: 'History', icon: HistoryIcon },
     { to: '/bot-builder', label: 'Bot Builder', icon: BotBuilderIcon },
