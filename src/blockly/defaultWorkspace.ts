@@ -10,11 +10,11 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
         <field name="SYMBOL_LIST"></field>
         <next>
           <block type="trade_definition_tradetype" deletable="false" movable="false">
-            <field name="TRADETYPECAT_LIST"></field>
-            <field name="TRADETYPE_LIST"></field>
+            <field name="TRADETYPECAT_LIST">updown</field>
+            <field name="TRADETYPE_LIST">risefall</field>
             <next>
               <block type="trade_definition_contracttype" deletable="false" movable="false">
-                <field name="TYPE_LIST"></field>
+                <field name="TYPE_LIST">both</field>
                 <next>
                   <block type="trade_definition_candleinterval" deletable="false" movable="false">
                     <field name="CANDLEINTERVAL_LIST">60</field>
@@ -38,7 +38,7 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
     </statement>
     <statement name="SUBMARKET">
       <block type="trade_definition_tradeoptions">
-        <field name="DURATIONTYPE_LIST">m</field>
+        <field name="DURATIONTYPE_LIST">t</field>
         <field name="CURRENCY_LIST">USD</field>
         <value name="DURATION">
           <shadow type="math_number">
@@ -75,7 +75,7 @@ export const defaultWorkspaceXml = `<xml xmlns="https://developers.google.com/bl
   <block type="before_purchase" x="0" y="576">
     <statement name="BEFOREPURCHASE_STACK">
       <block type="purchase">
-        <field name="PURCHASE_LIST"></field>
+        <field name="PURCHASE_LIST">CALL</field>
       </block>
     </statement>
   </block>

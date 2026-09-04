@@ -227,7 +227,9 @@ return [
 ]
 }
 
-return options.length ? options : ([['', '']] as T[])
+// Allow empty string as a valid value so Blockly's XML loader
+// doesn't warn when loading blocks that have empty field values.
+return ([['', '']] as T[]).concat(options)
 }
 
 function marketMenu(
