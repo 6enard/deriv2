@@ -19,115 +19,150 @@ interface TradeTypeOption {
   barrierType: BarrierType
 }
 
-const TRADE_TYPE_GROUPS: { group: string; types: TradeTypeOption[] }[] = [
+interface TradeTypeGroup {
+  group: string
+  types: TradeTypeOption[]
+}
+
+interface TradeCategory {
+  category: string
+  groups: TradeTypeGroup[]
+}
+
+const TRADE_CATEGORIES: TradeCategory[] = [
   {
-    group: 'Rise / Fall',
-    types: [
-      { contractType: 'CALL', side: 'up', displayName: 'Rise', barrierType: 'none' },
-      { contractType: 'PUT', side: 'down', displayName: 'Fall', barrierType: 'none' },
-      { contractType: 'CALLE', side: 'up', displayName: 'Rise (Daily)', barrierType: 'none' },
-      { contractType: 'PUTE', side: 'down', displayName: 'Fall (Daily)', barrierType: 'none' },
+    category: 'Directional',
+    groups: [
+      {
+        group: 'Rise / Fall',
+        types: [
+          { contractType: 'CALL', side: 'up', displayName: 'Rise', barrierType: 'none' },
+          { contractType: 'PUT', side: 'down', displayName: 'Fall', barrierType: 'none' },
+          { contractType: 'CALLE', side: 'up', displayName: 'Rise (Daily)', barrierType: 'none' },
+          { contractType: 'PUTE', side: 'down', displayName: 'Fall (Daily)', barrierType: 'none' },
+        ],
+      },
+      {
+        group: 'Touch / No Touch',
+        types: [
+          { contractType: 'ONETOUCH', side: 'touch', displayName: 'Touch', barrierType: 'single' },
+          { contractType: 'NOTOUCH', side: 'notouch', displayName: 'No Touch', barrierType: 'single' },
+        ],
+      },
+      {
+        group: 'Higher / Lower',
+        types: [
+          { contractType: 'HIGHER', side: 'up', displayName: 'Higher', barrierType: 'single' },
+          { contractType: 'LOWER', side: 'down', displayName: 'Lower', barrierType: 'single' },
+        ],
+      },
+      {
+        group: 'Ends In / Ends Out',
+        types: [
+          { contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In', barrierType: 'double' },
+          { contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out', barrierType: 'double' },
+          { contractType: 'EXPIRYRANGEE', side: 'in', displayName: 'Ends In (Daily)', barrierType: 'double' },
+          { contractType: 'EXPIRYMISSE', side: 'out', displayName: 'Ends Out (Daily)', barrierType: 'double' },
+        ],
+      },
+      {
+        group: 'Stays In / Goes Out',
+        types: [
+          { contractType: 'RANGE', side: 'in', displayName: 'Stays In', barrierType: 'double' },
+          { contractType: 'UPORDOWN', side: 'out', displayName: 'Goes Out', barrierType: 'double' },
+        ],
+      },
+      {
+        group: 'Asians',
+        types: [
+          { contractType: 'ASIANU', side: 'asian', displayName: 'Asian Up', barrierType: 'none' },
+          { contractType: 'ASIAND', side: 'asian', displayName: 'Asian Down', barrierType: 'none' },
+        ],
+      },
+      {
+        group: 'Reset',
+        types: [
+          { contractType: 'RESETCALL', side: 'reset', displayName: 'Reset Call', barrierType: 'none' },
+          { contractType: 'RESETPUT', side: 'reset', displayName: 'Reset Put', barrierType: 'none' },
+        ],
+      },
+      {
+        group: 'Run High / Low',
+        types: [
+          { contractType: 'RUNHIGH', side: 'run', displayName: 'Run High', barrierType: 'none' },
+          { contractType: 'RUNLOW', side: 'run', displayName: 'Run Low', barrierType: 'none' },
+        ],
+      },
+      {
+        group: 'Tick High / Low',
+        types: [
+          { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'tick' },
+          { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'tick' },
+        ],
+      },
     ],
   },
   {
-    group: 'Higher / Lower',
-    types: [
-      { contractType: 'HIGHER', side: 'up', displayName: 'Higher', barrierType: 'single' },
-      { contractType: 'LOWER', side: 'down', displayName: 'Lower', barrierType: 'single' },
+    category: 'Growth based',
+    groups: [
+      {
+        group: 'Accumulators',
+        types: [
+          { contractType: 'ACCU', side: 'accumulator', displayName: 'Accumulator', barrierType: 'accumulator' },
+        ],
+      },
+      {
+        group: 'Multipliers',
+        types: [
+          { contractType: 'MULTUP', side: 'multiplier', displayName: 'Up', barrierType: 'multiplier' },
+          { contractType: 'MULTDOWN', side: 'multiplier', displayName: 'Down', barrierType: 'multiplier' },
+        ],
+      },
+      {
+        group: 'Turbos',
+        types: [
+          { contractType: 'TURBOSLONG', side: 'turbos', displayName: 'Long', barrierType: 'single' },
+          { contractType: 'TURBOSSHORT', side: 'turbos', displayName: 'Short', barrierType: 'single' },
+        ],
+      },
+      {
+        group: 'Vanillas',
+        types: [
+          { contractType: 'VANILLALONGCALL', side: 'vanilla', displayName: 'Call', barrierType: 'single' },
+          { contractType: 'VANILLALONGPUT', side: 'vanilla', displayName: 'Put', barrierType: 'single' },
+        ],
+      },
     ],
   },
   {
-    group: 'Touch / No Touch',
-    types: [
-      { contractType: 'ONETOUCH', side: 'touch', displayName: 'Touch', barrierType: 'single' },
-      { contractType: 'NOTOUCH', side: 'notouch', displayName: 'No Touch', barrierType: 'single' },
-    ],
-  },
-  {
-    group: 'Ends In / Ends Out',
-    types: [
-      { contractType: 'EXPIRYRANGE', side: 'in', displayName: 'Ends In', barrierType: 'double' },
-      { contractType: 'EXPIRYMISS', side: 'out', displayName: 'Ends Out', barrierType: 'double' },
-      { contractType: 'EXPIRYRANGEE', side: 'in', displayName: 'Ends In (Daily)', barrierType: 'double' },
-      { contractType: 'EXPIRYMISSE', side: 'out', displayName: 'Ends Out (Daily)', barrierType: 'double' },
-    ],
-  },
-  {
-    group: 'Stays In / Goes Out',
-    types: [
-      { contractType: 'RANGE', side: 'in', displayName: 'Stays In', barrierType: 'double' },
-      { contractType: 'UPORDOWN', side: 'out', displayName: 'Goes Out', barrierType: 'double' },
-    ],
-  },
-  {
-    group: 'Digits',
-    types: [
-      { contractType: 'DIGITMATCH', side: 'digit', displayName: 'Matches', barrierType: 'digit' },
-      { contractType: 'DIGITDIFF', side: 'digit', displayName: 'Differs', barrierType: 'digit' },
-      { contractType: 'DIGITOVER', side: 'digit', displayName: 'Over', barrierType: 'digit' },
-      { contractType: 'DIGITUNDER', side: 'digit', displayName: 'Under', barrierType: 'digit' },
-      { contractType: 'DIGITODD', side: 'digit', displayName: 'Odd', barrierType: 'digit' },
-      { contractType: 'DIGITEVEN', side: 'digit', displayName: 'Even', barrierType: 'digit' },
-    ],
-  },
-  {
-    group: 'Asians',
-    types: [
-      { contractType: 'ASIANU', side: 'asian', displayName: 'Asian Up', barrierType: 'none' },
-      { contractType: 'ASIAND', side: 'asian', displayName: 'Asian Down', barrierType: 'none' },
-    ],
-  },
-  {
-    group: 'Multipliers',
-    types: [
-      { contractType: 'MULTUP', side: 'multiplier', displayName: 'Up', barrierType: 'multiplier' },
-      { contractType: 'MULTDOWN', side: 'multiplier', displayName: 'Down', barrierType: 'multiplier' },
-    ],
-  },
-  {
-    group: 'Accumulators',
-    types: [
-      { contractType: 'ACCU', side: 'accumulator', displayName: 'Accumulator', barrierType: 'accumulator' },
-    ],
-  },
-  {
-    group: 'Reset',
-    types: [
-      { contractType: 'RESETCALL', side: 'reset', displayName: 'Reset Call', barrierType: 'none' },
-      { contractType: 'RESETPUT', side: 'reset', displayName: 'Reset Put', barrierType: 'none' },
-    ],
-  },
-  {
-    group: 'Run High / Low',
-    types: [
-      { contractType: 'RUNHIGH', side: 'run', displayName: 'Run High', barrierType: 'none' },
-      { contractType: 'RUNLOW', side: 'run', displayName: 'Run Low', barrierType: 'none' },
-    ],
-  },
-  {
-    group: 'Tick High / Low',
-    types: [
-      { contractType: 'TICKHIGH', side: 'tick', displayName: 'Tick High', barrierType: 'tick' },
-      { contractType: 'TICKLOW', side: 'tick', displayName: 'Tick Low', barrierType: 'tick' },
-    ],
-  },
-  {
-    group: 'Turbos',
-    types: [
-      { contractType: 'TURBOSLONG', side: 'turbos', displayName: 'Long', barrierType: 'single' },
-      { contractType: 'TURBOSSHORT', side: 'turbos', displayName: 'Short', barrierType: 'single' },
-    ],
-  },
-  {
-    group: 'Vanilla',
-    types: [
-      { contractType: 'VANILLALONGCALL', side: 'vanilla', displayName: 'Call', barrierType: 'single' },
-      { contractType: 'VANILLALONGPUT', side: 'vanilla', displayName: 'Put', barrierType: 'single' },
+    category: 'Digit based',
+    groups: [
+      {
+        group: 'Matches / Differs',
+        types: [
+          { contractType: 'DIGITMATCH', side: 'digit', displayName: 'Matches', barrierType: 'digit' },
+          { contractType: 'DIGITDIFF', side: 'digit', displayName: 'Differs', barrierType: 'digit' },
+        ],
+      },
+      {
+        group: 'Over / Under',
+        types: [
+          { contractType: 'DIGITOVER', side: 'digit', displayName: 'Over', barrierType: 'digit' },
+          { contractType: 'DIGITUNDER', side: 'digit', displayName: 'Under', barrierType: 'digit' },
+        ],
+      },
+      {
+        group: 'Even / Odd',
+        types: [
+          { contractType: 'DIGITEVEN', side: 'digit', displayName: 'Even', barrierType: 'digit' },
+          { contractType: 'DIGITODD', side: 'digit', displayName: 'Odd', barrierType: 'digit' },
+        ],
+      },
     ],
   },
 ]
 
-const ALL_TRADE_TYPES = TRADE_TYPE_GROUPS.flatMap((g) => g.types)
+const ALL_TRADE_TYPES = TRADE_CATEGORIES.flatMap((c) => c.groups.flatMap((g) => g.types))
 
 export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
@@ -645,34 +680,48 @@ export default function Trade() {
                 </button>
 
                 {tradeTypeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 max-h-72 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
-                    {TRADE_TYPE_GROUPS.map((group) => {
-                      const visibleTypes = group.types.filter(
-                        (opt) => !availableContractTypes || availableContractTypes.has(opt.contractType),
-                      )
-                      if (visibleTypes.length === 0) return null
+                  <div className="absolute top-full left-0 right-0 mt-2 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
+                    {TRADE_CATEGORIES.map((cat) => {
+                      const visibleGroups = cat.groups
+                        .map((group) => ({
+                          group,
+                          visibleTypes: group.types.filter(
+                            (opt) => !availableContractTypes || availableContractTypes.has(opt.contractType),
+                          ),
+                        }))
+                        .filter((g) => g.visibleTypes.length > 0)
+
+                      if (visibleGroups.length === 0) return null
+
                       return (
-                      <div key={group.group}>
-                        <div className="px-3 py-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide sticky top-0 bg-bg-secondary">
-                          {group.group}
+                        <div key={cat.category} className="border-b border-border-default last:border-b-0">
+                          <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-red bg-bg-tertiary/50 sticky top-0 z-10">
+                            {cat.category}
+                          </div>
+                          {visibleGroups.map(({ group, visibleTypes }) => (
+                            <div key={group.group}>
+                              <div className="px-3 py-1.5 text-xs font-semibold text-text-muted uppercase tracking-wide bg-bg-secondary/95">
+                                {group.group}
+                              </div>
+                              {visibleTypes.map((opt) => (
+                                <button
+                                  key={`${opt.contractType}-${opt.side}`}
+                                  onClick={() => {
+                                    setSelectedTradeType(opt)
+                                    setTradeTypeDropdownOpen(false)
+                                  }}
+                                  className={`w-full flex items-center gap-2 px-5 py-2 text-sm hover:bg-bg-tertiary transition-colors ${
+                                    selectedTradeType.displayName === opt.displayName ? 'text-brand-green' : ''
+                                  }`}
+                                >
+                                  <TradeTypeIcon option={opt} />
+                                  {opt.displayName}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
                         </div>
-                        {visibleTypes.map((opt) => (
-                          <button
-                            key={`${opt.contractType}-${opt.side}`}
-                            onClick={() => {
-                              setSelectedTradeType(opt)
-                              setTradeTypeDropdownOpen(false)
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-bg-tertiary transition-colors ${
-                              selectedTradeType.displayName === opt.displayName ? 'text-brand-green' : ''
-                            }`}
-                          >
-                            <TradeTypeIcon option={opt} />
-                            {opt.displayName}
-                          </button>
-                        ))}
-                      </div>
-                      );
+                      )
                     })}
                   </div>
                 )}
