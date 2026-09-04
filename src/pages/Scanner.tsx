@@ -104,14 +104,14 @@ export default function Scanner() {
         </div>
       )}
 
-      {/* No results */}
+      {/* No results — retry instead of giving up */}
       {!scanning && hasScanned && !error && results.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <AlertCircle className="w-12 h-12 text-text-muted mb-4" />
-          <p className="text-sm text-text-secondary">No tradeable signals found in current market conditions.</p>
-          <button onClick={() => runScan()} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors">
+          <p className="text-sm text-text-secondary">Unable to fetch market data this time. Please try again.</p>
+          <button onClick={() => runScan()} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-red text-white text-sm font-medium hover:bg-brand-red-dim transition-colors">
             <RefreshCw className="w-4 h-4" />
-            Try Again
+            Retry Scan
           </button>
         </div>
       )}
@@ -259,11 +259,7 @@ export default function Scanner() {
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <div className="text-xs text-text-muted text-center py-3">
-                        No statistically significant digit patterns detected for this market.
-                      </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
