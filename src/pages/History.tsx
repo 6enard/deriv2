@@ -71,18 +71,23 @@ export default function History() {
       const res = await ws.send(params)
       if (res.error) throw new Error(res.error.message)
       if (res.profit_table?.transactions) {
-        const mapped: ClosedTrade[] = res.profit_table.transactions.map((t: any) => ({
-          contract_id: t.contract_id,
-          symbol: t.underlying_symbol ?? t.symbol ?? '',
-          display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
-          contract_type: t.contract_type || '',
-          buy_price: parseFloat(t.buy_price || '0'),
-          sell_price: parseFloat(t.sell_price || '0'),
-          profit: parseFloat(t.profit || '0'),
-          purchase_time: t.purchase_time,
-          sell_time: t.sell_time,
-          status: parseFloat(t.profit) >= 0 ? 'won' : 'lost',
-        }))
+        const mapped: ClosedTrade[] = res.profit_table.transactions.map((t: any) => {
+          const buyPrice = parseFloat(t.buy_price || '0')
+          const sellPrice = parseFloat(t.sell_price || '0')
+          const profit = t.profit != null ? parseFloat(t.profit) : sellPrice - buyPrice
+          return {
+            contract_id: t.contract_id,
+            symbol: t.underlying_symbol ?? t.symbol ?? '',
+            display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
+            contract_type: t.contract_type || '',
+            buy_price: buyPrice,
+            sell_price: sellPrice,
+            profit,
+            purchase_time: t.purchase_time,
+            sell_time: t.sell_time,
+            status: profit >= 0 ? 'won' : 'lost',
+          }
+        })
         setClosedTrades(append ? [...closedTrades, ...mapped] : mapped)
         setHasMore(mapped.length >= 50)
       } else {
