@@ -1629,11 +1629,15 @@ export function createBotApi(
         currency:
           params.currency ||
           account.currency,
-        duration:
-          number(
-            params.duration,
-            1,
+        duration: Math.max(
+          1,
+          Math.floor(
+            number(
+              params.duration,
+              1,
+            ),
           ),
+        ),
         duration_unit:
           params.duration_unit ||
           't',

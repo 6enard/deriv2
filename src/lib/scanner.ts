@@ -233,7 +233,9 @@ export function analyzeTicks(
 }
 
 export function filterVolatilitySymbols(symbols: RawSymbol[]): RawSymbol[] {
-  return symbols.filter((s) => s.market === 'synthetic_index')
+  return symbols.filter(
+    (s) => s.market === 'synthetic_index' && s.submarket === 'random_index',
+  )
 }
 
 export async function scanVolatilityMarkets(
@@ -311,7 +313,9 @@ export function buildBotXmlFromSignal(
   const takeProfit = config?.takeProfit ?? 0
 
   // Digit contracts are only offered with tick durations on Deriv.
-  const duration = config?.duration ?? 1
+  // Valid range is 1–10 ticks.
+  const rawDuration = config?.duration ?? 1
+  const duration = Math.max(1, Math.min(10, Math.floor(rawDuration)))
   const durationUnit = 't'
 
   let tradeType = 'matchesdiffers'
@@ -439,6 +443,7 @@ export function buildBotXmlFromSignal(
     </statement>
     <statement name="SUBMARKET">
       <block type="trade_definition_tradeoptions">
+        <mutation has_prediction="${needsPrediction}" has_first_barrier="false" has_second_barrier="false"></mutation>
         <field name="DURATIONTYPE_LIST">${durationUnit}</field>
         <field name="CURRENCY_LIST">USD</field>
         <value name="DURATION"><shadow type="math_number"><field name="NUM">${duration}</field></shadow></value>
