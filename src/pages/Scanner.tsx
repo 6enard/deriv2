@@ -2,10 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useScanner } from '../hooks/useScanner'
 import { useToast } from '../components/Toast'
-import { buildBotXmlFromSignal, type ScanResult, type DigitSignal } from '../lib/scanner'
-import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy } from 'lucide-react'
+import { buildBotXmlFromSignal, type ScanResult, type DigitSignal, type BotConfig } from '../lib/scanner'
+import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy, X, Settings as SettingsIcon } from 'lucide-react'
 
 const TICK_OPTIONS = [100, 200, 300, 500]
+
+interface PendingBot {
+  result: ScanResult
+  signal: DigitSignal
+}
 
 export default function Scanner() {
   const { results, scanning, progress, error, hasScanned, runScan, tickCount, setTickCount } = useScanner()
@@ -13,6 +18,7 @@ export default function Scanner() {
   const navigate = useNavigate()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const autoScanTriggered = useRef(false)
+  const [pendingBot, setPendingBot] = useState<PendingBot | null>(null)
 
   useEffect(() => {
     if (autoScanTriggered.current) return
@@ -39,9 +45,15 @@ export default function Scanner() {
   }
 
   const handleLoadBot = (result: ScanResult, signal: DigitSignal) => {
-    const xml = buildBotXmlFromSignal(result, signal)
+    setPendingBot({ result, signal })
+  }
+
+  const confirmLoadBot = (config: BotConfig) => {
+    if (!pendingBot) return
+    const xml = buildBotXmlFromSignal(pendingBot.result, pendingBot.signal, config)
     sessionStorage.setItem('pending_bot_xml', xml)
-    showToast('success', `Bot loaded with ${signal.displayName} on ${result.display_name}.`)
+    showToast('success', `Bot loaded with ${pendingBot.signal.displayName} on ${pendingBot.result.display_name}.`)
+    setPendingBot(null)
     navigate('/bot-builder')
   }
 
@@ -358,6 +370,240 @@ export default function Scanner() {
           Trade recommendations are for educational purposes and should not be considered financial advice. Always trade responsibly.
         </p>
       )}
+
+      {/* Bot configuration modal */}
+      {pendingBot && (
+        <BotConfigModal
+          result={pendingBot.result}
+          signal={pendingBot.signal}
+          onCancel={() => setPendingBot(null)}
+          onConfirm={confirmLoadBot}
+        />
+      )}
+    </div>
+  )
+}
+
+function BotConfigModal({
+  result,
+  signal,
+  onCancel,
+  onConfirm,
+}: {
+  result: ScanResult
+  signal: DigitSignal
+  onCancel: () => void
+  onConfirm: (config: BotConfig) => void
+}) {
+  const [stake, setStake] = useState('1')
+  const [duration, setDuration] = useState('1')
+  const [durationUnit, setDurationUnit] = useState('t')
+  const [useMartingale, setUseMartingale] = useState(false)
+  const [martingaleSteps, setMartingaleSteps] = useState('3')
+  const [martingaleMultiplier, setMartingaleMultiplier] = useState('2')
+  const [stopLoss, setStopLoss] = useState('0')
+  const [takeProfit, setTakeProfit] = useState('0')
+
+  const handleConfirm = () => {
+    onConfirm({
+      stake: parseFloat(stake) || 1,
+      duration: parseInt(duration) || 1,
+      durationUnit,
+      useMartingale,
+      martingaleSteps: parseInt(martingaleSteps) || 0,
+      martingaleMultiplier: parseFloat(martingaleMultiplier) || 2,
+      stopLoss: parseFloat(stopLoss) || 0,
+      takeProfit: parseFloat(takeProfit) || 0,
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-bg-secondary border border-border-light shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center">
+              <SettingsIcon className="w-4 h-4 text-brand-red" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted font-bold">
+                Configure Bot
+              </div>
+              <h2 className="font-bold text-base text-text-primary mt-0.5">
+                {signal.displayName} on {result.display_name}
+              </h2>
+            </div>
+          </div>
+          <button
+            onClick={onCancel}
+            className="w-9 h-9 rounded-xl bg-bg-tertiary border border-border-light flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Trade info */}
+          <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand-red/10 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-brand-red" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-text-primary truncate">
+                {signal.displayName}
+              </div>
+              <div className="text-xs text-text-muted mt-0.5">
+                {result.display_name}
+              </div>
+            </div>
+          </div>
+
+          {/* Stake & Duration */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Stake (USD)</label>
+              <input
+                type="number"
+                value={stake}
+                onChange={(e) => setStake(e.target.value)}
+                min="0.35"
+                step="0.01"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  min="1"
+                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                />
+                <select
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value)}
+                  className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                >
+                  <option value="t">ticks</option>
+                  <option value="s">sec</option>
+                  <option value="m">min</option>
+                  <option value="h">hrs</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Martingale toggle */}
+          <div className="rounded-xl bg-bg-tertiary border border-border-light p-4">
+            <button
+              onClick={() => setUseMartingale(!useMartingale)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-9 h-5 rounded-full transition-colors relative ${useMartingale ? 'bg-brand-red' : 'bg-bg-hover'}`}>
+                  <div
+                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${useMartingale ? 'translate-x-4' : 'translate-x-0.5'}`}
+                  />
+                </div>
+                <span className="text-sm font-semibold text-text-primary">Use Martingale</span>
+              </div>
+              <span className="text-xs text-text-muted">
+                {useMartingale ? 'Enabled' : 'Disabled'}
+              </span>
+            </button>
+
+            {useMartingale && (
+              <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border-default">
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Max Steps</label>
+                  <input
+                    type="number"
+                    value={martingaleSteps}
+                    onChange={(e) => setMartingaleSteps(e.target.value)}
+                    min="1"
+                    max="10"
+                    className="w-full px-3 py-2.5 rounded-xl bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">Multiplier</label>
+                  <input
+                    type="number"
+                    value={martingaleMultiplier}
+                    onChange={(e) => setMartingaleMultiplier(e.target.value)}
+                    min="1"
+                    step="0.1"
+                    className="w-full px-3 py-2.5 rounded-xl bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stop Loss & Take Profit */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Stop Loss (USD)</label>
+              <input
+                type="number"
+                value={stopLoss}
+                onChange={(e) => setStopLoss(e.target.value)}
+                min="0"
+                step="0.01"
+                placeholder="0 = off"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Take Profit (USD)</label>
+              <input
+                type="number"
+                value={takeProfit}
+                onChange={(e) => setTakeProfit(e.target.value)}
+                min="0"
+                step="0.01"
+                placeholder="0 = off"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Info note */}
+          <div className="rounded-xl bg-brand-blue/5 border border-brand-blue/20 px-3 py-2.5">
+            <p className="text-xs text-text-secondary leading-relaxed">
+              The bot will trade <span className="font-semibold text-text-primary">{signal.displayName}</span> on <span className="font-semibold text-text-primary">{result.display_name}</span> with a stake of <span className="font-semibold text-text-primary">{stake} USD</span> per trade.
+              {useMartingale && ` On loss, the stake will multiply by ${martingaleMultiplier}.`}
+              {parseFloat(stopLoss) > 0 && ` The bot stops if total loss reaches ${stopLoss} USD.`}
+              {parseFloat(takeProfit) > 0 && ` The bot stops if total profit reaches ${takeProfit} USD.`}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-t border-border-default flex items-center gap-3">
+          <button
+            onClick={handleConfirm}
+            className="flex-1 h-11 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors flex items-center justify-center gap-2"
+          >
+            <Bot className="w-4 h-4" />
+            Load Bot
+          </button>
+          <button
+            onClick={onCancel}
+            className="h-11 px-5 rounded-xl bg-bg-tertiary border border-border-light text-text-secondary text-sm font-semibold hover:text-text-primary transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

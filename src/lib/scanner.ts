@@ -296,16 +296,117 @@ export async function scanVolatilityMarkets(
   return results
 }
 
-export function buildBotXmlFromSignal(result: ScanResult, signal: DigitSignal): string {
+export interface BotConfig {
+  stake: number
+  duration: number
+  durationUnit: string
+  useMartingale: boolean
+  martingaleSteps: number
+  martingaleMultiplier: number
+  stopLoss: number
+  takeProfit: number
+}
+
+export function buildBotXmlFromSignal(
+  result: ScanResult,
+  signal: DigitSignal,
+  config?: Partial<BotConfig>,
+): string {
   const symbol = result.symbol
   const contractType = signal.contractType
   const digit = signal.digit ?? 5
   const market = result.market || 'synthetic_index'
   const submarket = result.submarket || 'random_index'
 
+  const stake = config?.stake ?? 1
+  const duration = config?.duration ?? 1
+  const durationUnit = config?.durationUnit ?? 't'
+  const useMartingale = config?.useMartingale ?? false
+  const martingaleMultiplier = config?.martingaleMultiplier ?? 2
+  const stopLoss = config?.stopLoss ?? 0
+  const takeProfit = config?.takeProfit ?? 0
+
   let tradeType = 'matchesdiffers'
   if (contractType === 'DIGITOVER' || contractType === 'DIGITUNDER') tradeType = 'overunder'
   else if (contractType === 'DIGITEVEN' || contractType === 'DIGITODD') tradeType = 'evenodd'
+
+  const afterBlocks: string[] = []
+
+  if (stopLoss > 0) {
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0">
+          <block type="logic_compare">
+            <field name="OP">LTE</field>
+            <value name="A"><block type="total_profit"></block></value>
+            <value name="B"><shadow type="math_number"><field name="NUM">-${stopLoss}</field></shadow></value>
+          </block>
+        </value>
+      </block>`,
+    )
+  }
+
+  if (takeProfit > 0) {
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0">
+          <block type="logic_compare">
+            <field name="OP">GTE</field>
+            <value name="A"><block type="total_profit"></block></value>
+            <value name="B"><shadow type="math_number"><field name="NUM">${takeProfit}</field></shadow></value>
+          </block>
+        </value>
+      </block>`,
+    )
+  }
+
+  if (useMartingale) {
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0">
+          <block type="logic_compare">
+            <field name="OP">EQ</field>
+            <value name="A"><block type="contract_check_result"><field name="CHECK_RESULT">lose</field></block></value>
+            <value name="B"><block type="logic_boolean"><field name="BOOL">TRUE</field></block></value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="set_stake">
+            <value name="STAKE">
+              <block type="math_arithmetic">
+                <field name="OP">MULTIPLY</field>
+                <value name="A"><block type="get_stake"></block></value>
+                <value name="B"><shadow type="math_number"><field name="NUM">${martingaleMultiplier}</field></shadow></value>
+              </block>
+            </value>
+          </block>
+        </statement>
+      </block>`,
+    )
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0">
+          <block type="logic_compare">
+            <field name="OP">EQ</field>
+            <value name="A"><block type="contract_check_result"><field name="CHECK_RESULT">win</field></block></value>
+            <value name="B"><block type="logic_boolean"><field name="BOOL">TRUE</field></block></value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="set_stake">
+            <value name="STAKE"><shadow type="math_number"><field name="NUM">${stake}</field></shadow></value>
+          </block>
+        </statement>
+      </block>`,
+    )
+  }
+
+  afterBlocks.push(`      <block type="trade_again"></block>`)
+
+  let afterXml = afterBlocks[0]
+  for (let i = 1; i < afterBlocks.length; i++) {
+    afterXml = afterXml.replace(/\s*$/, `\n        <next>\n${afterBlocks[i]}\n        </next>`)
+  }
 
   return `<xml xmlns="https://developers.google.com/blockly/xml" collection="false" is_dbot="true">
   <block type="trade_definition" x="0" y="0">
@@ -344,10 +445,10 @@ export function buildBotXmlFromSignal(result: ScanResult, signal: DigitSignal): 
     </statement>
     <statement name="SUBMARKET">
       <block type="trade_definition_tradeoptions">
-        <field name="DURATIONTYPE_LIST">t</field>
+        <field name="DURATIONTYPE_LIST">${durationUnit}</field>
         <field name="CURRENCY_LIST">USD</field>
-        <value name="DURATION"><shadow type="math_number"><field name="NUM">5</field></shadow></value>
-        <value name="AMOUNT"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+        <value name="DURATION"><shadow type="math_number"><field name="NUM">${duration}</field></shadow></value>
+        <value name="AMOUNT"><shadow type="math_number"><field name="NUM">${stake}</field></shadow></value>
         <value name="PREDICTION"><shadow type="math_number"><field name="NUM">${digit}</field></shadow></value>
       </block>
     </statement>
@@ -358,7 +459,9 @@ export function buildBotXmlFromSignal(result: ScanResult, signal: DigitSignal): 
     </statement>
   </block>
   <block type="after_purchase" x="720" y="248">
-    <statement name="AFTERPURCHASE_STACK"><block type="trade_again"></block></statement>
+    <statement name="AFTERPURCHASE_STACK">
+${afterXml}
+    </statement>
   </block>
   <block type="before_purchase" x="0" y="576">
     <statement name="BEFOREPURCHASE_STACK">
