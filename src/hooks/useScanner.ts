@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
 import { DERIV_WS_URL } from '../lib/config'
-import { useMarketData } from './useMarketData'
-import { scanVolatilityMarkets, type ScanResult } from '../lib/scanner'
+import { scanVolatilityMarkets, type ScanResult, type RawSymbol } from '../lib/scanner'
 
 export function useScanner() {
-  const { symbols, fetchSymbols } = useMarketData()
   const [results, setResults] = useState<ScanResult[]>([])
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -16,22 +14,23 @@ export function useScanner() {
     setScanning(true)
     setError(null)
     try {
-      let syms = symbols
-      if (syms.length === 0) {
-        const fetched = await fetchSymbols()
-        if (!fetched || fetched.length === 0) {
-          setError('Unable to load market data. Please try again.')
-          setScanning(false)
-          return
-        }
-        syms = fetched
-      }
-
+      // Use the standard Deriv API directly — the custom options WS
+      // endpoint doesn't support active_symbols or ticks_history.
       const ws = new DerivWS(DERIV_WS_URL)
       wsRef.current = ws
       await ws.connect()
 
-      const scanResults = await scanVolatilityMarkets(syms, {
+      // Fetch active symbols from the standard API
+      const symbolsRes = await ws.send({ active_symbols: 'brief' })
+      if (symbolsRes?.error) {
+        throw new Error(symbolsRes.error.message || 'Failed to load markets')
+      }
+      const symbols: RawSymbol[] = (symbolsRes.active_symbols || []) as RawSymbol[]
+      if (symbols.length === 0) {
+        throw new Error('No markets available.')
+      }
+
+      const scanResults = await scanVolatilityMarkets(symbols, {
         send: (req) => ws.send(req),
       })
 
@@ -45,7 +44,7 @@ export function useScanner() {
     } finally {
       setScanning(false)
     }
-  }, [symbols, fetchSymbols])
+  }, [])
 
   useEffect(() => {
     return () => {
