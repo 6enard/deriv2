@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, ChevronDown, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2 } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2 } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -37,7 +37,6 @@ export default function BotBuilder() {
 
   const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
-  const [showResultsMobile, setShowResultsMobile] = useState(false)
   const [toolboxOpen, setToolboxOpen] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
 
@@ -827,65 +826,46 @@ export default function BotBuilder() {
       </aside>
 
       {/* =========================================================
-          MOBILE RESULTS
+          MOBILE RESULTS — always visible
       ========================================================== */}
 
-      <div className="lg:hidden border-t border-border-default bg-bg-secondary shrink-0">
-        <button
-          onClick={() => setShowResultsMobile((v) => !v)}
-          className="w-full min-h-[58px] px-4 flex items-center justify-between active:bg-bg-tertiary transition-colors"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-bg-tertiary border border-border-light flex items-center justify-center shrink-0">
-              <Activity className="w-4 h-4 text-text-secondary" />
+      <div className="lg:hidden border-t border-border-default bg-bg-secondary shrink-0 flex flex-col">
+        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Activity className="w-4 h-4 text-text-secondary" />
+
+            <div className="text-sm font-bold text-text-primary">
+              Run Results
             </div>
-
-            <div className="text-left min-w-0">
-              <div className="text-sm font-semibold text-text-primary">
-                Run Results
-              </div>
-
-              <div className="text-[10px] text-text-muted">
-                {hasResults ? 'Latest bot performance' : 'No run data yet'}
-              </div>
-            </div>
-
-            {hasResults && (
-              <span
-                className={`text-xs font-bold tabular px-2 py-1 rounded-lg shrink-0 ${
-                  totalProfit >= 0
-                    ? 'bg-brand-green/10 text-brand-green'
-                    : 'bg-brand-red/10 text-brand-red'
-                }`}
-              >
-                {totalProfit >= 0 ? '+' : ''}
-                {totalProfit.toFixed(2)} {currency}
-              </span>
-            )}
           </div>
 
-          <ChevronDown
-            className={`w-5 h-5 text-text-secondary transition-transform ${
-              showResultsMobile ? 'rotate-180' : ''
-            }`}
+          {hasResults && (
+            <span
+              className={`text-xs font-bold tabular px-2 py-1 rounded-lg ${
+                totalProfit >= 0
+                  ? 'bg-brand-green/10 text-brand-green'
+                  : 'bg-brand-red/10 text-brand-red'
+              }`}
+            >
+              {totalProfit >= 0 ? '+' : ''}
+              {totalProfit.toFixed(2)} {currency}
+            </span>
+          )}
+        </div>
+
+        <div className="h-[40vh] min-h-0">
+          <RunResultsPanel
+            tab={resultsTab}
+            onTabChange={setResultsTab}
+            runStats={runStats}
+            journal={journal}
+            journalEndRef={journalEndRef}
+            trades={trades}
+            currency={currency}
+            onClearJournal={handleClearJournal}
+            onResetStats={handleResetStats}
           />
-        </button>
-
-        {showResultsMobile && (
-          <div className="h-[45vh] border-t border-border-default">
-            <RunResultsPanel
-              tab={resultsTab}
-              onTabChange={setResultsTab}
-              runStats={runStats}
-              journal={journal}
-              journalEndRef={journalEndRef}
-              trades={trades}
-              currency={currency}
-              onClearJournal={handleClearJournal}
-              onResetStats={handleResetStats}
-            />
-          </div>
-        )}
+        </div>
       </div>
 
       {/* =========================================================
