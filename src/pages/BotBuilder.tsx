@@ -24,6 +24,8 @@ export default function BotBuilder() {
   const { showToast } = useToast()
   const { account } = useAuth()
   const { fetchSymbols, symbols } = useMarketData()
+  const fetchSymbolsRef = useRef(fetchSymbols)
+  fetchSymbolsRef.current = fetchSymbols
 
   const [isLoaded, setIsLoaded] = useState(false)
   const [marketsLoading, setMarketsLoading] = useState(false)
@@ -933,6 +935,7 @@ export default function BotBuilder() {
           workspaceRef={workspaceRef}
           currency={currency}
           symbols={symbols}
+          fetchSymbols={fetchSymbolsRef.current}
           onClose={() => setShowEditBot(false)}
           onSaved={() => {
             setShowEditBot(false)
@@ -1229,12 +1232,14 @@ function EditBotModal({
   workspaceRef,
   currency,
   symbols,
+  fetchSymbols,
   onClose,
   onSaved,
 }: {
   workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>
   currency: string
   symbols: import('../hooks/useMarketData').RawSymbol[]
+  fetchSymbols: () => Promise<import('../hooks/useMarketData').RawSymbol[] | null>
   onClose: () => void
   onSaved: () => void
 }) {
@@ -1255,6 +1260,42 @@ function EditBotModal({
   const [candleInterval, setCandleInterval] = useState('60')
   const [selectedCurrency, setSelectedCurrency] = useState(currency || 'USD')
   const [loaded, setLoaded] = useState(false)
+  const [localSymbols, setLocalSymbols] = useState<import('../hooks/useMarketData').RawSymbol[]>(symbols)
+
+  useEffect(() => {
+    if (symbols.length > 0) {
+      setLocalSymbols(symbols)
+      return
+    }
+    let cancelled = false
+    fetchSymbols().then((raw) => {
+      if (!cancelled && raw && raw.length > 0) {
+        setLocalSymbols(raw)
+      }
+    })
+    return () => { cancelled = true }
+  }, [symbols, fetchSymbols])
+
+  // When symbols arrive (possibly async), auto-correct the market/submarket/symbol
+  // cascade so the dropdowns show valid selections without requiring a manual re-click.
+  useEffect(() => {
+    if (localSymbols.length === 0) return
+
+    const validMarkets = new Set(localSymbols.map((s) => s.market))
+    const m = validMarkets.has(market) ? market : Array.from(validMarkets)[0] || ''
+
+    const subs = localSymbols.filter((s) => s.market === m)
+    const validSubs = new Set(subs.map((s) => s.submarket))
+    const sm = validSubs.has(submarket) ? submarket : subs[0]?.submarket || ''
+
+    const syms = subs.filter((s) => s.submarket === sm)
+    const validSyms = new Set(syms.map((s) => s.underlying_symbol || s.symbol || ''))
+    const sym = validSyms.has(symbol) ? symbol : (syms[0]?.underlying_symbol || syms[0]?.symbol || '')
+
+    if (m !== market) setMarket(m)
+    if (sm !== submarket) setSubmarket(sm)
+    if (sym !== symbol) setSymbol(sym)
+  }, [localSymbols])
 
   useEffect(() => {
     const workspace = workspaceRef.current
@@ -1409,7 +1450,7 @@ function EditBotModal({
 
   const marketOptions: [string, string][] = (() => {
     const map = new Map<string, string>()
-    for (const s of symbols) {
+    for (const s of localSymbols) {
       if (!s.market) continue
       if (!map.has(s.market)) {
         map.set(s.market, s.market_display_name || s.market)
@@ -1420,7 +1461,7 @@ function EditBotModal({
 
   const submarketOptions: [string, string][] = (() => {
     const map = new Map<string, string>()
-    for (const s of symbols) {
+    for (const s of localSymbols) {
       if (s.market !== market || !s.submarket) continue
       if (!map.has(s.submarket)) {
         map.set(s.submarket, s.submarket_display_name || s.submarket)
@@ -1432,7 +1473,7 @@ function EditBotModal({
   const symbolOptions: [string, string][] = (() => {
     const result: [string, string][] = []
     const seen = new Set<string>()
-    for (const s of symbols) {
+    for (const s of localSymbols) {
       if (s.submarket !== submarket) continue
       const sym = s.underlying_symbol || s.symbol || ''
       if (!sym || seen.has(sym)) continue
@@ -1489,7 +1530,7 @@ function EditBotModal({
                   value={market}
                   onChange={(e) => {
                     setMarket(e.target.value)
-                    const subs = symbols.filter((s) => s.market === e.target.value)
+                    const subs = localSymbols.filter((s) => s.market === e.target.value)
                     const firstSub = subs[0]?.submarket || ''
                     setSubmarket(firstSub)
                     const firstSym = subs.find((s) => s.submarket === firstSub)
@@ -1497,7 +1538,7 @@ function EditBotModal({
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                 >
-                  {marketOptions.length === 0 && <option value="">{market || 'No markets loaded'}</option>}
+                  {marketOptions.length === 0 && <option value="">Loading markets...</option>}
                   {marketOptions.map(([label, value]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
@@ -1509,7 +1550,7 @@ function EditBotModal({
                   value={submarket}
                   onChange={(e) => {
                     setSubmarket(e.target.value)
-                    const firstSym = symbols.find((s) => s.submarket === e.target.value)
+                    const firstSym = localSymbols.find((s) => s.submarket === e.target.value)
                     setSymbol(firstSym?.underlying_symbol || firstSym?.symbol || '')
                   }}
                   disabled={!market}

@@ -8,7 +8,7 @@ import { DerivWS } from '../lib/deriv-ws'
 import { PUBLIC_WS_URL } from '../lib/config'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
-import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat } from 'lucide-react'
+import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, ArrowUpFromLine, ArrowDownToLine, CircleEqual, CircleSlash, ChevronsUp, ChevronsDown, Binary, Gauge, Rocket, ChartCandlestick as CandlestickChart } from 'lucide-react'
 
 type BarrierType = 'none' | 'single' | 'digit' | 'multiplier' | 'accumulator'
 
@@ -30,6 +30,32 @@ interface TradeCategory {
 }
 
 const TRADE_CATEGORIES: TradeCategory[] = [
+  {
+    category: 'Digit based',
+    groups: [
+      {
+        group: 'Matches / Differs',
+        types: [
+          { contractType: 'DIGITMATCH', side: 'digit', displayName: 'Matches', barrierType: 'digit' },
+          { contractType: 'DIGITDIFF', side: 'digit', displayName: 'Differs', barrierType: 'digit' },
+        ],
+      },
+      {
+        group: 'Over / Under',
+        types: [
+          { contractType: 'DIGITOVER', side: 'digit', displayName: 'Over', barrierType: 'digit' },
+          { contractType: 'DIGITUNDER', side: 'digit', displayName: 'Under', barrierType: 'digit' },
+        ],
+      },
+      {
+        group: 'Even / Odd',
+        types: [
+          { contractType: 'DIGITEVEN', side: 'digit', displayName: 'Even', barrierType: 'digit' },
+          { contractType: 'DIGITODD', side: 'digit', displayName: 'Odd', barrierType: 'digit' },
+        ],
+      },
+    ],
+  },
   {
     category: 'Directional',
     groups: [
@@ -86,32 +112,6 @@ const TRADE_CATEGORIES: TradeCategory[] = [
         types: [
           { contractType: 'VANILLALONGCALL', side: 'vanilla', displayName: 'Call', barrierType: 'single' },
           { contractType: 'VANILLALONGPUT', side: 'vanilla', displayName: 'Put', barrierType: 'single' },
-        ],
-      },
-    ],
-  },
-  {
-    category: 'Digit based',
-    groups: [
-      {
-        group: 'Matches / Differs',
-        types: [
-          { contractType: 'DIGITMATCH', side: 'digit', displayName: 'Matches', barrierType: 'digit' },
-          { contractType: 'DIGITDIFF', side: 'digit', displayName: 'Differs', barrierType: 'digit' },
-        ],
-      },
-      {
-        group: 'Over / Under',
-        types: [
-          { contractType: 'DIGITOVER', side: 'digit', displayName: 'Over', barrierType: 'digit' },
-          { contractType: 'DIGITUNDER', side: 'digit', displayName: 'Under', barrierType: 'digit' },
-        ],
-      },
-      {
-        group: 'Even / Odd',
-        types: [
-          { contractType: 'DIGITEVEN', side: 'digit', displayName: 'Even', barrierType: 'digit' },
-          { contractType: 'DIGITODD', side: 'digit', displayName: 'Odd', barrierType: 'digit' },
         ],
       },
     ],
@@ -1163,6 +1163,46 @@ function DigitMeter({ ticks, selectedDigit, contractType, onDigitSelect }: { tic
 }
 
 function TradeTypeIcon({ option }: { option: TradeTypeOption }) {
+  const ct = option.contractType
+
+  // Digit-based contracts
+  if (ct === 'DIGITMATCH') return <CircleEqual className="w-4 h-4 text-brand-blue" />
+  if (ct === 'DIGITDIFF') return <CircleSlash className="w-4 h-4 text-brand-blue" />
+  if (ct === 'DIGITOVER') return <ChevronsUp className="w-4 h-4 text-brand-blue" />
+  if (ct === 'DIGITUNDER') return <ChevronsDown className="w-4 h-4 text-brand-blue" />
+  if (ct === 'DIGITEVEN') return <Binary className="w-4 h-4 text-brand-blue" />
+  if (ct === 'DIGITODD') return <Hash className="w-4 h-4 text-brand-blue" />
+
+  // Rise / Fall
+  if (ct === 'CALL') return <ArrowUp className="w-4 h-4 text-brand-green" />
+  if (ct === 'PUT') return <ArrowDown className="w-4 h-4 text-brand-red" />
+  if (ct === 'CALLE') return <ArrowUpFromLine className="w-4 h-4 text-brand-green" />
+  if (ct === 'PUTE') return <ArrowDownToLine className="w-4 h-4 text-brand-red" />
+
+  // Touch / No Touch
+  if (ct === 'ONETOUCH') return <Target className="w-4 h-4 text-brand-green" />
+  if (ct === 'NOTOUCH') return <Crosshair className="w-4 h-4 text-brand-red" />
+
+  // Higher / Lower
+  if (ct === 'HIGHER') return <TrendingUp className="w-4 h-4 text-brand-green" />
+  if (ct === 'LOWER') return <TrendingDown className="w-4 h-4 text-brand-red" />
+
+  // Multipliers
+  if (ct === 'MULTUP') return <Gauge className="w-4 h-4 text-brand-green" />
+  if (ct === 'MULTDOWN') return <Gauge className="w-4 h-4 text-brand-red" />
+
+  // Accumulators
+  if (ct === 'ACCU') return <Zap className="w-4 h-4 text-brand-amber" />
+
+  // Turbos
+  if (ct === 'TURBOSLONG') return <Rocket className="w-4 h-4 text-brand-green" />
+  if (ct === 'TURBOSSHORT') return <Rocket className="w-4 h-4 text-brand-red" />
+
+  // Vanillas
+  if (ct === 'VANILLALONGCALL') return <CandlestickChart className="w-4 h-4 text-brand-green" />
+  if (ct === 'VANILLALONGPUT') return <CandlestickChart className="w-4 h-4 text-brand-red" />
+
+  // Fallback by side
   const side = option.side
   if (side === 'up') return <ArrowUp className="w-4 h-4 text-brand-green" />
   if (side === 'down') return <ArrowDown className="w-4 h-4 text-brand-red" />
@@ -1171,7 +1211,7 @@ function TradeTypeIcon({ option }: { option: TradeTypeOption }) {
   if (side === 'digit') return <Hash className="w-4 h-4 text-brand-blue" />
   if (side === 'multiplier') return <Layers className="w-4 h-4 text-brand-green" />
   if (side === 'accumulator') return <Zap className="w-4 h-4 text-brand-amber" />
-  if (side === 'turbos') return <Zap className="w-4 h-4 text-brand-green" />
+  if (side === 'turbos') return <Rocket className="w-4 h-4 text-brand-green" />
   if (side === 'vanilla') return <Repeat className="w-4 h-4 text-brand-blue" />
   return <CrosshairIcon className="w-4 h-4 text-brand-red" />
 }
