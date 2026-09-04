@@ -714,16 +714,7 @@ export default function BotBuilder() {
             WORKSPACE
         ========================================================== */}
 
-        <div className="flex-1 min-h-0 relative bg-bg-tertiary">
-          {/* Workspace title strip */}
-          <div className="absolute top-3 left-3 z-20 pointer-events-none">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg-secondary/90 border border-border-light shadow-sm backdrop-blur-sm">
-              <FileCode2 className="w-3.5 h-3.5 text-text-muted" />
-              <span className="text-[11px] font-medium text-text-secondary">
-                Strategy workspace
-              </span>
-            </div>
-          </div>
+        <div className="flex-1 min-h-0 relative bg-bg-tertiary h-[55vh] lg:h-auto">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -781,6 +772,16 @@ export default function BotBuilder() {
               toolboxOpen ? 'toolbox-open' : ''
             }`}
           />
+
+          {/* Workspace title strip — desktop only */}
+          <div className="hidden lg:block absolute top-3 left-3 z-20 pointer-events-none">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg-secondary/90 border border-border-light shadow-sm backdrop-blur-sm">
+              <FileCode2 className="w-3.5 h-3.5 text-text-muted" />
+              <span className="text-[11px] font-medium text-text-secondary">
+                Strategy workspace
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
