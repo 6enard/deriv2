@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2 } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2, CreditCard as EditIcon, DollarSign } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -39,6 +39,8 @@ export default function BotBuilder() {
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [toolboxOpen, setToolboxOpen] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
+  const [showEditBot, setShowEditBot] = useState(false)
+  const autoRunRef = useRef(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -56,10 +58,15 @@ export default function BotBuilder() {
     ws.addChangeListener(onChange)
 
     const pendingXml = sessionStorage.getItem('pending_bot_xml')
+    const autoRun = sessionStorage.getItem('pending_bot_autorun') === 'true'
 
     if (pendingXml) {
       sessionStorage.removeItem('pending_bot_xml')
       pendingXmlRef.current = pendingXml
+    }
+    if (autoRun) {
+      sessionStorage.removeItem('pending_bot_autorun')
+      autoRunRef.current = true
     }
 
     const resize = () => {
@@ -172,6 +179,11 @@ export default function BotBuilder() {
 
         setMarketsLoaded(true)
         setMarketsLoading(false)
+
+        if (autoRunRef.current) {
+          autoRunRef.current = false
+          setTimeout(() => void handleRun(), 500)
+        }
       } else if (attempt < maxAttempts) {
         retryTimer = setTimeout(() => void tryLoad(), 2000)
       } else {
@@ -190,7 +202,7 @@ export default function BotBuilder() {
       cancelled = true
       clearTimeout(retryTimer)
     }
-  }, [fetchSymbols, marketsLoaded, showToast])
+  }, [fetchSymbols, marketsLoaded, showToast, handleRun])
 
   const handleReset = useCallback(() => {
     const workspace = workspaceRef.current
@@ -478,7 +490,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden bg-bg-primary">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-68px)] lg:overflow-hidden bg-bg-primary overflow-hidden h-[calc(100vh-68px)]">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -520,8 +532,14 @@ export default function BotBuilder() {
 
           <div className="flex-1" />
 
-          {/* Save / Load */}
+          {/* Edit / Save / Load */}
           <div className="flex items-center gap-1">
+            <ToolbarIconButton
+              onClick={() => setShowEditBot(true)}
+              icon={EditIcon}
+              label="Edit"
+            />
+
             <ToolbarIconButton
               onClick={handleDownload}
               icon={Save}
@@ -628,6 +646,12 @@ export default function BotBuilder() {
                     </div>
 
                     <MobileMenuItem
+                      onClick={() => { setShowEditBot(true); setShowMoreActions(false) }}
+                      icon={EditIcon}
+                      label="Edit bot settings"
+                    />
+
+                    <MobileMenuItem
                       onClick={handleDownload}
                       icon={Save}
                       label="Save bot"
@@ -654,30 +678,37 @@ export default function BotBuilder() {
             {isRunning ? (
               <button
                 onClick={handleStop}
-                className="flex-1 h-10 rounded-xl bg-brand-red/10 border border-brand-red/25 text-brand-red text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                className="flex-1 h-10 rounded-xl bg-brand-red/10 border border-brand-red/25 text-brand-red text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
               >
                 <Square className="w-4 h-4 fill-current" />
-                Stop bot
+                Stop
               </button>
             ) : (
               <button
                 onClick={handleRun}
                 disabled={marketsLoading || !marketsLoaded}
-                className="flex-1 h-10 rounded-xl bg-brand-red text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-red/10 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 h-10 rounded-xl bg-brand-red text-white text-sm font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-brand-red/10 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {marketsLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Play className="w-4 h-4 fill-current" />
                 )}
-
-                {marketsLoading ? 'Loading markets' : 'Run bot'}
+                {marketsLoading ? 'Loading...' : 'Run'}
               </button>
             )}
 
             <button
+              onClick={() => setShowEditBot(true)}
+              className="h-10 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-semibold flex items-center gap-1.5 transition-colors text-text-primary hover:bg-bg-hover"
+            >
+              <EditIcon className="w-4 h-4" />
+              <span>Edit</span>
+            </button>
+
+            <button
               onClick={toggleToolbox}
-              className={`h-10 px-3.5 rounded-xl border text-sm font-semibold flex items-center gap-2 transition-all ${
+              className={`h-10 px-3 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all ${
                 toolboxOpen
                   ? 'bg-brand-red text-white border-brand-red'
                   : 'bg-bg-tertiary text-text-primary border-border-light'
@@ -688,7 +719,6 @@ export default function BotBuilder() {
               ) : (
                 <BlocksIcon className="w-4 h-4" />
               )}
-
               <span>Blocks</span>
             </button>
           </div>
@@ -709,7 +739,7 @@ export default function BotBuilder() {
             WORKSPACE
         ========================================================== */}
 
-        <div className="relative bg-bg-tertiary h-[50vh] lg:h-auto lg:flex-1 lg:min-h-0">
+        <div className="relative bg-bg-tertiary h-[45vh] lg:h-auto lg:flex-1 lg:min-h-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -853,7 +883,7 @@ export default function BotBuilder() {
           )}
         </div>
 
-        <div className="h-[40vh] min-h-0">
+        <div className="h-[35vh] min-h-0">
           <RunResultsPanel
             tab={resultsTab}
             onTabChange={setResultsTab}
@@ -932,6 +962,19 @@ export default function BotBuilder() {
         onChange={handleFileLoad}
         className="hidden"
       />
+
+      {/* Edit Bot Modal */}
+      {showEditBot && (
+        <EditBotModal
+          workspaceRef={workspaceRef}
+          currency={currency}
+          onClose={() => setShowEditBot(false)}
+          onSaved={() => {
+            setShowEditBot(false)
+            showToast('success', 'Bot settings updated.')
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1178,5 +1221,294 @@ function MobileMenuItem({
       <Icon className="w-4 h-4 text-text-secondary" />
       <span>{label}</span>
     </button>
+  )
+}
+
+/* ============================================================
+   EDIT BOT MODAL — form-based parameter editor
+   Lets users edit bot settings without touching blocks.
+============================================================ */
+
+function EditBotModal({
+  workspaceRef,
+  currency,
+  onClose,
+  onSaved,
+}: {
+  workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>
+  currency: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [stake, setStake] = useState('1')
+  const [duration, setDuration] = useState('5')
+  const [durationUnit, setDurationUnit] = useState('t')
+  const [prediction, setPrediction] = useState('5')
+  const [restartOnError, setRestartOnError] = useState(true)
+  const [symbol, setSymbol] = useState('')
+  const [contractType, setContractType] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const workspace = workspaceRef.current
+    if (!workspace) return
+
+    const blocks = workspace.getAllBlocks(false)
+
+    const marketBlock = blocks.find((b) => b.type === 'trade_definition_market')
+    const contractBlock = blocks.find((b) => b.type === 'trade_definition_contracttype')
+    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
+    const restartBlock = blocks.find((b) => b.type === 'trade_definition_restartonerror')
+
+    if (marketBlock) {
+      setSymbol(String(marketBlock.getFieldValue('SYMBOL_LIST') || ''))
+    }
+
+    if (contractBlock) {
+      setContractType(String(contractBlock.getFieldValue('TYPE_LIST') || ''))
+    }
+
+    if (optionsBlock) {
+      setDurationUnit(String(optionsBlock.getFieldValue('DURATIONTYPE_LIST') || 't'))
+
+      const durBlock = optionsBlock.getInputTargetBlock('DURATION')
+      if (durBlock) {
+        const val = durBlock.getFieldValue('NUM')
+        if (val) setDuration(String(val))
+      }
+
+      const amtBlock = optionsBlock.getInputTargetBlock('AMOUNT')
+      if (amtBlock) {
+        const val = amtBlock.getFieldValue('NUM')
+        if (val) setStake(String(val))
+      }
+
+      const predBlock = optionsBlock.getInputTargetBlock('PREDICTION')
+      if (predBlock) {
+        const val = predBlock.getFieldValue('NUM')
+        if (val) setPrediction(String(val))
+      }
+    }
+
+    if (restartBlock) {
+      const val = restartBlock.getFieldValue('RESTARTONERROR')
+      setRestartOnError(val === true || val === 'true' || val === 'TRUE')
+    }
+
+    setLoaded(true)
+  }, [workspaceRef])
+
+  const handleSave = () => {
+    const workspace = workspaceRef.current
+    if (!workspace) return
+
+    const blocks = workspace.getAllBlocks(false)
+
+    const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
+    if (optionsBlock) {
+      const durBlock = optionsBlock.getInputTargetBlock('DURATION')
+      if (durBlock) {
+        const field = durBlock.getField('NUM')
+        field?.setValue(duration)
+      }
+
+      const amtBlock = optionsBlock.getInputTargetBlock('AMOUNT')
+      if (amtBlock) {
+        const field = amtBlock.getField('NUM')
+        field?.setValue(stake)
+      }
+
+      const predBlock = optionsBlock.getInputTargetBlock('PREDICTION')
+      if (predBlock) {
+        const field = predBlock.getField('NUM')
+        field?.setValue(prediction)
+      }
+
+      const durTypeField = optionsBlock.getField('DURATIONTYPE_LIST')
+      durTypeField?.setValue(durationUnit)
+    }
+
+    const restartBlock = blocks.find((b) => b.type === 'trade_definition_restartonerror')
+    if (restartBlock) {
+      const field = restartBlock.getField('RESTARTONERROR')
+      field?.setValue(restartOnError ? 'TRUE' : 'FALSE')
+    }
+
+    onSaved()
+  }
+
+  const durationUnitLabels: Record<string, string> = {
+    t: 'ticks',
+    s: 'seconds',
+    m: 'minutes',
+    h: 'hours',
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-bg-secondary border border-border-light shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center">
+              <EditIcon className="w-4 h-4 text-brand-red" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-muted font-bold">
+                Edit Bot Settings
+              </div>
+              <h2 className="font-bold text-base text-text-primary mt-0.5">
+                Simple parameter editor
+              </h2>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl bg-bg-tertiary border border-border-light flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {!loaded ? (
+          <div className="p-8 text-center text-text-muted text-sm">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3" />
+            Loading bot settings...
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            {/* Read-only info */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">Symbol</span>
+                <span className="text-sm font-semibold text-text-primary">{symbol || '—'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">Contract type</span>
+                <span className="text-sm font-semibold text-text-primary">{contractType || '—'}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-text-muted leading-relaxed">
+              These are read from the blocks. To change the market or contract type, use the block editor.
+              You can adjust the trade parameters below.
+            </p>
+
+            {/* Stake */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Stake ({currency})
+              </label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <input
+                  type="number"
+                  value={stake}
+                  onChange={(e) => setStake(e.target.value)}
+                  min="0.35"
+                  step="0.01"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">Duration</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  min="1"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                />
+                <select
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value)}
+                  className="px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                >
+                  <option value="t">ticks</option>
+                  <option value="s">seconds</option>
+                  <option value="m">minutes</option>
+                  <option value="h">hours</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Prediction (for digit contracts) */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Prediction / Barrier digit (0-9)
+              </label>
+              <input
+                type="number"
+                value={prediction}
+                onChange={(e) => setPrediction(e.target.value)}
+                min="0"
+                max="9"
+                className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+              />
+            </div>
+
+            {/* Restart on error */}
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4">
+              <button
+                onClick={() => setRestartOnError(!restartOnError)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-9 h-5 rounded-full transition-colors relative ${restartOnError ? 'bg-brand-red' : 'bg-bg-hover'}`}>
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${restartOnError ? 'translate-x-4' : 'translate-x-0.5'}`}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-text-primary">Restart on error</span>
+                </div>
+                <span className="text-xs text-text-muted">
+                  {restartOnError ? 'Enabled' : 'Disabled'}
+                </span>
+              </button>
+              <p className="text-[10px] text-text-muted mt-2 leading-relaxed">
+                When enabled, the bot automatically restarts after an error instead of stopping.
+              </p>
+            </div>
+
+            {/* Summary */}
+            <div className="rounded-xl bg-brand-blue/5 border border-brand-blue/20 px-3 py-2.5">
+              <p className="text-xs text-text-secondary leading-relaxed">
+                The bot will trade <span className="font-semibold text-text-primary">{contractType || '—'}</span> on{' '}
+                <span className="font-semibold text-text-primary">{symbol || '—'}</span> with a stake of{' '}
+                <span className="font-semibold text-text-primary">{stake} {currency}</span> for{' '}
+                <span className="font-semibold text-text-primary">{duration} {durationUnitLabels[durationUnit] || 'ticks'}</span>.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-t border-border-default flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={!loaded}
+            className="flex-1 h-11 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Save Changes
+          </button>
+          <button
+            onClick={onClose}
+            className="h-11 px-5 rounded-xl bg-bg-tertiary border border-border-light text-text-secondary text-sm font-semibold hover:text-text-primary transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

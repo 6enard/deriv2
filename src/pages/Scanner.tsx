@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useScanner } from '../hooks/useScanner'
 import { useToast } from '../components/Toast'
 import { buildBotXmlFromSignal, type ScanResult, type DigitSignal, type BotConfig } from '../lib/scanner'
-import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy, X, Settings as SettingsIcon } from 'lucide-react'
+import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy, X, Settings as SettingsIcon, Play } from 'lucide-react'
 
 const TICK_OPTIONS = [100, 200, 300, 500]
 
@@ -52,6 +52,7 @@ export default function Scanner() {
     if (!pendingBot) return
     const xml = buildBotXmlFromSignal(pendingBot.result, pendingBot.signal, config)
     sessionStorage.setItem('pending_bot_xml', xml)
+    sessionStorage.setItem('pending_bot_autorun', 'true')
     showToast('success', `Bot loaded with ${pendingBot.signal.displayName} on ${pendingBot.result.display_name}.`)
     setPendingBot(null)
     navigate('/bot-builder')
@@ -581,8 +582,8 @@ function BotConfigModal({
             onClick={handleConfirm}
             className="flex-1 h-11 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors flex items-center justify-center gap-2"
           >
-            <Bot className="w-4 h-4" />
-            Load Bot
+            <Play className="w-4 h-4 fill-current" />
+            Run Bot
           </button>
           <button
             onClick={onCancel}
