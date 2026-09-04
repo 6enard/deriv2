@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -973,25 +973,31 @@ export default function Home() {
             <div className="grid grid-cols-2 lg:grid-cols-4">
               <PlatformStat
                 icon={Users}
-                value="12,400+"
+                target={12400}
+                suffix="+"
                 label="Active Traders"
               />
 
               <PlatformStat
                 icon={DollarSign}
-                value="$48M+"
+                target={48}
+                prefix="$"
+                suffix="M+"
                 label="Trading Volume"
               />
 
               <PlatformStat
                 icon={Clock}
-                value="99.9%"
+                target={99.9}
+                suffix="%"
+                decimals={1}
                 label="Uptime"
               />
 
               <PlatformStat
                 icon={Layers}
-                value="50+"
+                target={50}
+                suffix="+"
                 label="Trading Pairs"
                 last
               />
@@ -1888,17 +1894,74 @@ function TestimonialCard({
 
 function PlatformStat({
   icon: Icon,
-  value,
+  target,
   label,
+  prefix = '',
+  suffix = '',
+  decimals = 0,
   last = false,
 }: {
   icon: LucideIcon
-  value: string
+  target: number
   label: string
+  prefix?: string
+  suffix?: string
+  decimals?: number
   last?: boolean
 }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [display, setDisplay] = useState(0)
+  const [started, setStarted] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !started) {
+          setStarted(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [started])
+
+  useEffect(() => {
+    if (!started) return
+
+    const duration = 1800
+    const startTime = performance.now()
+
+    let raf = 0
+
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplay(target * eased)
+
+      if (progress < 1) {
+        raf = requestAnimationFrame(tick)
+      } else {
+        setDisplay(target)
+      }
+    }
+
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [started, target])
+
+  const formatted = display.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+
   return (
     <div
+      ref={ref}
       className={`
         px-5 sm:px-7 py-8 fade-in-up
         ${!last ? 'border-r border-slate-200 dark:border-white/[0.07]' : ''}
@@ -1917,7 +1980,7 @@ function PlatformStat({
           dark:text-text-primary
         "
       >
-        {value}
+        {prefix}{formatted}{suffix}
       </div>
 
       <div
