@@ -1,5 +1,4 @@
 export type DigitContractType =
-  | 'DIGITMATCH'
   | 'DIGITDIFF'
   | 'DIGITOVER'
   | 'DIGITUNDER'
@@ -17,6 +16,8 @@ export interface DigitSignal {
 export interface ScanResult {
   symbol: string
   display_name: string
+  market: string
+  submarket: string
   lastDigit: number
   lastPrice: number
   tickCount: number
@@ -114,6 +115,8 @@ export function analyzeTicks(
   symbol: string,
   display_name: string,
   tickQuotes: number[],
+  market: string = '',
+  submarket: string = '',
 ): ScanResult {
   const { counts, freq, total } = computeDigitStats(tickQuotes)
   const lastPrice = tickQuotes.length > 0 ? tickQuotes[tickQuotes.length - 1] : 0
@@ -124,18 +127,6 @@ export function analyzeTicks(
   let mostFreqDigit = 0
   for (let i = 1; i < 10; i++) {
     if (counts[i] > counts[mostFreqDigit]) mostFreqDigit = i
-  }
-
-  // Matches: over-represented digit has positive edge
-  const matchEdge = freq[mostFreqDigit] - 0.1
-  if (matchEdge > 0) {
-    signals.push({
-      contractType: 'DIGITMATCH',
-      displayName: `Matches ${mostFreqDigit}`,
-      digit: mostFreqDigit,
-      edge: matchEdge,
-      rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time — ${(matchEdge * 100).toFixed(1)}% above the expected 10% baseline.`,
-    })
   }
 
   // Differs: always include — covers 90% of outcomes by definition
@@ -228,6 +219,8 @@ export function analyzeTicks(
   return {
     symbol,
     display_name,
+    market,
+    submarket,
     lastDigit,
     lastPrice,
     tickCount: total,
@@ -279,7 +272,13 @@ export async function scanVolatilityMarkets(
           if (!symbol) return null
           const ticks = await fetchTickHistory(ws, symbol, tickCount)
           if (ticks.length < 30) return null
-          return analyzeTicks(symbol, s.underlying_symbol_name || s.display_name || symbol, ticks)
+          return analyzeTicks(
+            symbol,
+            s.underlying_symbol_name || s.display_name || symbol,
+            ticks,
+            s.market || '',
+            s.submarket || '',
+          )
         } catch (fetchErr) {
           console.warn('[Scanner] Failed to fetch ticks for', s.underlying_symbol || s.symbol, fetchErr)
           return null
@@ -301,6 +300,8 @@ export function buildBotXmlFromSignal(result: ScanResult, signal: DigitSignal): 
   const symbol = result.symbol
   const contractType = signal.contractType
   const digit = signal.digit ?? 5
+  const market = result.market || 'synthetic_index'
+  const submarket = result.submarket || 'random_index'
 
   let tradeType = 'matchesdiffers'
   if (contractType === 'DIGITOVER' || contractType === 'DIGITUNDER') tradeType = 'overunder'
@@ -310,8 +311,8 @@ export function buildBotXmlFromSignal(result: ScanResult, signal: DigitSignal): 
   <block type="trade_definition" x="0" y="0">
     <statement name="TRADE_OPTIONS">
       <block type="trade_definition_market" deletable="false" movable="false">
-        <field name="MARKET_LIST">synthetic_index</field>
-        <field name="SUBMARKET_LIST">random_index</field>
+        <field name="MARKET_LIST">${market}</field>
+        <field name="SUBMARKET_LIST">${submarket}</field>
         <field name="SYMBOL_LIST">${symbol}</field>
         <next>
           <block type="trade_definition_tradetype" deletable="false" movable="false">
