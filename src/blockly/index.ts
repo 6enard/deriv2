@@ -136,9 +136,9 @@ export function createWorkspace(
       controls: true,
       wheel: true,
       startScale: mobile ? 0.75 : 0.95,
-      maxScale: 2,
-      minScale: 0.4,
-      scaleSpeed: 1.2,
+      maxScale: 1.5,
+      minScale: 0.5,
+      scaleSpeed: 1.1,
     },
 
     move: {

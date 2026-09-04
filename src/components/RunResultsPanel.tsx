@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import {
   ChartBar as BarChart3,
   List,
@@ -15,7 +15,6 @@ import {
   Download,
   Eye,
   X,
-  ChevronUp,
   Clock3,
   CircleDollarSign,
   ArrowUpRight,
@@ -46,88 +45,6 @@ const TAB_DEFS: {
     icon: ScrollText,
   },
 ]
-
-function DropUpTabSelector({
-  tab,
-  onTabChange,
-}: {
-  tab: ResultsTab
-  onTabChange: (tab: ResultsTab) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement | null>(null)
-
-  const activeDef =
-    TAB_DEFS.find((item) => item.id === tab) || TAB_DEFS[0]
-
-  const ActiveIcon = activeDef.icon
-
-  useEffect(() => {
-    if (!open) return
-
-    const handler = (e: MouseEvent) => {
-      if (
-        ref.current &&
-        !ref.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handler)
-
-    return () => {
-      document.removeEventListener('mousedown', handler)
-    }
-  }, [open])
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((value) => !value)}
-        className="w-full h-10 flex items-center gap-2 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-semibold text-text-primary hover:bg-bg-hover transition-colors"
-      >
-        <ActiveIcon className="w-4 h-4 text-text-secondary" />
-
-        <span>{activeDef.label}</span>
-
-        <ChevronUp
-          className={`w-4 h-4 ml-auto transition-transform ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-
-      {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 z-[70] overflow-hidden rounded-2xl bg-bg-secondary border border-border-light shadow-2xl">
-          {TAB_DEFS.map(
-            ({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => {
-                  onTabChange(id)
-                  setOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                  tab === id
-                    ? 'bg-brand-green/10 text-brand-green'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-
-                {tab === id && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-green" />
-                )}
-              </button>
-            ),
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 export function RunResultsPanel({
   tab,
@@ -276,12 +193,24 @@ export function RunResultsPanel({
         </div>
       </div>
 
-      {/* Mobile tab selector */}
-      <div className="sm:hidden px-3 pt-3 pb-2 border-b border-border-default shrink-0">
-        <DropUpTabSelector
-          tab={tab}
-          onTabChange={onTabChange}
-        />
+      {/* Mobile tab selector — segmented control, always visible */}
+      <div className="sm:hidden px-3 pt-2.5 pb-2 border-b border-border-default shrink-0">
+        <div className="flex items-center gap-1 rounded-xl bg-bg-tertiary border border-border-light p-1">
+          {TAB_DEFS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => onTabChange(id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                tab === id
+                  ? 'bg-bg-secondary text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex items-center gap-2 mt-2">
           {tab === 'transactions' &&

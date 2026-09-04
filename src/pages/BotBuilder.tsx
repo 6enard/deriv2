@@ -448,26 +448,20 @@ export default function BotBuilder() {
 
   const zoomIn = useCallback(() => {
     const workspace = workspaceRef.current
-
     if (!workspace) return
-
-    workspace.zoomCenter(1)
+    if (workspace.getScale() < 1.5) workspace.zoomCenter(1)
   }, [])
 
   const zoomOut = useCallback(() => {
     const workspace = workspaceRef.current
-
     if (!workspace) return
-
-    workspace.zoomCenter(-1)
+    if (workspace.getScale() > 0.5) workspace.zoomCenter(-1)
   }, [])
 
   const resetZoom = useCallback(() => {
     const workspace = workspaceRef.current
-
     if (!workspace) return
-
-    workspace.setScale(1)
+    workspace.setScale(0.95)
     Blockly.svgResize(workspace)
   }, [])
 
@@ -478,12 +472,12 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-180px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-176px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
 
-      <div className="flex-1 flex flex-col min-w-0 lg:min-h-0">
+      <div className="flex flex-col min-w-0 shrink-0 lg:shrink lg:flex-1 lg:min-h-0">
         {/* Premium desktop header */}
         <header className="hidden lg:flex h-[68px] items-center gap-4 px-5 bg-bg-secondary border-b border-border-default shrink-0">
           {/* Brand */}
@@ -585,7 +579,7 @@ export default function BotBuilder() {
         ========================================================== */}
 
         <header className="lg:hidden bg-bg-secondary border-b border-border-default shrink-0">
-          <div className="flex items-center justify-between px-3 py-2.5">
+          <div className="flex items-center justify-between px-3 py-2 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center shrink-0">
                 <BlocksIcon className="w-[17px] h-[17px] text-brand-red" />
@@ -662,7 +656,7 @@ export default function BotBuilder() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 pb-2.5">
+          <div className="flex items-center gap-1.5 px-3 pb-2 shrink-0">
             {isRunning ? (
               <button
                 onClick={handleStop}
@@ -697,7 +691,7 @@ export default function BotBuilder() {
         </header>
 
         {/* Mobile status */}
-        <div className="lg:hidden h-8 flex items-center justify-center border-b border-border-default bg-bg-tertiary">
+        <div className="lg:hidden h-7 flex items-center justify-center border-b border-border-default bg-bg-tertiary shrink-0">
           <StatusIndicator
             isRunning={isRunning}
             marketsLoading={marketsLoading}
@@ -853,7 +847,7 @@ export default function BotBuilder() {
           )}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0">
           <RunResultsPanel
             tab={resultsTab}
             onTabChange={setResultsTab}
