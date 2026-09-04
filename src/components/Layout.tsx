@@ -53,24 +53,26 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
-      <header className="bg-bg-secondary sticky top-0 z-50 shadow-sm">
+      <header className="sticky top-0 z-50 bg-bg-secondary/80 backdrop-blur-xl border-b border-border-default">
         {/* Main nav bar */}
-        <div className="border-b border-border-default">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-[68px]">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-[64px]">
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2.5 shrink-0">
-                <img
-                  src={theme === 'dark' ? '/black.jpeg' : '/white.jpeg'}
-                  alt="DeriTraders"
-                  className="w-9 h-9 rounded-xl object-cover"
-                />
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-xl bg-brand-red/20 blur-md" />
+                  <img
+                    src={theme === 'dark' ? '/black.jpeg' : '/white.jpeg'}
+                    alt="DeriTraders"
+                    className="relative w-9 h-9 rounded-xl object-cover ring-1 ring-border-light"
+                  />
+                </div>
                 <span className="text-lg font-bold tracking-tight">DeriTraders</span>
               </Link>
 
               {/* Center nav */}
               {isAuthenticated && (
-                <nav className="hidden lg:flex items-center gap-1 mx-auto">
+                <nav className="hidden lg:flex items-center gap-0.5 mx-auto">
                   {navItems.map((item) => {
                     const Icon = item.icon
                     const active = location.pathname === item.to
@@ -78,14 +80,17 @@ export default function Layout({ children }: { children: ReactNode }) {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           active
-                            ? 'text-brand-red'
-                            : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                            ? 'text-text-primary bg-bg-tertiary'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className={`w-4 h-4 transition-transform ${active ? 'scale-110' : ''}`} />
                         {item.label}
+                        {active && (
+                          <span className="absolute -bottom-px left-3 right-3 h-0.5 rounded-full bg-brand-red" />
+                        )}
                       </Link>
                     )
                   })}
@@ -176,14 +181,13 @@ export default function Layout({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-        </div>
       </header>
 
       {isAuthenticated && account && (
-        <div className="border-b border-border-default bg-bg-secondary">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <p className="text-sm text-text-secondary">
-              Welcome <span className="font-semibold text-text-primary">{account.account_id}</span>, your profit journey awaits
+        <div className="border-b border-border-default bg-bg-secondary/50">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+            <p className="text-xs text-text-muted">
+              Welcome back, <span className="font-semibold text-text-secondary">{account.account_id}</span> — ready to trade
             </p>
           </div>
         </div>
@@ -191,15 +195,15 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <main className="flex-1 pb-20 lg:pb-0">{children}</main>
 
-      <footer className="hidden lg:block border-t border-border-default bg-bg-secondary py-4">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-text-muted">
-          Trading derivatives and synthetic instruments may carry a high level of risk to your capital. DeriTraders is an independent third-party platform powered by the Deriv API and is not affiliated with, endorsed by, or sponsored by Deriv. The information on this site is not intended for distribution to, or use by, any person in any country or jurisdiction where such distribution or use would be contrary to local law or regulation.
+      <footer className="hidden lg:block border-t border-border-default bg-bg-secondary/50 py-4">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-[11px] text-text-muted leading-relaxed">
+          Trading derivatives and synthetic instruments may carry a high level of risk to your capital. DeriTraders is an independent third-party platform powered by the Deriv API and is not affiliated with, endorsed by, or sponsored by Deriv.
         </div>
       </footer>
 
       {/* Mobile bottom navigation */}
       {isAuthenticated && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-secondary border-t border-border-default">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-secondary/90 backdrop-blur-xl border-t border-border-default">
           <div className="flex items-center justify-around h-16 px-2">
             {navItems.map((item) => {
               const Icon = item.icon

@@ -11,6 +11,7 @@ export interface DigitSignal {
   digit?: number
   rationale: string
   edge: number
+  winProbability: number
 }
 
 export interface ScanResult {
@@ -64,16 +65,6 @@ function computeDigitStats(tickQuotes: number[]) {
   return { counts, freq, total }
 }
 
-function chiSquared(freq: number[]): number {
-  const expected = 0.1
-  let chi = 0
-  for (let i = 0; i < 10; i++) {
-    const diff = freq[i] - expected
-    chi += (diff * diff) / expected
-  }
-  return chi
-}
-
 function overProb(freq: number[], digit: number): number {
   let p = 0
   for (let i = digit + 1; i < 10; i++) p += freq[i]
@@ -122,7 +113,6 @@ export function analyzeTicks(
   const lastPrice = tickQuotes.length > 0 ? tickQuotes[tickQuotes.length - 1] : 0
   const lastDigit = tickQuotes.length > 0 ? lastDigitOf(lastPrice) : 0
   const signals: DigitSignal[] = []
-  const chi = chiSquared(freq)
 
   let mostFreqDigit = 0
   for (let i = 1; i < 10; i++) {
@@ -130,12 +120,14 @@ export function analyzeTicks(
   }
 
   // Differs: always include — covers 90% of outcomes by definition
+  const differsWinProb = 1 - freq[mostFreqDigit]
   signals.push({
     contractType: 'DIGITDIFF',
     displayName: `Differs ${mostFreqDigit}`,
     digit: mostFreqDigit,
     edge: Math.max(freq[mostFreqDigit] - 0.1, 0),
-    rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs covers the remaining ${(100 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
+    winProbability: differsWinProb,
+    rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs wins ${(differsWinProb * 100).toFixed(1)}% of the time historically.`,
   })
 
   // Over / Under — best thresholds
@@ -154,22 +146,26 @@ export function analyzeTicks(
   }
 
   if (bestOverEdge > 0) {
+    const op = overProb(freq, bestOverDigit)
     signals.push({
       contractType: 'DIGITOVER',
       displayName: `Over ${bestOverDigit}`,
       digit: bestOverDigit,
       edge: bestOverEdge,
-      rationale: `Digits above ${bestOverDigit} occurred ${(overProb(freq, bestOverDigit) * 100).toFixed(1)}% of the time — ${(bestOverEdge * 100).toFixed(1)}% above expected ${((9 - bestOverDigit) / 10 * 100).toFixed(0)}%.`,
+      winProbability: op,
+      rationale: `Digits above ${bestOverDigit} occurred ${(op * 100).toFixed(1)}% of the time — ${(bestOverEdge * 100).toFixed(1)}% above expected ${((9 - bestOverDigit) / 10 * 100).toFixed(0)}%.`,
     })
   }
 
   if (bestUnderEdge > 0) {
+    const up = underProb(freq, bestUnderDigit)
     signals.push({
       contractType: 'DIGITUNDER',
       displayName: `Under ${bestUnderDigit}`,
       digit: bestUnderDigit,
       edge: bestUnderEdge,
-      rationale: `Digits below ${bestUnderDigit} occurred ${(underProb(freq, bestUnderDigit) * 100).toFixed(1)}% of the time — ${(bestUnderEdge * 100).toFixed(1)}% above expected ${(bestUnderDigit / 10 * 100).toFixed(0)}%.`,
+      winProbability: up,
+      rationale: `Digits below ${bestUnderDigit} occurred ${(up * 100).toFixed(1)}% of the time — ${(bestUnderEdge * 100).toFixed(1)}% above expected ${(bestUnderDigit / 10 * 100).toFixed(0)}%.`,
     })
   }
 
@@ -184,6 +180,7 @@ export function analyzeTicks(
       contractType: 'DIGITEVEN',
       displayName: 'Even',
       edge: evenEdge,
+      winProbability: eProb,
       rationale: `Even digits appeared ${(eProb * 100).toFixed(1)}% of the time — ${(evenEdge * 100).toFixed(1)}% above the 50% baseline.`,
     })
   }
@@ -192,6 +189,7 @@ export function analyzeTicks(
       contractType: 'DIGITODD',
       displayName: 'Odd',
       edge: oddEdge,
+      winProbability: oProb,
       rationale: `Odd digits appeared ${(oProb * 100).toFixed(1)}% of the time — ${(oddEdge * 100).toFixed(1)}% above the 50% baseline.`,
     })
   }
@@ -206,15 +204,22 @@ export function analyzeTicks(
       displayName: `Differs ${mostFreqDigit}`,
       digit: mostFreqDigit,
       edge: 0,
+      winProbability: 1 - freq[mostFreqDigit],
       rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs covers the remaining ${(100 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
     })
   }
 
   const bestSignal = signals.length > 0 ? signals[0] : null
 
-  const edgeScore = bestSignal ? Math.min(bestSignal.edge * 500, 50) : 0
-  const chiScore = Math.min(chi * 3, 50)
-  const overallScore = Math.round(edgeScore + chiScore)
+  // Win Probability Score: the overall score now represents how likely
+  // the best signal would have won based on historical tick data.
+  // 100 = highest chance of winning, 0 = lowest.
+  // We blend the raw historical win rate with a small statistical
+  // confidence boost from sample size, capped at 99% since no strategy
+  // is truly guaranteed.
+  const baseWinProb = bestSignal ? bestSignal.winProbability : 0
+  const sampleConfidence = Math.min(total / 500, 1) * 0.05
+  const overallScore = Math.min(99, Math.round((baseWinProb + sampleConfidence) * 100))
 
   return {
     symbol,

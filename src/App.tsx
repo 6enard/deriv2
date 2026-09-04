@@ -6,6 +6,7 @@ import { ToastProvider } from './components/Toast'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequireAdmin from './components/RequireAdmin'
+import FloatingScannerButton from './components/FloatingScannerButton'
 import Home from './pages/Home'
 import CallbackPage from './pages/CallbackPage'
 import Dashboard from './pages/Dashboard'
@@ -63,6 +64,7 @@ export default function App() {
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <FloatingScannerButton />
       </BrowserRouter>
         </OpenContractsProvider>
         </ToastProvider>

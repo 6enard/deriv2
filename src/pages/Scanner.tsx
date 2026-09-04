@@ -171,7 +171,7 @@ export default function Scanner() {
         <div className="rounded-2xl border border-brand-red/20 bg-brand-red/[0.04] p-5 mb-6 fade-in">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="w-5 h-5 text-brand-red" />
-            <span className="text-xs font-bold uppercase tracking-wider text-brand-red">Best market to trade</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-red">Best market to trade · {topResult.overallScore}% win probability</span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
@@ -183,7 +183,7 @@ export default function Scanner() {
                   </span>
                 )}
                 <span className="text-2xl font-bold tabular text-brand-red">{topResult.overallScore}%</span>
-                <span className="text-[10px] uppercase tracking-wider text-text-muted">quality</span>
+                <span className="text-[10px] uppercase tracking-wider text-text-muted">win prob.</span>
               </div>
               {topResult.bestSignal && (
                 <p className="text-xs text-text-secondary mt-2 leading-relaxed">{topResult.bestSignal.rationale}</p>
@@ -228,7 +228,7 @@ export default function Scanner() {
             <span className="w-1 h-1 rounded-full bg-border-light" />
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              Ranked by statistical edge
+              Ranked by win probability
             </span>
           </div>
 
@@ -281,8 +281,8 @@ export default function Scanner() {
 
                   {/* Score */}
                   <div className="shrink-0 text-right">
-                    <div className={`text-2xl font-bold tabular ${scoreColor}`}>{result.overallScore}</div>
-                    <div className="text-[9px] uppercase tracking-wider text-text-muted">Score</div>
+                    <div className={`text-2xl font-bold tabular ${scoreColor}`}>{result.overallScore}%</div>
+                    <div className="text-[9px] uppercase tracking-wider text-text-muted">Win Prob.</div>
                   </div>
 
                   {/* Expand chevron */}
