@@ -105,8 +105,9 @@ export async function fetchTickHistory(ws: ScanWs, symbol: string, count: number
     style: 'ticks',
   })
   if (res?.error) throw new Error(res.error.message || 'Failed to fetch ticks')
-  if (!Array.isArray(res?.prices)) return []
-  return res.prices.map((p: any) => Number(p)).filter((n: number) => Number.isFinite(n))
+  const prices = res?.prices ?? res?.history?.prices
+  if (!Array.isArray(prices)) return []
+  return prices.map((p: any) => Number(p)).filter((n: number) => Number.isFinite(n))
 }
 
 export function analyzeTicks(

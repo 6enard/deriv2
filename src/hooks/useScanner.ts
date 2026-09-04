@@ -48,40 +48,8 @@ export function useScanner() {
         )
       })
 
-      console.log('[Scanner] Found', volSymbols.length, 'volatility symbols out of', symbols.length, 'total')
-      if (volSymbols.length > 0) {
-        console.log('[Scanner] First few vol symbols:', volSymbols.slice(0, 5).map(s => ({
-          symbol: s.underlying_symbol || s.symbol,
-          name: s.underlying_symbol_name || s.display_name,
-          market: s.market,
-          submarket: s.submarket,
-        })))
-      }
-
       if (volSymbols.length === 0) {
         throw new Error('No volatility markets found among available symbols.')
-      }
-
-      // Test tick history on the first symbol to see if this endpoint supports it
-      const testSymbol = volSymbols[0]
-      const testSym = testSymbol.underlying_symbol || testSymbol.symbol || ''
-      console.log('[Scanner] Testing tick_history on symbol:', testSym)
-      try {
-        const testRes = await ws.send({
-          ticks_history: testSym,
-          end: 'latest',
-          count: 10,
-          style: 'ticks',
-        })
-        console.log('[Scanner] Test tick_history response:', {
-          hasPrices: Array.isArray(testRes?.prices),
-          pricesLength: testRes?.prices?.length,
-          hasError: !!testRes?.error,
-          errorMsg: testRes?.error?.message,
-          keys: testRes ? Object.keys(testRes) : [],
-        })
-      } catch (testErr) {
-        console.error('[Scanner] Test tick_history failed:', testErr)
       }
 
       const scanResults = await scanVolatilityMarkets(
