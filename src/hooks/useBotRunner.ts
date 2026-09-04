@@ -48,6 +48,8 @@ export function useBotRunner(
   const [hasRunOnce, setHasRunOnce] = useState(false)
   const stopRef = useRef(false)
   const settledContractIds = useRef<Set<number>>(new Set())
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   const handleRun = useCallback(async () => {
     const workspace = workspaceRef.current
@@ -55,7 +57,7 @@ export function useBotRunner(
       showToast('error', 'Connect your Deriv account before running a bot.')
       return
     }
-    if (!options.marketsLoaded) {
+    if (!optionsRef.current.marketsLoaded) {
       showToast('error', 'Markets are still loading. Please wait.')
       return
     }
@@ -176,7 +178,7 @@ if (!code) {
       await fn(botApi)
       showToast('success', 'Bot finished running.')
       refreshBalance()
-      options.onRunComplete?.()
+      optionsRef.current.onRunComplete?.()
     } catch (err: unknown) {
       if (stopRef.current) {
         showToast('info', 'Bot stopped.')
@@ -191,7 +193,7 @@ if (!code) {
       await botApi.cleanup().catch(() => {})
       setIsRunning(false)
     }
-  }, [workspaceRef, ws, account, options, subscribeToContract, showToast, refreshBalance])
+  }, [workspaceRef, ws, account, subscribeToContract, showToast, refreshBalance])
 
   const handleStop = useCallback(() => {
     stopRef.current = true

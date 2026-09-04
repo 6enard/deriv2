@@ -105,6 +105,9 @@ export default function BotBuilder() {
     handleClearJournal,
   } = useBotRunner(workspaceRef, { marketsLoaded })
 
+  const handleRunRef = useRef(handleRun)
+  handleRunRef.current = handleRun
+
   /*
    * Load market data into Blockly dropdowns.
    */
@@ -182,7 +185,7 @@ export default function BotBuilder() {
 
         if (autoRunRef.current) {
           autoRunRef.current = false
-          setTimeout(() => void handleRun(), 500)
+          setTimeout(() => void handleRunRef.current(), 500)
         }
       } else if (attempt < maxAttempts) {
         retryTimer = setTimeout(() => void tryLoad(), 2000)
@@ -202,7 +205,7 @@ export default function BotBuilder() {
       cancelled = true
       clearTimeout(retryTimer)
     }
-  }, [fetchSymbols, marketsLoaded, showToast, handleRun])
+  }, [fetchSymbols, marketsLoaded, showToast])
 
   const handleReset = useCallback(() => {
     const workspace = workspaceRef.current
