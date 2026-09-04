@@ -330,34 +330,6 @@ export function buildBotXmlFromSignal(
 
   const afterBlocks: string[] = []
 
-  if (stopLoss > 0) {
-    afterBlocks.push(
-      `      <block type="controls_if">
-        <value name="IF0">
-          <block type="logic_compare">
-            <field name="OP">LTE</field>
-            <value name="A"><block type="total_profit"></block></value>
-            <value name="B"><shadow type="math_number"><field name="NUM">-${stopLoss}</field></shadow></value>
-          </block>
-        </value>
-      </block>`,
-    )
-  }
-
-  if (takeProfit > 0) {
-    afterBlocks.push(
-      `      <block type="controls_if">
-        <value name="IF0">
-          <block type="logic_compare">
-            <field name="OP">GTE</field>
-            <value name="A"><block type="total_profit"></block></value>
-            <value name="B"><shadow type="math_number"><field name="NUM">${takeProfit}</field></shadow></value>
-          </block>
-        </value>
-      </block>`,
-    )
-  }
-
   if (useMartingale) {
     afterBlocks.push(
       `      <block type="controls_if">
@@ -399,7 +371,58 @@ export function buildBotXmlFromSignal(
     )
   }
 
-  afterBlocks.push(`      <block type="trade_again"></block>`)
+  // Build a condition that is true only when neither stop-loss nor
+  // take-profit has been reached. trade_again is placed inside DO0
+  // so it only runs (looping the bot) when we should keep trading.
+  // If either threshold is hit, trade_again is skipped and the code
+  // falls through to the break; at the end of the while loop, stopping the bot.
+  if (stopLoss > 0 || takeProfit > 0) {
+    const stopLossXml = stopLoss > 0
+      ? `<block type="logic_compare">
+            <field name="OP">LTE</field>
+            <value name="A"><block type="total_profit"></block></value>
+            <value name="B"><shadow type="math_number"><field name="NUM">-${stopLoss}</field></shadow></value>
+          </block>`
+      : ''
+
+    const takeProfitXml = takeProfit > 0
+      ? `<block type="logic_compare">
+            <field name="OP">GTE</field>
+            <value name="A"><block type="total_profit"></block></value>
+            <value name="B"><shadow type="math_number"><field name="NUM">${takeProfit}</field></shadow></value>
+          </block>`
+      : ''
+
+    let conditionXml: string
+
+    if (stopLoss > 0 && takeProfit > 0) {
+      conditionXml = `<block type="logic_negate">
+        <value name="BOOL">
+          <block type="logic_operation">
+            <field name="OP">OR</field>
+            <value name="A">${stopLossXml}</value>
+            <value name="B">${takeProfitXml}</value>
+          </block>
+        </value>
+      </block>`
+    } else {
+      const inner = stopLoss > 0 ? stopLossXml : takeProfitXml
+      conditionXml = `<block type="logic_negate">
+        <value name="BOOL">${inner}</value>
+      </block>`
+    }
+
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0">${conditionXml}</value>
+        <statement name="DO0">
+          <block type="trade_again"></block>
+        </statement>
+      </block>`,
+    )
+  } else {
+    afterBlocks.push(`      <block type="trade_again"></block>`)
+  }
 
   let afterXml = afterBlocks[0]
   for (let i = 1; i < afterBlocks.length; i++) {
