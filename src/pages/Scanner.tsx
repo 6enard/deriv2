@@ -182,8 +182,8 @@ export default function Scanner() {
                     {topResult.bestSignal.displayName}
                   </span>
                 )}
-                <span className="text-2xl font-bold tabular text-brand-red">{topResult.overallScore}</span>
-                <span className="text-[10px] uppercase tracking-wider text-text-muted">score</span>
+                <span className="text-2xl font-bold tabular text-brand-red">{topResult.overallScore}%</span>
+                <span className="text-[10px] uppercase tracking-wider text-text-muted">quality</span>
               </div>
               {topResult.bestSignal && (
                 <p className="text-xs text-text-secondary mt-2 leading-relaxed">{topResult.bestSignal.rationale}</p>
