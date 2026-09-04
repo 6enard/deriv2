@@ -50,7 +50,7 @@ export default function Dashboard() {
       const [mineRes, freeRes, stratRes] = await Promise.all([
         supabase.from('bots').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false }),
         supabase.from('bots').select('*').eq('is_free', true).order('created_at', { ascending: false }),
-        supabase.from('quick_strategies').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false }),
+        supabase.from('quick_strategies').select('*').or(`deriv_account_id.eq.${account.account_id},deriv_account_id.eq.system`).order('created_at', { ascending: false }),
       ])
       if (mineRes.data) setMyBots(mineRes.data)
       if (freeRes.data) setFreeBots(freeRes.data)
@@ -779,12 +779,14 @@ function QuickStrategyTab({ strategies, onChanged, externalShowForm, onExternalC
                     <p className="text-xs text-text-muted">{strat.contract_type === 'CALL' ? 'UP' : 'DOWN'} · {strat.duration}{strat.duration_unit}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => deleteStrategy(strat.id!)}
-                  className="p-1.5 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {strat.deriv_account_id !== 'system' && (
+                  <button
+                    onClick={() => deleteStrategy(strat.id!)}
+                    className="p-1.5 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-4 text-xs text-text-secondary mb-4">
                 <span>Stake: <span className="text-text-primary font-medium tabular">{strat.stake} {account?.currency}</span></span>
