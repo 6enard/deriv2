@@ -515,12 +515,12 @@ export default function Trade() {
         {/* Left: Chart + Trade Form */}
         <div className="lg:col-span-2 space-y-4">
           {/* Symbol Selector + Price */}
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
+          <div className="rounded-2xl bg-bg-secondary border border-border-default p-3 sm:p-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
               <div className="relative">
                 <button
                   onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors text-sm sm:text-base"
                 >
                   <span className="font-semibold">{currentSymbol?.display_name || 'Select market'}</span>
                   <ChevronDown className="w-4 h-4 text-text-secondary" />
@@ -567,26 +567,29 @@ export default function Trade() {
 
               {currentSymbol && (
                 <div className="text-left sm:text-right">
-                  <div className={`text-2xl sm:text-3xl font-bold tabular ${flashClass} rounded px-2`}>
+                  <div className={`text-2xl sm:text-3xl font-bold tabular ${flashClass} rounded px-2 leading-tight`}>
                     {currentPrice !== null ? formatPrice(currentPrice) : '---'}
                   </div>
-                  <div className={`text-sm font-medium tabular mt-1 ${isUp ? 'text-brand-green' : 'text-brand-red'}`}>
+                  <div className={`text-xs sm:text-sm font-medium tabular mt-1 flex items-center gap-1 sm:justify-end ${isUp ? 'text-brand-green' : 'text-brand-red'}`}>
+                    {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                     {isUp ? '+' : ''}{priceChange.toFixed(pipSize)} ({isUp ? '+' : ''}{priceChangePercent.toFixed(2)}%)
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Tick Chart */}
-            <TickChart ticks={ticks} pipSize={pipSize} />
+            {/* Tick Chart — hidden for digit trades which use the digit display instead */}
+            {selectedTradeType.barrierType !== 'digit' && (
+              <TickChart ticks={ticks} pipSize={pipSize} />
+            )}
 
-            {/* Digit Selector — shown for digit trade types */}
+            {/* Digit Display — shown for digit trade types */}
             {selectedTradeType.barrierType === 'digit' && (
               <DigitMeter ticks={ticks} selectedDigit={parseInt(digit)} contractType={selectedTradeType.contractType} onDigitSelect={(d) => setDigit(String(d))} />
             )}
 
-            {/* High / Low */}
-            {ticks.length > 1 && (
+            {/* High / Low — hidden for digit trades */}
+            {ticks.length > 1 && selectedTradeType.barrierType !== 'digit' && (
               <div className="flex items-center justify-between mt-3 text-xs text-text-secondary">
                 <span>Low: <span className="tabular text-text-primary">{formatPrice(minQuote)}</span></span>
                 <span>High: <span className="tabular text-text-primary">{formatPrice(maxQuote)}</span></span>
@@ -595,8 +598,8 @@ export default function Trade() {
           </div>
 
           {/* Trade Form */}
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <div className="rounded-2xl bg-bg-secondary border border-border-default p-3 sm:p-5 shadow-sm">
+            <h3 className="font-semibold mb-4 flex items-center gap-2 text-base sm:text-lg">
               <Activity className="w-4 h-4 text-brand-green" />
               Place Trade
             </h3>
@@ -607,7 +610,7 @@ export default function Trade() {
               <div className="relative">
                 <button
                   onClick={() => setTradeTypeDropdownOpen(!tradeTypeDropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light hover:border-brand-blue transition-colors text-sm"
                 >
                   <span className="flex items-center gap-2">
                     <TradeTypeIcon option={selectedTradeType} />
@@ -806,7 +809,7 @@ export default function Trade() {
             </div>
 
             {/* Expected Payout Display */}
-            <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-4 mb-4">
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-4 mb-4 bg-gradient-to-br from-bg-tertiary to-bg-secondary">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
                   <Crosshair className="w-3.5 h-3.5" />
@@ -840,7 +843,7 @@ export default function Trade() {
             <button
               onClick={executeTrade}
               disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold hover:bg-brand-green-dim transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold text-sm sm:text-base hover:bg-brand-green-dim transition-all active:scale-[0.98] shadow-lg shadow-brand-green/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <TradeTypeIcon option={selectedTradeType} />}
               Buy {selectedTradeType.displayName}
@@ -854,8 +857,8 @@ export default function Trade() {
 
         {/* Right: Open Positions */}
         <div className="space-y-3 sm:space-y-4">
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <div className="rounded-2xl bg-bg-secondary border border-border-default p-3 sm:p-5 shadow-sm">
+            <h3 className="font-semibold mb-4 flex items-center gap-2 text-base sm:text-lg">
               <Clock className="w-4 h-4 text-brand-blue" />
               Open Positions
               {openContractList.length > 0 && (
@@ -883,8 +886,8 @@ export default function Trade() {
 
           {/* Account Summary */}
           {account && (
-            <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <div className="rounded-2xl bg-bg-secondary border border-border-default p-3 sm:p-5 shadow-sm">
+              <h3 className="font-semibold mb-3 flex items-center gap-2 text-base sm:text-lg">
                 <Wallet className="w-4 h-4 text-brand-green" />
                 Account
               </h3>
@@ -913,7 +916,7 @@ export default function Trade() {
 function TickChart({ ticks }: { ticks: Tick[]; pipSize: number }) {
   if (ticks.length < 2) {
     return (
-      <div className="h-[200px] flex items-center justify-center text-text-muted text-sm">
+      <div className="h-[180px] sm:h-[200px] flex items-center justify-center text-text-muted text-sm">
         {ticks.length === 0 ? 'Waiting for live price data...' : 'Loading chart...'}
       </div>
     )
@@ -925,7 +928,7 @@ function TickChart({ ticks }: { ticks: Tick[]; pipSize: number }) {
   const range = max - min || 1
   const width = 800
   const height = 200
-  const pad = 10
+  const pad = 12
 
   const points = quotes.map((q, i) => ({
     x: (i / (quotes.length - 1)) * (width - pad * 2) + pad,
@@ -937,19 +940,23 @@ function TickChart({ ticks }: { ticks: Tick[]; pipSize: number }) {
 
   const isUp = quotes[quotes.length - 1] >= quotes[0]
   const color = isUp ? '#22c55e' : '#e53935'
+  const gradientId = isUp ? 'tick-area-up' : 'tick-area-down'
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[200px]" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[180px] sm:h-[200px]" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="tick-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={areaD} fill="url(#tick-area)" />
-      <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={areaD} fill={`url(#${gradientId})`} />
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="4" fill={color} />
-      <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="8" fill={color} fillOpacity="0.2" />
+      <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="9" fill={color} fillOpacity="0.15">
+        <animate attributeName="r" values="6;12;6" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="fill-opacity" values="0.2;0.05;0.2" dur="2s" repeatCount="indefinite" />
+      </circle>
     </svg>
   )
 }
@@ -973,15 +980,15 @@ function ContractCard({
   const tone = isUp ? 'green' : isDown ? 'red' : 'blue'
 
   return (
-    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in">
+    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 slide-in hover:border-border-default transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className={`w-6 h-6 rounded flex items-center justify-center ${tone === 'green' ? 'bg-brand-green/15' : tone === 'red' ? 'bg-brand-red/15' : 'bg-brand-blue/15'}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${tone === 'green' ? 'bg-brand-green/15' : tone === 'red' ? 'bg-brand-red/15' : 'bg-brand-blue/15'}`}>
             {isUp ? <TrendingUp className="w-3.5 h-3.5 text-brand-green" /> : isDown ? <TrendingDown className="w-3.5 h-3.5 text-brand-red" /> : isDigit ? <Hash className="w-3.5 h-3.5 text-brand-blue" /> : <CrosshairIcon className="w-3.5 h-3.5 text-brand-blue" />}
           </div>
-          <span className="text-sm font-medium">{contract.display_name || contract.symbol}</span>
+          <span className="text-sm font-medium truncate">{contract.display_name || contract.symbol}</span>
         </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded ${tone === 'green' ? 'text-brand-green' : tone === 'red' ? 'text-brand-red' : 'text-brand-blue'}`}>
+        <span className={`text-[10px] sm:text-xs font-medium px-2 py-0.5 rounded shrink-0 ${tone === 'green' ? 'text-brand-green bg-brand-green/10' : tone === 'red' ? 'text-brand-red bg-brand-red/10' : 'text-brand-blue bg-brand-blue/10'}`}>
           {label}
         </span>
       </div>
@@ -998,7 +1005,7 @@ function ContractCard({
       </div>
 
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <span className="text-xs text-text-muted">P/L: </span>
           <span className={`text-sm font-bold tabular ${isProfit ? 'text-brand-green' : 'text-brand-red'}`}>
             {isProfit ? '+' : ''}{profit.toFixed(2)} {currency}
@@ -1006,7 +1013,7 @@ function ContractCard({
         </div>
         <button
           onClick={onSell}
-          className="px-3 py-1.5 rounded-xl bg-bg-hover text-xs font-medium hover:bg-border-light transition-colors"
+          className="px-3 py-1.5 rounded-lg bg-brand-red/10 text-brand-red text-xs font-medium hover:bg-brand-red/20 transition-colors shrink-0"
         >
           Sell
         </button>
@@ -1039,61 +1046,91 @@ function DigitMeter({ ticks, selectedDigit, contractType, onDigitSelect }: { tic
   }
 
   return (
-    <div className="mt-3 sm:mt-4 rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-4">
-      <div className="flex items-center justify-between mb-2.5 sm:mb-3">
-        <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+    <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-5">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <span className="text-xs sm:text-sm font-medium text-text-secondary flex items-center gap-1.5">
           <Hash className="w-3.5 h-3.5" />
-          {needsSelection ? 'Tap to pick a digit' : 'Digit Stats'}
+          {needsSelection ? 'Pick your digit' : 'Digit Stats'}
         </span>
         {lastDigit !== null && (
-          <span className="text-xs text-text-muted">
-            Last: <span className="font-bold tabular text-text-primary text-base">{lastDigit}</span>
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] sm:text-xs text-text-muted">Last digit</span>
+            <span className="text-lg sm:text-xl font-bold tabular text-text-primary bg-bg-secondary rounded-lg px-2 py-0.5 border border-border-light">
+              {lastDigit}
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-10 gap-1 sm:gap-1.5">
-        {Array.from({ length: 10 }, (_, d) => {
-          const pct = ((digitCounts[d] / totalCount) * 100).toFixed(0)
-          const isCurrent = lastDigit === d
-          const isSelected = needsSelection && selectedDigit === d
-          const isWinning = isWinningDigit(d)
+      {/* Digits in circles with red cursor */}
+      <div className="relative pb-4">
+        <div className="flex items-start justify-between gap-0.5 sm:gap-1.5">
+          {Array.from({ length: 10 }, (_, d) => {
+            const pct = ((digitCounts[d] / totalCount) * 100).toFixed(0)
+            const isCurrent = lastDigit === d
+            const isSelected = needsSelection && selectedDigit === d
+            const isWinning = isWinningDigit(d)
 
-          return (
-            <button
-              key={d}
-              onClick={() => needsSelection && onDigitSelect(d)}
-              disabled={!needsSelection}
-              className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 sm:py-2 transition-all ${
-                needsSelection ? 'cursor-pointer active:scale-95' : 'cursor-default'
-              } ${
-                isSelected
-                  ? 'bg-brand-green/15 border border-brand-green/60'
-                  : isCurrent
-                  ? 'bg-brand-blue/10 border border-brand-blue/50'
-                  : isWinning
-                  ? 'bg-brand-green/5 border border-brand-green/20'
-                  : 'border border-border-light'
-              }`}
-            >
-              <span className={`text-sm sm:text-base font-bold tabular ${
-                isSelected ? 'text-brand-green' : isCurrent ? 'text-brand-blue' : 'text-text-primary'
-              }`}>
-                {d}
-              </span>
-              <span className="text-[8px] sm:text-[10px] tabular text-text-muted leading-none">
-                {pct}%
-              </span>
-            </button>
-          )
-        })}
+            return (
+              <div key={d} className="flex-1 flex flex-col items-center gap-1">
+                <button
+                  onClick={() => needsSelection && onDigitSelect(d)}
+                  disabled={!needsSelection}
+                  className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-lg font-bold tabular transition-all duration-200 ${
+                    needsSelection ? 'cursor-pointer active:scale-90' : 'cursor-default'
+                  } ${
+                    isSelected
+                      ? 'bg-black text-white shadow-lg shadow-black/30 scale-105'
+                      : 'bg-white text-black shadow-sm hover:shadow-md'
+                  } ${isCurrent && !isSelected ? 'ring-2 ring-red-500' : ''}`}
+                >
+                  {d}
+                </button>
+                <span className={`text-[7px] sm:text-[10px] tabular leading-none ${
+                  isSelected ? 'text-brand-green font-semibold' : isWinning ? 'text-brand-green/70' : 'text-text-muted'
+                }`}>
+                  {pct}%
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Red cursor arrow at bottom pointing up at current digit */}
+        {lastDigit !== null && (
+          <div
+            className="absolute bottom-0 transition-all duration-300 ease-out"
+            style={{
+              left: `calc(${(lastDigit / 9) * 100}% )`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <span className="text-[8px] sm:text-[10px] text-red-500 font-bold tabular leading-none mb-0.5">{lastDigit}</span>
+              <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[7px] border-l-transparent border-r-transparent border-b-red-500" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Status line */}
+      <div className="flex items-center justify-center gap-3 mt-3 text-[9px] sm:text-[10px] text-text-muted flex-wrap">
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-white border border-gray-300" /> Digit
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-black" /> Selected
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full ring-2 ring-red-500" /> Current
+        </span>
       </div>
 
       {needsSelection && (
-        <p className="text-[10px] text-text-muted mt-2 text-center">
-          Selected: <span className="font-bold text-brand-green tabular">{selectedDigit}</span>
+        <p className="text-[10px] sm:text-xs text-text-muted mt-2 text-center">
+          Prediction: <span className="font-bold text-brand-green tabular">{selectedDigit}</span>
           {isWinningDigit(lastDigit ?? -1) && lastDigit !== null && (
-            <span className="text-brand-green ml-1">· Last tick matched</span>
+            <span className="text-brand-green ml-1">· Last tick matched!</span>
           )}
         </p>
       )}
