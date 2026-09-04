@@ -426,3 +426,23 @@ body {
   );
   background-size: 200% 100%;
 }
+
+/* ===== Marquee animations ===== */
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-left {
+  animation: marquee-left 40s linear infinite;
+  width: max-content;
+}
+.marquee-left:hover {
+  animation-play-state: paused;
+}
+.marquee-left-slow {
+  animation: marquee-left 60s linear infinite;
+  width: max-content;
+}
+.marquee-left-slow:hover {
+  animation-play-state: paused;
+}

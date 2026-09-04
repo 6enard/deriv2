@@ -12,9 +12,60 @@ import {
   Activity,
   ChevronRight,
   TrendingUp,
+  Star,
+  Users,
+  DollarSign,
+  Clock,
+  Layers,
   type LucideIcon,
 } from 'lucide-react'
 import { useDerivAuth } from '../hooks/useDerivAuth'
+
+const marketBarItems = [
+  { symbol: 'R_100', change: '+2.41%', positive: true },
+  { symbol: 'R_75', change: '+1.82%', positive: true },
+  { symbol: 'R_50', change: '-0.64%', positive: false },
+  { symbol: 'BOOM 500', change: '+0.91%', positive: true },
+  { symbol: 'CRASH 500', change: '-1.12%', positive: false },
+  { symbol: 'R_25', change: '+3.27%', positive: true },
+  { symbol: 'BOOM 1000', change: '+1.45%', positive: true },
+  { symbol: 'CRASH 1000', change: '-0.88%', positive: false },
+  { symbol: 'STEP INDEX', change: '+0.12%', positive: true },
+  { symbol: 'JUMP INDEX', change: '-0.34%', positive: false },
+]
+
+const testimonials = [
+  {
+    name: 'Sarah Chen',
+    occupation: 'Day Trader',
+    review: 'DeriTraders completely transformed how I approach the markets. The bot builder is incredibly intuitive and the execution speed is unmatched.',
+  },
+  {
+    name: 'Marcus Rodriguez',
+    occupation: 'Crypto Analyst',
+    review: 'I have tried many trading platforms, but the seamless Deriv integration and real-time data on DeriTraders is on another level entirely.',
+  },
+  {
+    name: 'Aisha Patel',
+    occupation: 'Quant Researcher',
+    review: 'The block-based bot builder lets me prototype and test strategies in minutes instead of hours. A game changer for my workflow.',
+  },
+  {
+    name: 'James Okafor',
+    occupation: 'Swing Trader',
+    review: 'Being able to switch between demo and real accounts instantly makes risk management effortless. Highly recommend to any serious trader.',
+  },
+  {
+    name: 'Yuki Tanaka',
+    occupation: 'Algorithmic Trader',
+    review: 'The platform is fast, reliable, and the UI is beautiful. I run multiple bots simultaneously without any performance issues.',
+  },
+  {
+    name: 'Elena Volkov',
+    occupation: 'Portfolio Manager',
+    review: 'DeriTraders gives me the tools I need to manage multiple positions with confidence. The portfolio view is clean and informative.',
+  },
+]
 
 /* =========================================================
    START TRADING BUTTON
@@ -410,6 +461,65 @@ export default function Home() {
               <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300 dark:bg-white/20" />
 
               <TrustItem text="Built for traders" />
+            </div>
+          </div>
+        </section>
+
+        {/* ===================================================
+            MOVING MARKET BAR
+            =================================================== */}
+
+        <section className="mt-12 sm:mt-16 fade-in-up">
+          <div
+            className="
+              relative overflow-hidden
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              dark:border-white/[0.07]
+              dark:bg-white/[0.025]
+            "
+          >
+            <div className="flex marquee-left">
+              {marketBarItems.concat(marketBarItems).map((item, i) => (
+                <MarketBarItem key={i} {...item} />
+              ))}
+            </div>
+
+            <div
+              className="
+                pointer-events-none absolute inset-y-0 left-0 w-16
+                bg-gradient-to-r from-white to-transparent
+                dark:from-bg-secondary
+              "
+            />
+            <div
+              className="
+                pointer-events-none absolute inset-y-0 right-0 w-16
+                bg-gradient-to-l from-white to-transparent
+                dark:from-bg-secondary
+              "
+            />
+          </div>
+        </section>
+
+        {/* ===================================================
+            TESTIMONIALS MARQUEE
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28 fade-in-up">
+          <SectionHeading
+            eyebrow="Testimonials"
+            title="Loved by traders worldwide"
+            description="Real experiences from the DeriTraders community."
+          />
+
+          <div className="mt-8 overflow-hidden">
+            <div className="flex marquee-left-slow gap-5">
+              {testimonials.concat(testimonials).map((t, i) => (
+                <TestimonialCard key={i} {...t} />
+              ))}
             </div>
           </div>
         </section>
@@ -849,7 +959,7 @@ export default function Home() {
         </section>
 
         {/* ===================================================
-            CAPABILITY STATS
+            PLATFORM STATS
             =================================================== */}
 
         <section className="mt-20 sm:mt-28 fade-in-up">
@@ -861,24 +971,28 @@ export default function Home() {
             "
           >
             <div className="grid grid-cols-2 lg:grid-cols-4">
-              <Capability
-                value="24/7"
-                label="Market access"
+              <PlatformStat
+                icon={Users}
+                value="12,400+"
+                label="Active Traders"
               />
 
-              <Capability
-                value="REAL-TIME"
-                label="Trading"
+              <PlatformStat
+                icon={DollarSign}
+                value="$48M+"
+                label="Trading Volume"
               />
 
-              <Capability
-                value="MULTI-ASSET"
-                label="Markets"
+              <PlatformStat
+                icon={Clock}
+                value="99.9%"
+                label="Uptime"
               />
 
-              <Capability
-                value="AUTOMATED"
-                label="Strategies"
+              <PlatformStat
+                icon={Layers}
+                value="50+"
+                label="Trading Pairs"
                 last
               />
             </div>
@@ -1535,62 +1649,6 @@ function Connector() {
 }
 
 /* =========================================================
-   CAPABILITY
-   ========================================================= */
-
-function Capability({
-  value,
-  label,
-  last = false,
-}: {
-  value: string
-  label: string
-  last?: boolean
-}) {
-  return (
-    <div
-      className={`
-        px-5
-        sm:px-7
-        py-7
-        fade-in-up
-        ${
-          !last
-            ? 'border-r border-slate-200 dark:border-white/[0.07]'
-            : ''
-        }
-      `}
-    >
-      <div
-        className="
-          text-xl
-          sm:text-2xl
-          font-bold
-          tracking-tight
-          text-slate-900
-          dark:text-text-primary
-        "
-      >
-        {value}
-      </div>
-
-      <div
-        className="
-          mt-2
-          text-[9px]
-          uppercase
-          tracking-[0.16em]
-          text-slate-400
-          dark:text-text-secondary
-        "
-      >
-        {label}
-      </div>
-    </div>
-  )
-}
-
-/* =========================================================
    SECURITY ROW
    ========================================================= */
 
@@ -1716,6 +1774,164 @@ function Step({
       >
         {description}
       </p>
+    </div>
+  )
+}
+
+/* =========================================================
+   MARKET BAR ITEM
+   ========================================================= */
+
+function MarketBarItem({
+  symbol,
+  change,
+  positive,
+}: {
+  symbol: string
+  change: string
+  positive: boolean
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-6 py-4 shrink-0">
+      <span className="text-sm font-semibold text-slate-900 dark:text-text-primary">
+        {symbol}
+      </span>
+      <span
+        className={`text-sm font-bold tabular ${positive ? 'text-emerald-500' : 'text-red-500'}`}
+      >
+        {change}
+      </span>
+      <span className="text-slate-200 dark:text-white/10">|</span>
+    </div>
+  )
+}
+
+/* =========================================================
+   TESTIMONIAL CARD
+   ========================================================= */
+
+function TestimonialCard({
+  name,
+  occupation,
+  review,
+}: {
+  name: string
+  occupation: string
+  review: string
+}) {
+  return (
+    <div
+      className="
+        shrink-0 w-[340px] sm:w-[380px]
+        rounded-2xl
+        border
+        border-slate-200
+        bg-white
+        p-6
+        shadow-[0_8px_30px_rgba(15,23,42,0.04)]
+        dark:border-white/[0.07]
+        dark:bg-white/[0.025]
+        dark:shadow-none
+      "
+    >
+      <div className="flex gap-0.5 mb-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className="w-4 h-4 fill-brand-amber text-brand-amber"
+          />
+        ))}
+      </div>
+
+      <p
+        className="
+          text-sm
+          leading-relaxed
+          text-slate-600
+          dark:text-text-secondary
+          mb-5
+          min-h-[80px]
+        "
+      >
+        &ldquo;{review}&rdquo;
+      </p>
+
+      <div className="flex items-center gap-3">
+        <div
+          className="
+            flex items-center justify-center
+            w-10 h-10
+            rounded-full
+            bg-brand-red/10
+            text-brand-red
+            font-bold text-sm
+          "
+        >
+          {name.charAt(0)}
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-slate-900 dark:text-text-primary">
+            {name}
+          </div>
+          <div className="text-xs text-slate-400 dark:text-text-muted">
+            {occupation}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   PLATFORM STAT
+   ========================================================= */
+
+function PlatformStat({
+  icon: Icon,
+  value,
+  label,
+  last = false,
+}: {
+  icon: LucideIcon
+  value: string
+  label: string
+  last?: boolean
+}) {
+  return (
+    <div
+      className={`
+        px-5 sm:px-7 py-8 fade-in-up
+        ${!last ? 'border-r border-slate-200 dark:border-white/[0.07]' : ''}
+      `}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className="w-4 h-4 text-brand-red" />
+      </div>
+
+      <div
+        className="
+          text-2xl sm:text-3xl
+          font-bold
+          tracking-tight
+          text-slate-900
+          dark:text-text-primary
+        "
+      >
+        {value}
+      </div>
+
+      <div
+        className="
+          mt-2
+          text-[10px]
+          uppercase
+          tracking-[0.16em]
+          text-slate-400
+          dark:text-text-secondary
+        "
+      >
+        {label}
+      </div>
     </div>
   )
 }

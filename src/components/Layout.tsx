@@ -182,8 +182,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <footer className="hidden lg:block border-t border-border-default bg-bg-secondary py-4">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-text-muted">
-          Trading involves risk. DeriTraders is a third-party platform powered by the Deriv API.
-           3% markup is applied to every trade.
+          Trading derivatives and synthetic instruments may carry a high level of risk to your capital. DeriTraders is an independent third-party platform powered by the Deriv API and is not affiliated with, endorsed by, or sponsored by Deriv. The information on this site is not intended for distribution to, or use by, any person in any country or jurisdiction where such distribution or use would be contrary to local law or regulation.
         </div>
       </footer>
 
