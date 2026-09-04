@@ -37,7 +37,6 @@ export default function BotBuilder() {
 
   const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
-  const [toolboxOpen, setToolboxOpen] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
   const autoRunRef = useRef(false)
@@ -428,20 +427,6 @@ export default function BotBuilder() {
 
 
 
-  const toggleToolbox = useCallback(() => {
-    setToolboxOpen((previous) => {
-      const next = !previous
-
-      requestAnimationFrame(() => {
-        if (workspaceRef.current) {
-          Blockly.svgResize(workspaceRef.current)
-        }
-      })
-
-      return next
-    })
-  }, [])
-
   useEffect(() => {
     if (!showMoreActions) return
 
@@ -493,7 +478,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-180px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -708,22 +693,6 @@ export default function BotBuilder() {
               <EditIcon className="w-4 h-4" />
               <span>Edit</span>
             </button>
-
-            <button
-              onClick={toggleToolbox}
-              className={`h-10 px-3 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all ${
-                toolboxOpen
-                  ? 'bg-brand-red text-white border-brand-red'
-                  : 'bg-bg-tertiary text-text-primary border-border-light'
-              }`}
-            >
-              {toolboxOpen ? (
-                <X className="w-4 h-4" />
-              ) : (
-                <BlocksIcon className="w-4 h-4" />
-              )}
-              <span>Blocks</span>
-            </button>
           </div>
         </header>
 
@@ -739,10 +708,10 @@ export default function BotBuilder() {
         </div>
 
         {/* =========================================================
-            WORKSPACE
+            WORKSPACE — hidden on mobile, shown on desktop
         ========================================================== */}
 
-        <div className="relative bg-bg-tertiary h-[50vh] lg:h-auto lg:flex-1 lg:min-h-0">
+        <div className="hidden lg:block relative bg-bg-tertiary lg:h-auto lg:flex-1 lg:min-h-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -796,9 +765,7 @@ export default function BotBuilder() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`absolute inset-0 overflow-hidden ${
-              toolboxOpen ? 'toolbox-open' : ''
-            }`}
+            className="absolute inset-0 overflow-hidden"
           />
 
           {/* Workspace title strip — desktop only */}
@@ -859,16 +826,16 @@ export default function BotBuilder() {
       </aside>
 
       {/* =========================================================
-          MOBILE RESULTS — always visible
+          MOBILE RESULTS — full screen, no blocks
       ========================================================== */}
 
-      <div className="lg:hidden border-t border-border-default bg-bg-secondary flex flex-col">
-        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0 sticky top-0 bg-bg-secondary z-10">
+      <div className="lg:hidden flex-1 flex flex-col bg-bg-secondary min-h-0">
+        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0">
           <div className="flex items-center gap-2.5">
             <Activity className="w-4 h-4 text-text-secondary" />
 
             <div className="text-sm font-bold text-text-primary">
-              Run Results
+              Bot Performance
             </div>
           </div>
 
@@ -886,7 +853,7 @@ export default function BotBuilder() {
           )}
         </div>
 
-        <div className="min-h-[300px]">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <RunResultsPanel
             tab={resultsTab}
             onTabChange={setResultsTab}
@@ -971,6 +938,7 @@ export default function BotBuilder() {
         <EditBotModal
           workspaceRef={workspaceRef}
           currency={currency}
+          symbols={symbols}
           onClose={() => setShowEditBot(false)}
           onSaved={() => {
             setShowEditBot(false)
@@ -1266,11 +1234,13 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD']
 function EditBotModal({
   workspaceRef,
   currency,
+  symbols,
   onClose,
   onSaved,
 }: {
   workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>
   currency: string
+  symbols: import('../hooks/useMarketData').RawSymbol[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -1443,6 +1413,41 @@ function EditBotModal({
   const tradeTypeOptions = tradeTypeCategory ? TRADE_TYPE_CATEGORIES[tradeTypeCategory] || [] : []
   const contractTypeOptions = tradeType ? CONTRACT_TYPES_BY_TRADE_TYPE[tradeType] || [] : []
 
+  const marketOptions: [string, string][] = (() => {
+    const map = new Map<string, string>()
+    for (const s of symbols) {
+      if (!s.market) continue
+      if (!map.has(s.market)) {
+        map.set(s.market, s.market_display_name || s.market)
+      }
+    }
+    return Array.from(map.entries()).map(([value, label]) => [label, value] as [string, string])
+  })()
+
+  const submarketOptions: [string, string][] = (() => {
+    const map = new Map<string, string>()
+    for (const s of symbols) {
+      if (s.market !== market || !s.submarket) continue
+      if (!map.has(s.submarket)) {
+        map.set(s.submarket, s.submarket_display_name || s.submarket)
+      }
+    }
+    return Array.from(map.entries()).map(([value, label]) => [label, value] as [string, string])
+  })()
+
+  const symbolOptions: [string, string][] = (() => {
+    const result: [string, string][] = []
+    const seen = new Set<string>()
+    for (const s of symbols) {
+      if (s.submarket !== submarket) continue
+      const sym = s.underlying_symbol || s.symbol || ''
+      if (!sym || seen.has(sym)) continue
+      seen.add(sym)
+      result.push([s.underlying_symbol_name || s.display_name || sym, sym])
+    }
+    return result
+  })()
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -1486,30 +1491,55 @@ function EditBotModal({
               <div className="text-xs font-bold text-text-secondary uppercase tracking-wider">Market</div>
               <div>
                 <label className="block text-[11px] font-medium text-text-muted mb-1">Market</label>
-                <input
-                  type="text"
+                <select
                   value={market}
-                  onChange={(e) => setMarket(e.target.value)}
+                  onChange={(e) => {
+                    setMarket(e.target.value)
+                    const subs = symbols.filter((s) => s.market === e.target.value)
+                    const firstSub = subs[0]?.submarket || ''
+                    setSubmarket(firstSub)
+                    const firstSym = subs.find((s) => s.submarket === firstSub)
+                    setSymbol(firstSym?.underlying_symbol || firstSym?.symbol || '')
+                  }}
                   className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
-                />
+                >
+                  {marketOptions.length === 0 && <option value="">{market || 'No markets loaded'}</option>}
+                  {marketOptions.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-text-muted mb-1">Submarket</label>
-                <input
-                  type="text"
+                <select
                   value={submarket}
-                  onChange={(e) => setSubmarket(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
-                />
+                  onChange={(e) => {
+                    setSubmarket(e.target.value)
+                    const firstSym = symbols.find((s) => s.submarket === e.target.value)
+                    setSymbol(firstSym?.underlying_symbol || firstSym?.symbol || '')
+                  }}
+                  disabled={!market}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                >
+                  {submarketOptions.length === 0 && <option value="">{submarket || 'Select market first'}</option>}
+                  {submarketOptions.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-text-muted mb-1">Symbol</label>
-                <input
-                  type="text"
+                <select
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm font-mono focus:outline-none focus:border-brand-red transition-colors"
-                />
+                  disabled={!submarket}
+                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                >
+                  {symbolOptions.length === 0 && <option value="">{symbol || 'Select submarket first'}</option>}
+                  {symbolOptions.map(([label, value]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
