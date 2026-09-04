@@ -3,23 +3,23 @@ import { useNavigate } from 'react-router-dom'
 import { useScanner } from '../hooks/useScanner'
 import { useToast } from '../components/Toast'
 import { buildBotXmlFromSignal, type ScanResult, type DigitSignal } from '../lib/scanner'
-import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap } from 'lucide-react'
+import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy } from 'lucide-react'
+
+const TICK_OPTIONS = [100, 200, 300, 500]
 
 export default function Scanner() {
-  const { results, scanning, error, hasScanned, runScan } = useScanner()
+  const { results, scanning, progress, error, hasScanned, runScan, tickCount, setTickCount } = useScanner()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const autoScanTriggered = useRef(false)
 
-  // Auto-scan on first page load
   useEffect(() => {
     if (autoScanTriggered.current) return
     autoScanTriggered.current = true
     runScan()
   }, [runScan])
 
-  // Auto-expand the top result when results arrive
   useEffect(() => {
     if (results.length > 0 && !expandedId) {
       setExpandedId(results[0].symbol)
@@ -45,6 +45,8 @@ export default function Scanner() {
     navigate('/bot-builder')
   }
 
+  const topResult = results[0] || null
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
@@ -58,21 +60,46 @@ export default function Scanner() {
             Scans volatility markets for digit-based trading opportunities using historical tick analysis.
           </p>
         </div>
-        <button
-          onClick={() => runScan()}
-          disabled={scanning}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-red text-white font-semibold text-sm hover:bg-brand-red-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-        >
-          {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
-          {scanning ? 'Scanning markets...' : hasScanned ? 'Rescan' : 'Start Scan'}
-        </button>
+        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          {/* Tick count selector */}
+          <div className="flex items-center gap-1 rounded-xl bg-bg-secondary border border-border-light p-1">
+            {TICK_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setTickCount(opt)}
+                disabled={scanning}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  tickCount === opt
+                    ? 'bg-brand-red text-white'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+            <span className="px-1.5 text-[10px] text-text-muted font-medium">ticks</span>
+          </div>
+          <button
+            onClick={() => runScan()}
+            disabled={scanning}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-red text-white font-semibold text-sm hover:bg-brand-red-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+            {scanning ? 'Scanning...' : hasScanned ? 'Rescan' : 'Start Scan'}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
       {error && (
         <div className="bg-brand-red/10 border border-brand-red/30 rounded-xl px-4 py-3 text-sm text-brand-red mb-6 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{error}</span>
+          <div>
+            <span>{error}</span>
+            <button onClick={() => runScan()} className="block mt-2 text-xs font-bold underline hover:no-underline">
+              Retry Scan
+            </button>
+          </div>
         </div>
       )}
 
@@ -86,7 +113,18 @@ export default function Scanner() {
             </div>
           </div>
           <p className="mt-6 text-sm font-semibold text-text-primary">Analyzing volatility markets</p>
-          <p className="mt-1 text-xs text-text-muted">Fetching 500 ticks per market and computing digit frequency statistics</p>
+          <p className="mt-1 text-xs text-text-muted">Fetching {tickCount} ticks per market and computing digit frequency statistics</p>
+          {progress > 0 && (
+            <div className="mt-4 w-48 max-w-full">
+              <div className="h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
+                <div
+                  className="h-full bg-brand-red rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-center text-[10px] text-text-muted mt-1.5 tabular">{progress}%</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -104,7 +142,7 @@ export default function Scanner() {
         </div>
       )}
 
-      {/* No results — retry instead of giving up */}
+      {/* No results */}
       {!scanning && hasScanned && !error && results.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <AlertCircle className="w-12 h-12 text-text-muted mb-4" />
@@ -116,11 +154,56 @@ export default function Scanner() {
         </div>
       )}
 
+      {/* Best market highlight */}
+      {!scanning && topResult && (
+        <div className="rounded-2xl border border-brand-red/20 bg-brand-red/[0.04] p-5 mb-6 fade-in">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="w-5 h-5 text-brand-red" />
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-red">Best market to trade</span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xl font-bold text-text-primary">{topResult.display_name}</span>
+                {topResult.bestSignal && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-brand-red/15 text-brand-red">
+                    {topResult.bestSignal.displayName}
+                  </span>
+                )}
+                <span className="text-2xl font-bold tabular text-brand-red">{topResult.overallScore}</span>
+                <span className="text-[10px] uppercase tracking-wider text-text-muted">score</span>
+              </div>
+              {topResult.bestSignal && (
+                <p className="text-xs text-text-secondary mt-2 leading-relaxed">{topResult.bestSignal.rationale}</p>
+              )}
+            </div>
+            {topResult.bestSignal && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => handleTradeManually(topResult, topResult.bestSignal!)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-green text-bg-primary text-sm font-bold hover:bg-brand-green-dim transition-colors"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Trade Manually
+                </button>
+                <button
+                  onClick={() => handleLoadBot(topResult, topResult.bestSignal!)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm font-bold text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <Bot className="w-4 h-4" />
+                  Load as Bot
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       {!scanning && results.length > 0 && (
         <div className="space-y-4">
           {/* Summary bar */}
-          <div className="flex items-center gap-3 text-xs text-text-muted">
+          <div className="flex items-center gap-3 text-xs text-text-muted flex-wrap">
             <span className="flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5" />
               {results.length} markets scanned

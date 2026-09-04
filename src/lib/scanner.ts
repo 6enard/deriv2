@@ -97,11 +97,11 @@ export interface ScanWs {
   send: (req: Record<string, unknown>) => Promise<any>
 }
 
-export async function fetchTickHistory(ws: ScanWs, symbol: string): Promise<number[]> {
+export async function fetchTickHistory(ws: ScanWs, symbol: string, count: number = TICK_HISTORY_COUNT): Promise<number[]> {
   const res = await ws.send({
     ticks_history: symbol,
     end: 'latest',
-    count: TICK_HISTORY_COUNT,
+    count,
     style: 'ticks',
   })
   if (res?.error) throw new Error(res.error.message || 'Failed to fetch ticks')
@@ -256,12 +256,18 @@ export function filterVolatilitySymbols(symbols: RawSymbol[]): RawSymbol[] {
   })
 }
 
-export async function scanVolatilityMarkets(symbols: RawSymbol[], ws: ScanWs): Promise<ScanResult[]> {
+export async function scanVolatilityMarkets(
+  symbols: RawSymbol[],
+  ws: ScanWs,
+  tickCount: number = TICK_HISTORY_COUNT,
+  onProgress?: (done: number, total: number) => void,
+): Promise<ScanResult[]> {
   const volSymbols = filterVolatilitySymbols(symbols)
   if (volSymbols.length === 0) return []
 
   const results: ScanResult[] = []
   const batchSize = 5
+  let completed = 0
 
   for (let i = 0; i < volSymbols.length; i += batchSize) {
     const batch = volSymbols.slice(i, i + batchSize)
@@ -270,7 +276,7 @@ export async function scanVolatilityMarkets(symbols: RawSymbol[], ws: ScanWs): P
         try {
           const symbol = s.underlying_symbol || s.symbol || ''
           if (!symbol) return null
-          const ticks = await fetchTickHistory(ws, symbol)
+          const ticks = await fetchTickHistory(ws, symbol, tickCount)
           if (ticks.length < 50) return null
           return analyzeTicks(symbol, s.underlying_symbol_name || s.display_name || symbol, ticks)
         } catch {
@@ -281,6 +287,8 @@ export async function scanVolatilityMarkets(symbols: RawSymbol[], ws: ScanWs): P
     for (const r of batchResults) {
       if (r) results.push(r)
     }
+    completed += batch.length
+    onProgress?.(completed, volSymbols.length)
   }
 
   results.sort((a, b) => b.overallScore - a.overallScore)

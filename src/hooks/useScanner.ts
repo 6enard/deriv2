@@ -1,26 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DerivWS } from '../lib/deriv-ws'
-import { DERIV_WS_URL } from '../lib/config'
+import { PUBLIC_WS_URL } from '../lib/config'
 import { scanVolatilityMarkets, type ScanResult, type RawSymbol } from '../lib/scanner'
 
 export function useScanner() {
   const [results, setResults] = useState<ScanResult[]>([])
   const [scanning, setScanning] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [hasScanned, setHasScanned] = useState(false)
+  const [tickCount, setTickCount] = useState(500)
   const wsRef = useRef<DerivWS | null>(null)
 
-  const runScan = useCallback(async () => {
+  const runScan = useCallback(async (count?: number) => {
+    const ticksToFetch = count ?? tickCount
     setScanning(true)
     setError(null)
+    setProgress(0)
     try {
-      // Use the standard Deriv API directly — the custom options WS
-      // endpoint doesn't support active_symbols or ticks_history.
-      const ws = new DerivWS(DERIV_WS_URL)
+      const ws = new DerivWS(PUBLIC_WS_URL)
       wsRef.current = ws
       await ws.connect()
 
-      // Fetch active symbols from the standard API
       const symbolsRes = await ws.send({ active_symbols: 'brief' })
       if (symbolsRes?.error) {
         throw new Error(symbolsRes.error.message || 'Failed to load markets')
@@ -30,9 +31,32 @@ export function useScanner() {
         throw new Error('No markets available.')
       }
 
-      const scanResults = await scanVolatilityMarkets(symbols, {
-        send: (req) => ws.send(req),
+      const volSymbols = symbols.filter((s) => {
+        const market = s.market || ''
+        const submarket = s.submarket || ''
+        const name = (s.display_name || s.underlying_symbol_name || '').toLowerCase()
+        return (
+          market === 'synthetic_index' ||
+          submarket === 'random_index' ||
+          submarket === 'synthetic_index' ||
+          name.includes('volatility') ||
+          name.includes('boom') ||
+          name.includes('crash') ||
+          name.includes('jump') ||
+          name.includes('step')
+        )
       })
+
+      if (volSymbols.length === 0) {
+        throw new Error('No volatility markets found among available symbols.')
+      }
+
+      const scanResults = await scanVolatilityMarkets(
+        volSymbols,
+        { send: (req) => ws.send(req) },
+        ticksToFetch,
+        (done, total) => setProgress(Math.round((done / total) * 100)),
+      )
 
       ws.disconnect()
       wsRef.current = null
@@ -44,7 +68,7 @@ export function useScanner() {
     } finally {
       setScanning(false)
     }
-  }, [])
+  }, [tickCount])
 
   useEffect(() => {
     return () => {
@@ -61,5 +85,5 @@ export function useScanner() {
     setError(null)
   }, [])
 
-  return { results, scanning, error, hasScanned, runScan, clearResults }
+  return { results, scanning, progress, error, hasScanned, runScan, clearResults, tickCount, setTickCount }
 }
