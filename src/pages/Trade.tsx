@@ -120,6 +120,8 @@ const TRADE_CATEGORIES: TradeCategory[] = [
 
 const ALL_TRADE_TYPES = TRADE_CATEGORIES.flatMap((c) => c.groups.flatMap((g) => g.types))
 
+const DIGIT_BARRIER_TYPES = new Set(['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER'])
+
 export default function Trade() {
   const { ws, account, refreshBalance } = useAuth()
   const { showToast } = useToast()
@@ -384,7 +386,7 @@ export default function Trade() {
 
     if (bt === 'single') {
       request.barrier = barrier
-    } else if (bt === 'digit') {
+    } else if (bt === 'digit' && DIGIT_BARRIER_TYPES.has(selectedTradeType.contractType)) {
       request.barrier = digit
     } else if (bt === 'multiplier') {
       request.cancellation = cancellation
@@ -449,7 +451,7 @@ export default function Trade() {
 
       if (bt === 'single') {
         request.barrier = barrier
-      } else if (bt === 'digit') {
+      } else if (bt === 'digit' && DIGIT_BARRIER_TYPES.has(selectedTradeType.contractType)) {
         request.barrier = digit
       } else if (bt === 'multiplier') {
         request.cancellation = cancellation
@@ -508,12 +510,12 @@ export default function Trade() {
   }, {} as Record<string, SymbolInfo[]>)
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Left: Chart + Trade Form */}
         <div className="lg:col-span-2 space-y-4">
           {/* Symbol Selector + Price */}
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-5">
+          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
               <div className="relative">
                 <button
@@ -525,7 +527,7 @@ export default function Trade() {
                 </button>
 
                 {symbolDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2.5rem)] sm:w-80 max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
+                  <div className="absolute top-full left-0 mt-2 w-full max-w-[320px] max-h-96 overflow-y-auto rounded-xl bg-bg-secondary border border-border-light shadow-xl z-50">
                     <div className="p-2 sticky top-0 bg-bg-secondary border-b border-border-default">
                       <input
                         type="text"
@@ -578,9 +580,9 @@ export default function Trade() {
             {/* Tick Chart */}
             <TickChart ticks={ticks} pipSize={pipSize} />
 
-            {/* Digit Meter — shown for digit trade types */}
+            {/* Digit Selector — shown for digit trade types */}
             {selectedTradeType.barrierType === 'digit' && (
-              <DigitMeter ticks={ticks} selectedDigit={parseInt(digit)} contractType={selectedTradeType.contractType} />
+              <DigitMeter ticks={ticks} selectedDigit={parseInt(digit)} contractType={selectedTradeType.contractType} onDigitSelect={(d) => setDigit(String(d))} />
             )}
 
             {/* High / Low */}
@@ -593,7 +595,7 @@ export default function Trade() {
           </div>
 
           {/* Trade Form */}
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-5">
+          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-brand-green" />
               Place Trade
@@ -678,25 +680,6 @@ export default function Trade() {
                     placeholder={selectedTradeType.side === 'touch' ? 'e.g. 1.1050' : 'e.g. +0.50 or -0.50'}
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Digit barrier selector (0-9) */}
-            {selectedTradeType.barrierType === 'digit' && (
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">Digit (0-9)</label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                  <select
-                    value={digit}
-                    onChange={(e) => setDigit(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-light text-sm tabular focus:outline-none focus:border-brand-blue transition-colors"
-                  >
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <option key={i} value={String(i)}>{i}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
             )}
@@ -823,7 +806,7 @@ export default function Trade() {
             </div>
 
             {/* Expected Payout Display */}
-            <div className="rounded-xl bg-bg-tertiary border border-border-light p-4 mb-4">
+            <div className="rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-4 mb-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
                   <Crosshair className="w-3.5 h-3.5" />
@@ -832,7 +815,7 @@ export default function Trade() {
                 {proposalLoading ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-text-secondary" />
                 ) : proposal ? (
-                  <span className="text-lg font-bold tabular text-brand-green">
+                  <span className="text-base sm:text-lg font-bold tabular text-brand-green">
                     {proposal.payout.toFixed(2)} {account?.currency || 'USD'}
                   </span>
                 ) : (
@@ -840,12 +823,12 @@ export default function Trade() {
                 )}
               </div>
               {proposal && !proposalLoading && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                   <span className="text-text-muted">
-                    Cost / Ask price: <span className="tabular text-text-secondary font-medium">{proposal.askPrice.toFixed(2)} {account?.currency || ''}</span>
+                    Cost: <span className="tabular text-text-secondary font-medium">{proposal.askPrice.toFixed(2)} {account?.currency || ''}</span>
                   </span>
                   <span className="text-text-muted">
-                    Potential profit: <span className="tabular text-brand-green font-medium">+{(proposal.payout - proposal.askPrice).toFixed(2)} {account?.currency || ''}</span>
+                    Profit: <span className="tabular text-brand-green font-medium">+{(proposal.payout - proposal.askPrice).toFixed(2)} {account?.currency || ''}</span>
                   </span>
                 </div>
               )}
@@ -870,8 +853,8 @@ export default function Trade() {
         </div>
 
         {/* Right: Open Positions */}
-        <div className="space-y-4">
-          <div className="rounded-xl bg-bg-secondary border border-border-default p-5">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Clock className="w-4 h-4 text-brand-blue" />
               Open Positions
@@ -900,7 +883,7 @@ export default function Trade() {
 
           {/* Account Summary */}
           {account && (
-            <div className="rounded-xl bg-bg-secondary border border-border-default p-5">
+            <div className="rounded-xl bg-bg-secondary border border-border-default p-3 sm:p-5">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-brand-green" />
                 Account
@@ -1032,116 +1015,88 @@ function ContractCard({
   )
 }
 
-function DigitMeter({ ticks, selectedDigit, contractType }: { ticks: Tick[]; selectedDigit: number; contractType: string }) {
+function DigitMeter({ ticks, selectedDigit, contractType, onDigitSelect }: { ticks: Tick[]; selectedDigit: number; contractType: string; onDigitSelect: (d: number) => void }) {
   const lastTick = ticks.length > 0 ? ticks[ticks.length - 1] : null
   const lastDigit = lastTick ? Math.floor(Math.abs(lastTick.quote) * 10) % 10 : null
+  const totalCount = ticks.length || 1
 
   const digitCounts = new Array(10).fill(0)
   for (const t of ticks) {
     const d = Math.floor(Math.abs(t.quote) * 10) % 10
     digitCounts[d]++
   }
-  const maxCount = Math.max(...digitCounts, 1)
 
-  const isMatchType = contractType === 'DIGITMATCH'
-  const isDiffType = contractType === 'DIGITDIFF'
-  const isOverType = contractType === 'DIGITOVER'
-  const isUnderType = contractType === 'DIGITUNDER'
-  const isOddType = contractType === 'DIGITODD'
-  const isEvenType = contractType === 'DIGITEVEN'
+  const needsSelection = DIGIT_BARRIER_TYPES.has(contractType)
 
   const isWinningDigit = (d: number): boolean => {
-    if (isMatchType) return d === selectedDigit
-    if (isDiffType) return d !== selectedDigit
-    if (isOverType) return d > selectedDigit
-    if (isUnderType) return d < selectedDigit
-    if (isOddType) return d % 2 === 1
-    if (isEvenType) return d % 2 === 0
+    if (contractType === 'DIGITMATCH') return d === selectedDigit
+    if (contractType === 'DIGITDIFF') return d !== selectedDigit
+    if (contractType === 'DIGITOVER') return d > selectedDigit
+    if (contractType === 'DIGITUNDER') return d < selectedDigit
+    if (contractType === 'DIGITODD') return d % 2 === 1
+    if (contractType === 'DIGITEVEN') return d % 2 === 0
     return false
   }
 
   return (
-    <div className="mt-4 rounded-xl bg-bg-tertiary border border-border-light p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="mt-3 sm:mt-4 rounded-xl bg-bg-tertiary border border-border-light p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-2.5 sm:mb-3">
         <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
           <Hash className="w-3.5 h-3.5" />
-          Last Digit Meter
+          {needsSelection ? 'Tap to pick a digit' : 'Digit Stats'}
         </span>
         {lastDigit !== null && (
           <span className="text-xs text-text-muted">
-            Current: <span className="font-bold tabular text-text-primary text-base">{lastDigit}</span>
+            Last: <span className="font-bold tabular text-text-primary text-base">{lastDigit}</span>
           </span>
         )}
       </div>
 
-      {/* Digits row with indicator */}
-      <div className="relative">
-        <div className="flex items-center justify-between gap-1">
-          {Array.from({ length: 10 }, (_, d) => {
-            const isCurrent = lastDigit === d
-            const isWinning = isWinningDigit(d)
-            const count = digitCounts[d]
-            const barHeight = (count / maxCount) * 100
-            return (
-              <div key={d} className="flex-1 flex flex-col items-center gap-1.5 relative">
-                {/* Frequency bar */}
-                <div className="w-full h-16 flex items-end justify-center">
-                  <div
-                    className={`w-full max-w-[28px] rounded-t-md transition-all duration-300 ${
-                      isCurrent ? 'bg-brand-blue' : 'bg-border-light'
-                    }`}
-                    style={{ height: `${Math.max(barHeight, 3)}%`, opacity: isCurrent ? 1 : 0.5 }}
-                  />
-                </div>
-                {/* Digit circle */}
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold tabular transition-all duration-300 ${
-                    isCurrent
-                      ? 'bg-brand-blue text-white scale-110 shadow-lg shadow-brand-blue/30'
-                      : isWinning
-                      ? 'bg-brand-green/15 text-brand-green border border-brand-green/40'
-                      : 'bg-bg-secondary text-text-secondary border border-border-light'
-                  }`}
-                >
-                  {d}
-                </div>
-                {/* Count */}
-                <span className={`text-[10px] tabular ${isCurrent ? 'text-brand-blue font-semibold' : 'text-text-muted'}`}>
-                  {count}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+      <div className="grid grid-cols-10 gap-1 sm:gap-1.5">
+        {Array.from({ length: 10 }, (_, d) => {
+          const pct = ((digitCounts[d] / totalCount) * 100).toFixed(0)
+          const isCurrent = lastDigit === d
+          const isSelected = needsSelection && selectedDigit === d
+          const isWinning = isWinningDigit(d)
 
-        {/* Moving indicator arrow above the current digit */}
-        {lastDigit !== null && (
-          <div
-            className="absolute -top-1 transition-all duration-300 ease-out"
-            style={{
-              left: `calc(${(lastDigit / 9) * 100}% )`,
-              transform: 'translateX(-50%)',
-            }}
-          >
-            <div className="flex flex-col items-center">
-              <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-brand-blue" />
-            </div>
-          </div>
-        )}
+          return (
+            <button
+              key={d}
+              onClick={() => needsSelection && onDigitSelect(d)}
+              disabled={!needsSelection}
+              className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 sm:py-2 transition-all ${
+                needsSelection ? 'cursor-pointer active:scale-95' : 'cursor-default'
+              } ${
+                isSelected
+                  ? 'bg-brand-green/15 border border-brand-green/60'
+                  : isCurrent
+                  ? 'bg-brand-blue/10 border border-brand-blue/50'
+                  : isWinning
+                  ? 'bg-brand-green/5 border border-brand-green/20'
+                  : 'border border-border-light'
+              }`}
+            >
+              <span className={`text-sm sm:text-base font-bold tabular ${
+                isSelected ? 'text-brand-green' : isCurrent ? 'text-brand-blue' : 'text-text-primary'
+              }`}>
+                {d}
+              </span>
+              <span className="text-[8px] sm:text-[10px] tabular text-text-muted leading-none">
+                {pct}%
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-text-muted">
-        <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-brand-blue" /> Current digit
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-brand-green/30 border border-brand-green/50" /> Winning digits
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-2.5 h-6 rounded-sm bg-border-light" /> Frequency
-        </span>
-      </div>
+      {needsSelection && (
+        <p className="text-[10px] text-text-muted mt-2 text-center">
+          Selected: <span className="font-bold text-brand-green tabular">{selectedDigit}</span>
+          {isWinningDigit(lastDigit ?? -1) && lastDigit !== null && (
+            <span className="text-brand-green ml-1">· Last tick matched</span>
+          )}
+        </p>
+      )}
     </div>
   )
 }
