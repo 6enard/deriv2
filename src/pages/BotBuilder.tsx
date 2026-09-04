@@ -412,11 +412,7 @@ export default function BotBuilder() {
     }
   }, [journal, resultsTab])
 
-  useEffect(() => {
-    if (isRunning || trades.length > 0 || journal.length > 0) {
-      setShowResultsMobile(true)
-    }
-  }, [isRunning, trades.length, journal.length])
+
 
   const toggleToolbox = useCallback(() => {
     setToolboxOpen((previous) => {
@@ -714,7 +710,7 @@ export default function BotBuilder() {
             WORKSPACE
         ========================================================== */}
 
-        <div className="flex-1 min-h-0 relative bg-bg-tertiary h-[55vh] lg:h-auto">
+        <div className="relative bg-bg-tertiary h-[50vh] lg:h-auto lg:flex-1 lg:min-h-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -876,7 +872,7 @@ export default function BotBuilder() {
         </button>
 
         {showResultsMobile && (
-          <div className="h-[60vh] border-t border-border-default">
+          <div className="h-[45vh] border-t border-border-default">
             <RunResultsPanel
               tab={resultsTab}
               onTabChange={setResultsTab}
