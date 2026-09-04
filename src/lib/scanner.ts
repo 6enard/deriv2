@@ -277,9 +277,10 @@ export async function scanVolatilityMarkets(
           const symbol = s.underlying_symbol || s.symbol || ''
           if (!symbol) return null
           const ticks = await fetchTickHistory(ws, symbol, tickCount)
-          if (ticks.length < 50) return null
+          if (ticks.length < 30) return null
           return analyzeTicks(symbol, s.underlying_symbol_name || s.display_name || symbol, ticks)
-        } catch {
+        } catch (fetchErr) {
+          console.warn('[Scanner] Failed to fetch ticks for', s.underlying_symbol || s.symbol, fetchErr)
           return null
         }
       }),
