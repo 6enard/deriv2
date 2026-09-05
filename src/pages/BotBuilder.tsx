@@ -965,7 +965,7 @@ export default function BotBuilder() {
         <div className="max-w-[1400px] mx-auto flex items-center gap-2">
           <TriangleAlert className="w-3.5 h-3.5 text-brand-amber shrink-0" />
           <p className="text-[10px] text-text-muted leading-relaxed">
-            Trading derivatives carries a high level of risk to your capital. You may lose more than your initial investment. Only trade with money you can afford to lose.
+            Deriv offers complex derivatives such as options and CFDs. You may lose some or all of the money you invest. Never trade with borrowed money or money you cannot afford to lose.
           </p>
         </div>
       </div>
@@ -1819,11 +1819,19 @@ function EditBotModal({
             </div>
 
             {/* Risk disclaimer */}
-            <div className="rounded-xl bg-brand-amber/8 border border-brand-amber/25 px-4 py-3 flex items-start gap-2.5">
-              <TriangleAlert className="w-4 h-4 text-brand-amber shrink-0 mt-0.5" />
+            <div className="rounded-xl bg-brand-amber/8 border border-brand-amber/25 px-4 py-3">
+              <div className="flex items-center gap-2.5 mb-2">
+                <TriangleAlert className="w-4 h-4 text-brand-amber shrink-0" />
+                <span className="text-xs font-bold text-brand-amber">Risk Disclaimer</span>
+              </div>
               <p className="text-[11px] text-text-secondary leading-relaxed">
-                Trading derivatives carries a high level of risk to your capital and you may lose more than your initial investment. Only trade with money you can afford to lose. Past performance does not guarantee future results.
+                Deriv offers complex derivatives, such as options and contracts for difference (&ldquo;CFDs&rdquo;). These products may not be suitable for all clients, and trading them puts you at risk. Please make sure that you understand the following risks before trading Deriv products:
               </p>
+              <ul className="mt-2 space-y-1 text-[11px] text-text-secondary leading-relaxed list-disc pl-4">
+                <li>You may lose some or all of the money you invest in the trade.</li>
+                <li>If your trade involves currency conversion, exchange rates will affect your profit and loss.</li>
+                <li>You should never trade with borrowed money or with money that you cannot afford to lose.</li>
+              </ul>
             </div>
           </div>
         )}
