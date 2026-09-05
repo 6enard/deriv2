@@ -374,6 +374,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [ws, account])
 
+  // Subscribe to real-time balance updates so the displayed balance
+  // updates automatically after every trade, deposit, or withdrawal
+  // without needing a manual refresh.
+  useEffect(() => {
+    if (!ws || !account) return
+
+    let reqId: number | null = null
+    let cancelled = false
+
+    ws.subscribe(
+      { balance: 1 },
+      (data: any) => {
+        if (cancelled || !data.balance) return
+        const newBalance = parseFloat(data.balance.balance)
+        const currency = data.balance.currency || account.currency
+        setAccounts((prev) => {
+          const next = prev.map((a) =>
+            a.account_id === account.account_id
+              ? { ...a, balance: newBalance, currency }
+              : a
+          )
+          sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
+          return next
+        })
+      },
+    ).then(({ reqId: id }) => {
+      reqId = id
+    }).catch(() => {
+      // subscription failed — one-shot refreshBalance calls still work
+    })
+
+    return () => {
+      cancelled = true
+      if (reqId !== null) ws.unsubscribe(reqId)
+    }
+  }, [ws, account])
+
   useEffect(() => {
     if (!account || ws) return
 
