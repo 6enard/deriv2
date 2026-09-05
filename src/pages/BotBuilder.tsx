@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -48,7 +48,7 @@ export default function BotBuilder() {
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
-  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(true)
+  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
   const autoRunRef = useRef(false)
 
   useEffect(() => {
@@ -369,8 +369,6 @@ export default function BotBuilder() {
         checkLoadedFields(workspace)
       } else {
         if (result.loaded) {
-          // Bot loaded into workspace but has missing/incomplete trade params.
-          // The blocks are visible — guide the user to fill in what's missing.
           setWorkspaceModified(false)
           checkLoadedFields(workspace)
         } else {
@@ -469,8 +467,6 @@ export default function BotBuilder() {
     }
   }, [journal, resultsTab])
 
-
-
   useEffect(() => {
     if (!showMoreActions) return
 
@@ -516,15 +512,14 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-64px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden lg:pb-0 bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-64px)] lg:h-[calc(100vh-105px)] lg:flex-row lg:overflow-hidden bg-bg-primary overflow-hidden">
       {/* =========================================================
-          DESKTOP / MAIN EDITOR
+          EDITOR COLUMN (mobile + desktop)
       ========================================================== */}
 
-      <div className="flex flex-col min-w-0 shrink-0 lg:shrink lg:flex-1 lg:min-h-0">
-        {/* Premium desktop header */}
+      <div className="flex flex-col min-w-0 flex-1 min-h-0 overflow-hidden">
+        {/* ── Desktop header ── */}
         <header className="hidden lg:flex h-[68px] items-center gap-4 px-5 bg-bg-secondary border-b border-border-default shrink-0">
-          {/* Brand */}
           <div className="flex items-center gap-3 min-w-[210px]">
             <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center">
               <BlocksIcon className="w-[18px] h-[18px] text-brand-red" />
@@ -545,10 +540,8 @@ export default function BotBuilder() {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="h-8 w-px bg-border-default" />
 
-          {/* Validation */}
           <BotStatus
             isRunning={isRunning}
             marketsLoading={marketsLoading}
@@ -558,7 +551,6 @@ export default function BotBuilder() {
 
           <div className="flex-1" />
 
-          {/* Edit / Save / Load */}
           <div className="flex items-center gap-1">
             <ToolbarIconButton
               onClick={() => setShowEditBot(true)}
@@ -587,7 +579,6 @@ export default function BotBuilder() {
 
           <div className="h-8 w-px bg-border-default" />
 
-          {/* Stop */}
           {isRunning && (
             <button
               onClick={handleStop}
@@ -598,7 +589,6 @@ export default function BotBuilder() {
             </button>
           )}
 
-          {/* Primary Run */}
           <button
             onClick={handleRun}
             disabled={
@@ -618,50 +608,48 @@ export default function BotBuilder() {
           </button>
         </header>
 
-        {/* =========================================================
-            MOBILE HEADER
-        ========================================================== */}
-
+        {/* ── Mobile compact top bar ── */}
         <header className="lg:hidden bg-bg-secondary border-b border-border-default shrink-0">
-          <div className="flex items-center justify-between px-3 py-2 shrink-0">
+          <div className="flex items-center justify-between px-3 h-[52px] shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center shrink-0">
-                <BlocksIcon className="w-[17px] h-[17px] text-brand-red" />
+              <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/20 flex items-center justify-center shrink-0">
+                <BlocksIcon className="w-[16px] h-[16px] text-brand-red" />
               </div>
 
-              <div className="min-w-0">
-                <div className="text-[9px] uppercase tracking-[0.14em] text-text-muted font-semibold">
-                  Bot Builder
+              <div className="min-w-0 flex flex-col leading-tight">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={botName}
+                    onChange={(e) => setBotName(e.target.value)}
+                    placeholder="My Bot"
+                    className="w-28 max-w-[40vw] bg-transparent border-0 outline-none p-0 text-sm font-semibold text-text-primary truncate focus:ring-0"
+                  />
+                  {workspaceModified && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-amber shrink-0" title="Unsaved changes" />
+                  )}
                 </div>
 
-                <input
-                  type="text"
-                  value={botName}
-                  onChange={(e) => setBotName(e.target.value)}
-                  placeholder="My Bot"
-                  className="w-32 max-w-[42vw] bg-transparent border-0 outline-none p-0 text-sm font-semibold text-text-primary truncate focus:ring-0"
+                <MobileStatusText
+                  isRunning={isRunning}
+                  marketsLoading={marketsLoading}
+                  marketsLoaded={marketsLoaded}
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <MobileStatusDot
-                isRunning={isRunning}
-                marketsLoading={marketsLoading}
-                marketsLoaded={marketsLoaded}
-              />
-
+            <div className="flex items-center gap-1.5 shrink-0">
               <div className="relative" ref={moreActionsRef}>
                 <button
                   onClick={() => setShowMoreActions((v) => !v)}
                   aria-label="More actions"
                   className="w-9 h-9 rounded-xl bg-bg-tertiary border border-border-light flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
                 >
-                  <MoreHorizontal className="w-5 h-5" />
+                  <MoreVertical className="w-5 h-5" />
                 </button>
 
                 {showMoreActions && (
-                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-bg-secondary border border-border-light shadow-2xl overflow-hidden z-[80]">
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-bg-secondary border border-border-light shadow-2xl overflow-hidden z-[80] slide-in">
                     <div className="px-4 py-3 border-b border-border-default">
                       <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">
                         Bot
@@ -699,60 +687,18 @@ export default function BotBuilder() {
               </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-1.5 px-3 pb-2 shrink-0">
-            {isRunning ? (
-              <button
-                onClick={handleStop}
-                className="flex-1 h-10 rounded-xl bg-brand-red/10 border border-brand-red/25 text-brand-red text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
-              >
-                <Square className="w-4 h-4 fill-current" />
-                Stop
-              </button>
-            ) : (
-              <button
-                onClick={handleRun}
-                disabled={marketsLoading || !marketsLoaded}
-                className="flex-1 h-10 rounded-xl bg-brand-red text-white text-sm font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-brand-red/10 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {marketsLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4 fill-current" />
-                )}
-                {marketsLoading ? 'Loading...' : 'Run'}
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowEditBot(true)}
-              className="h-10 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-semibold flex items-center gap-1.5 transition-colors text-text-primary hover:bg-bg-hover"
-            >
-              <EditIcon className="w-4 h-4" />
-              <span>Edit</span>
-            </button>
-          </div>
         </header>
 
-        {/* Mobile status */}
-        <div className="lg:hidden h-7 flex items-center justify-center border-b border-border-default bg-bg-tertiary shrink-0">
-          <StatusIndicator
-            isRunning={isRunning}
-            marketsLoading={marketsLoading}
-            marketsLoaded={marketsLoaded}
-            isLoaded={isLoaded}
-            compact
-          />
-        </div>
-
         {/* =========================================================
-            WORKSPACE — shown on both mobile and desktop
+            BLOCKLY WORKSPACE
         ========================================================== */}
 
-        <div className="relative bg-bg-tertiary flex-1 min-h-0 pb-14 lg:pb-0">
-
-          {/* Floating zoom controls */}
-          <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
+        <div
+          className="relative bg-bg-tertiary flex-1 min-h-0 overflow-hidden"
+          style={{ touchAction: 'none' }}
+        >
+          {/* Floating zoom controls — always above workspace, below results sheet */}
+          <div className="absolute right-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm lg:bottom-4">
             <WorkspaceControl
               onClick={zoomIn}
               icon={ZoomIn}
@@ -805,13 +751,43 @@ export default function BotBuilder() {
             onDragLeave={handleDragLeave}
             className="absolute inset-0 overflow-hidden"
           />
+        </div>
 
+        {/* =========================================================
+            MOBILE PERSISTENT RUN/STOP BAR
+        ========================================================== */}
 
+        <div
+          className="lg:hidden shrink-0 bg-bg-secondary border-t border-border-default"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          {isRunning ? (
+            <button
+              onClick={handleStop}
+              className="w-full h-14 flex items-center justify-center gap-2 bg-brand-red text-white text-base font-bold active:scale-[0.99] transition-transform"
+            >
+              <Square className="w-5 h-5 fill-current" />
+              STOP BOT
+            </button>
+          ) : (
+            <button
+              onClick={handleRun}
+              disabled={marketsLoading || !marketsLoaded}
+              className="w-full h-14 flex items-center justify-center gap-2 bg-brand-red text-white text-base font-bold active:scale-[0.99] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {marketsLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Play className="w-5 h-5 fill-current" />
+              )}
+              {marketsLoading ? 'LOADING MARKETS' : 'RUN BOT'}
+            </button>
+          )}
         </div>
       </div>
 
       {/* =========================================================
-          DESKTOP RESULTS
+          DESKTOP RESULTS PANEL
       ========================================================== */}
 
       <aside className="hidden lg:flex lg:w-[400px] border-l border-border-default flex-shrink-0 flex-col bg-bg-secondary">
@@ -856,49 +832,64 @@ export default function BotBuilder() {
       </aside>
 
       {/* =========================================================
-          MOBILE RESULTS — collapsible panel, blocks stay visible
+          MOBILE RESULTS BOTTOM SHEET
       ========================================================== */}
 
       <div
-        className={`lg:hidden fixed left-0 right-0 bottom-16 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-all duration-300 ${
-          mobilePanelExpanded ? 'top-0' : 'h-[48px]'
-        }`
-        }
+        className={`lg:hidden fixed left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-[height,transform] duration-300 ease-out ${
+          mobilePanelExpanded
+            ? ''
+            : ''
+        }`}
+        style={{
+          bottom: 'calc(56px + env(safe-area-inset-bottom))',
+          height: mobilePanelExpanded
+            ? 'min(65dvh, 560px)'
+            : '56px',
+          maxHeight: '70dvh',
+        }}
       >
+        {/* Drag handle + collapsed header */}
         <button
           onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
-          className="w-full h-12 px-4 flex items-center justify-between border-b border-border-default shrink-0"
+          className="w-full flex flex-col items-center pt-2 pb-1 shrink-0 cursor-pointer touch-none"
         >
-          <div className="flex items-center gap-2.5">
-            <Activity className="w-4 h-4 text-text-secondary" />
-            <div className="text-sm font-bold text-text-primary">
-              {mobilePanelExpanded ? 'Bot Performance' : 'Edit blocks'}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {hasResults && (
-              <span
-                className={`text-xs font-bold tabular px-2 py-1 rounded-lg ${
-                  totalProfit >= 0
-                    ? 'bg-brand-green/10 text-brand-green'
-                    : 'bg-brand-red/10 text-brand-red'
-                }`}
-              >
-                {totalProfit >= 0 ? '+' : ''}
-                {totalProfit.toFixed(2)} {currency}
+          <div className="w-10 h-1 rounded-full bg-border-light mb-1.5" />
+          <div className="w-full px-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-text-secondary" />
+              <span className="text-sm font-bold text-text-primary">
+                Results
               </span>
-            )}
-            {mobilePanelExpanded ? (
-              <ChevronDown className="w-4 h-4 text-text-muted" />
-            ) : (
-              <ChevronUp className="w-4 h-4 text-text-muted" />
-            )}
+              {isRunning && (
+                <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {hasResults && (
+                <span
+                  className={`text-xs font-bold tabular px-2 py-0.5 rounded-lg ${
+                    totalProfit >= 0
+                      ? 'bg-brand-green/10 text-brand-green'
+                      : 'bg-brand-red/10 text-brand-red'
+                  }`}
+                >
+                  {totalProfit >= 0 ? '+' : ''}
+                  {totalProfit.toFixed(2)} {currency}
+                </span>
+              )}
+              {mobilePanelExpanded ? (
+                <ChevronDown className="w-4 h-4 text-text-muted" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-text-muted" />
+              )}
+            </div>
           </div>
         </button>
 
         {mobilePanelExpanded && (
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             <RunResultsPanel
               tab={resultsTab}
               onTabChange={setResultsTab}
@@ -994,7 +985,7 @@ export default function BotBuilder() {
         />
       )}
 
-      {/* Risk disclaimer — desktop only, below results */}
+      {/* Risk disclaimer — desktop only */}
       <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-30 px-4 py-2 bg-bg-secondary/80 backdrop-blur-sm border-t border-border-default">
         <div className="max-w-[1400px] mx-auto flex items-center gap-2">
           <TriangleAlert className="w-3.5 h-3.5 text-brand-amber shrink-0" />
@@ -1008,7 +999,7 @@ export default function BotBuilder() {
 }
 
 /* ============================================================
-   STATUS
+   STATUS COMPONENTS
 ============================================================ */
 
 function BotStatus({
@@ -1081,7 +1072,7 @@ function BotStatus({
   )
 }
 
-function MobileStatusDot({
+function MobileStatusText({
   isRunning,
   marketsLoading,
   marketsLoaded,
@@ -1092,98 +1083,43 @@ function MobileStatusDot({
 }) {
   if (isRunning) {
     return (
-      <span
-        title="Bot running"
-        className="w-2.5 h-2.5 rounded-full bg-brand-red pulse-glow"
-      />
+      <div className="flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-brand-red pulse-glow" />
+        <span className="text-[10px] font-semibold text-brand-red uppercase tracking-wider">
+          Running
+        </span>
+      </div>
     )
   }
 
   if (marketsLoading) {
     return (
-      <Loader2 className="w-4 h-4 animate-spin text-text-secondary" />
+      <div className="flex items-center gap-1 text-[10px] text-text-secondary font-medium">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Connecting…</span>
+      </div>
     )
   }
 
   if (marketsLoaded) {
     return (
-      <span
-        title="Ready"
-        className="w-2.5 h-2.5 rounded-full bg-brand-green"
-      />
+      <div className="flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-brand-green" />
+        <span className="text-[10px] font-semibold text-brand-green uppercase tracking-wider">
+          Ready
+        </span>
+      </div>
     )
   }
 
   return (
-    <span
-      title="Waiting"
-      className="w-2.5 h-2.5 rounded-full bg-text-muted"
-    />
+    <div className="flex items-center gap-1">
+      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+      <span className="text-[10px] text-text-muted font-medium">
+        Waiting…
+      </span>
+    </div>
   )
-}
-
-function StatusIndicator({
-  isRunning,
-  marketsLoading,
-  marketsLoaded,
-  isLoaded,
-  compact = false,
-}: {
-  isRunning: boolean
-  marketsLoading: boolean
-  marketsLoaded: boolean
-  isLoaded: boolean
-  compact?: boolean
-}) {
-  if (isRunning) {
-    return (
-      <>
-        <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
-
-        {!compact && (
-          <span className="font-medium text-brand-red">
-            Running
-          </span>
-        )}
-      </>
-    )
-  }
-
-  if (marketsLoading) {
-    return (
-      <>
-        <Loader2 className="w-3 h-3 animate-spin" />
-
-        {!compact && <span>Loading markets...</span>}
-      </>
-    )
-  }
-
-  if (marketsLoaded) {
-    return (
-      <>
-        <span className="w-2 h-2 rounded-full bg-brand-green" />
-
-        {!compact && (
-          <span className="font-medium text-brand-green">
-            Ready
-          </span>
-        )}
-      </>
-    )
-  }
-
-  if (isLoaded) {
-    return (
-      <>
-        <span className="w-2 h-2 rounded-full bg-text-muted" />
-
-        {!compact && <span>Waiting for markets</span>}
-      </>
-    )
-  }
-
-  return <Loader2 className="w-3 h-3 animate-spin" />
 }
 
 /* ============================================================
@@ -1225,7 +1161,7 @@ function WorkspaceControl({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+      className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors touch-none"
     >
       <Icon className="w-4 h-4" />
     </button>
@@ -1253,8 +1189,7 @@ function MobileMenuItem({
 }
 
 /* ============================================================
-   EDIT BOT MODAL — form-based parameter editor
-   Lets users edit all bot settings without touching blocks.
+   EDIT BOT MODAL
 ============================================================ */
 
 const TRADE_TYPE_CATEGORIES: Record<string, [string, string][]> = {
@@ -1288,6 +1223,8 @@ const CANDLE_INTERVALS: [string, string][] = [
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD']
 
+type RawSymbol = import('../hooks/useMarketData').RawSymbol
+
 function EditBotModal({
   workspaceRef,
   currency,
@@ -1298,8 +1235,8 @@ function EditBotModal({
 }: {
   workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>
   currency: string
-  symbols: import('../hooks/useMarketData').RawSymbol[]
-  fetchSymbols: () => Promise<import('../hooks/useMarketData').RawSymbol[] | null>
+  symbols: RawSymbol[]
+  fetchSymbols: () => Promise<RawSymbol[] | null>
   onClose: () => void
   onSaved: () => void
 }) {
@@ -1320,7 +1257,7 @@ function EditBotModal({
   const [candleInterval, setCandleInterval] = useState('60')
   const [selectedCurrency, setSelectedCurrency] = useState(currency || 'USD')
   const [loaded, setLoaded] = useState(false)
-  const [localSymbols, setLocalSymbols] = useState<import('../hooks/useMarketData').RawSymbol[]>(symbols)
+  const [localSymbols, setLocalSymbols] = useState<RawSymbol[]>(symbols)
 
   useEffect(() => {
     if (symbols.length > 0) {
@@ -1336,10 +1273,6 @@ function EditBotModal({
     return () => { cancelled = true }
   }, [symbols, fetchSymbols])
 
-  // When symbols arrive (possibly async), auto-correct the market/submarket/symbol
-  // cascade so the dropdowns show valid selections — but only after the initial
-  // workspace values have been loaded, so we don't clobber the bot's saved market
-  // (e.g. synthetic_index) before it's been read from the workspace.
   useEffect(() => {
     if (localSymbols.length === 0 || !loaded) return
 
@@ -1547,12 +1480,13 @@ function EditBotModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-bg-secondary border border-border-light shadow-2xl"
+        className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl bg-bg-secondary border border-border-light shadow-2xl"
         onClick={(e) => e.stopPropagation()}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
@@ -1574,6 +1508,11 @@ function EditBotModal({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Mobile drag handle */}
+        <div className="sm:hidden flex justify-center pt-2">
+          <div className="w-10 h-1 rounded-full bg-border-light" />
         </div>
 
         {!loaded ? (
@@ -1598,7 +1537,7 @@ function EditBotModal({
                     const firstSym = subs.find((s) => s.submarket === firstSub)
                     setSymbol(firstSym?.underlying_symbol || firstSym?.symbol || '')
                   }}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                 >
                   {marketOptions.length === 0 && <option value="">Loading markets...</option>}
                   {marketOptions.map(([label, value]) => (
@@ -1616,7 +1555,7 @@ function EditBotModal({
                     setSymbol(firstSym?.underlying_symbol || firstSym?.symbol || '')
                   }}
                   disabled={!market}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
                 >
                   {submarketOptions.length === 0 && <option value="">{submarket || 'Select market first'}</option>}
                   {submarketOptions.map(([label, value]) => (
@@ -1630,7 +1569,7 @@ function EditBotModal({
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value)}
                   disabled={!submarket}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
                 >
                   {symbolOptions.length === 0 && <option value="">{symbol || 'Select submarket first'}</option>}
                   {symbolOptions.map(([label, value]) => (
@@ -1652,7 +1591,7 @@ function EditBotModal({
                     const opts = TRADE_TYPE_CATEGORIES[e.target.value] || []
                     if (opts.length > 0) setTradeType(opts[0][1])
                   }}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                 >
                   <option value="">Select category</option>
                   {Object.entries(TRADE_TYPE_CATEGORIES).map(([key, opts]) => (
@@ -1670,7 +1609,7 @@ function EditBotModal({
                     if (opts.length > 0) setContractType(opts[0][1])
                   }}
                   disabled={!tradeTypeOptions.length}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
                 >
                   <option value="">Select type</option>
                   {tradeTypeOptions.map(([label, value]) => (
@@ -1684,7 +1623,7 @@ function EditBotModal({
                   value={contractType}
                   onChange={(e) => setContractType(e.target.value)}
                   disabled={!contractTypeOptions.length}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors disabled:opacity-50"
                 >
                   <option value="">Select contract</option>
                   {contractTypeOptions.map(([label, value]) => (
@@ -1702,14 +1641,14 @@ function EditBotModal({
                 <div>
                   <label className="block text-[11px] font-medium text-text-muted mb-1">Stake</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                     <input
                       type="number"
                       value={stake}
                       onChange={(e) => setStake(e.target.value)}
                       min="0.35"
                       step="0.01"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                      className="w-full h-11 pl-9 pr-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
                     />
                   </div>
                 </div>
@@ -1718,7 +1657,7 @@ function EditBotModal({
                   <select
                     value={selectedCurrency}
                     onChange={(e) => setSelectedCurrency(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                    className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -1735,12 +1674,12 @@ function EditBotModal({
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     min="1"
-                    className="flex-1 px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                    className="flex-1 h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
                   />
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                    className="h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                   >
                     <option value="t">ticks</option>
                     <option value="s">seconds</option>
@@ -1758,7 +1697,7 @@ function EditBotModal({
                   onChange={(e) => setPrediction(e.target.value)}
                   min="0"
                   max="9"
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
                 />
               </div>
 
@@ -1770,7 +1709,7 @@ function EditBotModal({
                     value={barrier}
                     onChange={(e) => setBarrier(e.target.value)}
                     placeholder="e.g. +0.50"
-                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                    className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
                   />
                 </div>
                 <div>
@@ -1780,7 +1719,7 @@ function EditBotModal({
                     value={secondBarrier}
                     onChange={(e) => setSecondBarrier(e.target.value)}
                     placeholder="e.g. -0.50"
-                    className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
+                    className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
                   />
                 </div>
               </div>
@@ -1794,7 +1733,7 @@ function EditBotModal({
                 <select
                   value={candleInterval}
                   onChange={(e) => setCandleInterval(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
+                  className="w-full h-11 px-3 rounded-lg bg-bg-secondary border border-border-light text-sm focus:outline-none focus:border-brand-red transition-colors"
                 >
                   {CANDLE_INTERVALS.map(([label, value]) => (
                     <option key={value} value={value}>{label}</option>
@@ -1870,19 +1809,19 @@ function EditBotModal({
           </div>
         )}
 
-        {/* Footer */}
+        {/* Sticky footer */}
         <div className="sticky bottom-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-t border-border-default flex items-center gap-3 z-10">
           <button
             onClick={handleSave}
             disabled={!loaded}
-            className="flex-1 h-11 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 h-12 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <CheckCircle2 className="w-4 h-4" />
             Save Changes
           </button>
           <button
             onClick={onClose}
-            className="h-11 px-5 rounded-xl bg-bg-tertiary border border-border-light text-text-secondary text-sm font-semibold hover:text-text-primary transition-colors"
+            className="h-12 px-5 rounded-xl bg-bg-tertiary border border-border-light text-text-secondary text-sm font-semibold hover:text-text-primary transition-colors"
           >
             Cancel
           </button>

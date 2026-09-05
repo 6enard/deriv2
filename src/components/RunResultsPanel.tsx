@@ -247,10 +247,10 @@ export function RunResultsPanel({
         ===================================================== */}
 
         {tab === 'summary' && (
-          <div className="p-4 space-y-4">
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
             {/* P/L hero */}
             <div
-              className={`relative overflow-hidden rounded-2xl border p-5 ${
+              className={`relative overflow-hidden rounded-xl sm:rounded-2xl border p-3.5 sm:p-5 ${
                 isProfit
                   ? 'bg-brand-green/10 border-brand-green/25'
                   : 'bg-brand-red/10 border-brand-red/25'
@@ -686,14 +686,15 @@ export function RunResultsPanel({
 
       {detailContract && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm"
           onClick={() => setDetailContract(null)}
         >
           <div
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-bg-secondary border border-border-light shadow-2xl"
+            className="w-full sm:max-w-md max-h-[90dvh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-bg-secondary border border-border-light shadow-2xl"
             onClick={(event) =>
               event.stopPropagation()
             }
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
             <div className="sticky top-0 bg-bg-secondary/95 backdrop-blur-sm px-5 py-4 border-b border-border-default flex items-center justify-between">
               <div>
@@ -889,7 +890,7 @@ function EmptyState({
   description: string
 }) {
   return (
-    <div className="min-h-[260px] flex flex-col items-center justify-center text-center px-6">
+    <div className="min-h-[200px] sm:min-h-[260px] flex flex-col items-center justify-center text-center px-6">
       <div className="w-12 h-12 rounded-2xl bg-bg-tertiary border border-border-light flex items-center justify-center mb-4">
         <Icon className="w-5 h-5 text-text-muted" />
       </div>
@@ -917,8 +918,8 @@ function SummaryStatCard({
   valueClass?: string
 }) {
   return (
-    <div className="rounded-2xl bg-bg-tertiary border border-border-light p-3.5">
-      <div className="flex items-center gap-1.5 mb-2">
+    <div className="rounded-xl sm:rounded-2xl bg-bg-tertiary border border-border-light p-3 sm:p-3.5">
+      <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
         <Icon className="w-3.5 h-3.5 text-text-muted" />
 
         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
@@ -927,7 +928,7 @@ function SummaryStatCard({
       </div>
 
       <div
-        className={`text-lg font-bold tabular ${valueClass}`}
+        className={`text-base sm:text-lg font-bold tabular ${valueClass}`}
       >
         {value}
       </div>
@@ -945,8 +946,8 @@ function MetricBlock({
   icon: typeof Wallet
 }) {
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-1.5 mb-2">
+    <div className="p-3 sm:p-4">
+      <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
         <Icon className="w-3.5 h-3.5 text-text-muted" />
 
         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
