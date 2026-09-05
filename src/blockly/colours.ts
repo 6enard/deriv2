@@ -1,7 +1,5 @@
-// Colour system for Blockly blocks, adapted for dark-theme visibility.
-// The original deriv-com/bot palette used light-grey (#e5e5e5) block fills
-// with dark text on a light workspace. Our workspace is dark, so we use
-// darker, saturated block colours that keep white text readable.
+// Colour system for Blockly blocks, matching Deriv's official bot builder palette.
+// These are the exact hex values used by bot.deriv.com's Blockly workspace.
 
 export const Colours = {
   RootBlock: {

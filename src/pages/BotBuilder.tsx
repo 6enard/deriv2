@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2, CreditCard as EditIcon, DollarSign } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -41,6 +41,7 @@ export default function BotBuilder() {
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
+  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
   const autoRunRef = useRef(false)
 
   useEffect(() => {
@@ -474,7 +475,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-176px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-176px)] pb-12 lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden lg:pb-0 bg-bg-primary overflow-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -704,10 +705,10 @@ export default function BotBuilder() {
         </div>
 
         {/* =========================================================
-            WORKSPACE — hidden on mobile, shown on desktop
+            WORKSPACE — shown on both mobile and desktop
         ========================================================== */}
 
-        <div className="hidden lg:block relative bg-bg-tertiary lg:h-auto lg:flex-1 lg:min-h-0">
+        <div className="relative bg-bg-tertiary flex-1 min-h-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -764,8 +765,8 @@ export default function BotBuilder() {
             className="absolute inset-0 overflow-hidden"
           />
 
-          {/* Workspace title strip — desktop only */}
-          <div className="hidden lg:block absolute top-3 left-3 z-20 pointer-events-none">
+          {/* Workspace title strip */}
+          <div className="absolute top-3 left-3 z-20 pointer-events-none">
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg-secondary/90 border border-border-light shadow-sm backdrop-blur-sm">
               <FileCode2 className="w-3.5 h-3.5 text-text-muted" />
               <span className="text-[11px] font-medium text-text-secondary">
@@ -822,46 +823,61 @@ export default function BotBuilder() {
       </aside>
 
       {/* =========================================================
-          MOBILE RESULTS — full screen, no blocks
+          MOBILE RESULTS — collapsible panel, blocks stay visible
       ========================================================== */}
 
-      <div className="lg:hidden flex-1 flex flex-col bg-bg-secondary min-h-0">
-        <div className="h-11 px-4 flex items-center justify-between border-b border-border-default shrink-0">
+      <div
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-transform duration-300 ${
+          mobilePanelExpanded ? 'h-[55vh]' : 'h-[48px]'
+        }`}
+      >
+        <button
+          onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
+          className="w-full h-12 px-4 flex items-center justify-between border-b border-border-default shrink-0"
+        >
           <div className="flex items-center gap-2.5">
             <Activity className="w-4 h-4 text-text-secondary" />
-
             <div className="text-sm font-bold text-text-primary">
               Bot Performance
             </div>
           </div>
 
-          {hasResults && (
-            <span
-              className={`text-xs font-bold tabular px-2 py-1 rounded-lg ${
-                totalProfit >= 0
-                  ? 'bg-brand-green/10 text-brand-green'
-                  : 'bg-brand-red/10 text-brand-red'
-              }`}
-            >
-              {totalProfit >= 0 ? '+' : ''}
-              {totalProfit.toFixed(2)} {currency}
-            </span>
-          )}
-        </div>
+          <div className="flex items-center gap-2">
+            {hasResults && (
+              <span
+                className={`text-xs font-bold tabular px-2 py-1 rounded-lg ${
+                  totalProfit >= 0
+                    ? 'bg-brand-green/10 text-brand-green'
+                    : 'bg-brand-red/10 text-brand-red'
+                }`}
+              >
+                {totalProfit >= 0 ? '+' : ''}
+                {totalProfit.toFixed(2)} {currency}
+              </span>
+            )}
+            {mobilePanelExpanded ? (
+              <ChevronDown className="w-4 h-4 text-text-muted" />
+            ) : (
+              <ChevronUp className="w-4 h-4 text-text-muted" />
+            )}
+          </div>
+        </button>
 
-        <div className="flex-1 min-h-0">
-          <RunResultsPanel
-            tab={resultsTab}
-            onTabChange={setResultsTab}
-            runStats={runStats}
-            journal={journal}
-            journalEndRef={journalEndRef}
-            trades={trades}
-            currency={currency}
-            onClearJournal={handleClearJournal}
-            onResetStats={handleResetStats}
-          />
-        </div>
+        {mobilePanelExpanded && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <RunResultsPanel
+              tab={resultsTab}
+              onTabChange={setResultsTab}
+              runStats={runStats}
+              journal={journal}
+              journalEndRef={journalEndRef}
+              trades={trades}
+              currency={currency}
+              onClearJournal={handleClearJournal}
+              onResetStats={handleResetStats}
+            />
+          </div>
+        )}
       </div>
 
       {/* =========================================================
@@ -943,6 +959,16 @@ export default function BotBuilder() {
           }}
         />
       )}
+
+      {/* Risk disclaimer — desktop only, below results */}
+      <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-30 px-4 py-2 bg-bg-secondary/80 backdrop-blur-sm border-t border-border-default">
+        <div className="max-w-[1400px] mx-auto flex items-center gap-2">
+          <TriangleAlert className="w-3.5 h-3.5 text-brand-amber shrink-0" />
+          <p className="text-[10px] text-text-muted leading-relaxed">
+            Trading derivatives carries a high level of risk to your capital. You may lose more than your initial investment. Only trade with money you can afford to lose.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1277,9 +1303,11 @@ function EditBotModal({
   }, [symbols, fetchSymbols])
 
   // When symbols arrive (possibly async), auto-correct the market/submarket/symbol
-  // cascade so the dropdowns show valid selections without requiring a manual re-click.
+  // cascade so the dropdowns show valid selections — but only after the initial
+  // workspace values have been loaded, so we don't clobber the bot's saved market
+  // (e.g. synthetic_index) before it's been read from the workspace.
   useEffect(() => {
-    if (localSymbols.length === 0) return
+    if (localSymbols.length === 0 || !loaded) return
 
     const validMarkets = new Set(localSymbols.map((s) => s.market))
     const m = validMarkets.has(market) ? market : Array.from(validMarkets)[0] || ''
@@ -1295,7 +1323,7 @@ function EditBotModal({
     if (m !== market) setMarket(m)
     if (sm !== submarket) setSubmarket(sm)
     if (sym !== symbol) setSymbol(sym)
-  }, [localSymbols])
+  }, [localSymbols, loaded])
 
   useEffect(() => {
     const workspace = workspaceRef.current
@@ -1787,6 +1815,14 @@ function EditBotModal({
                 <span className="font-semibold text-text-primary">{symbol || '—'}</span> with a stake of{' '}
                 <span className="font-semibold text-text-primary">{stake} {selectedCurrency}</span> for{' '}
                 <span className="font-semibold text-text-primary">{duration} {durationUnitLabels[durationUnit] || 'ticks'}</span>.
+              </p>
+            </div>
+
+            {/* Risk disclaimer */}
+            <div className="rounded-xl bg-brand-amber/8 border border-brand-amber/25 px-4 py-3 flex items-start gap-2.5">
+              <TriangleAlert className="w-4 h-4 text-brand-amber shrink-0 mt-0.5" />
+              <p className="text-[11px] text-text-secondary leading-relaxed">
+                Trading derivatives carries a high level of risk to your capital and you may lose more than your initial investment. Only trade with money you can afford to lose. Past performance does not guarantee future results.
               </p>
             </div>
           </div>
