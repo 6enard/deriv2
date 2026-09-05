@@ -897,6 +897,25 @@ export default function BotBuilder() {
 
         {mobilePanelExpanded && (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {/* Stop/Run button — always visible above results content */}
+            {isRunning ? (
+              <button
+                onClick={handleStop}
+                className="mx-3 mt-2 mb-1 h-10 shrink-0 flex items-center justify-center gap-2 rounded-xl bg-brand-red text-white text-sm font-bold active:scale-[0.98] transition-transform"
+              >
+                <Square className="w-4 h-4 fill-current" />
+                STOP BOT
+              </button>
+            ) : (
+              <button
+                onClick={handleRun}
+                disabled={marketsLoading || !marketsLoaded}
+                className="mx-3 mt-2 mb-1 h-10 shrink-0 flex items-center justify-center gap-2 rounded-xl bg-brand-red text-white text-sm font-bold active:scale-[0.98] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {marketsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                {marketsLoading ? 'LOADING' : 'RUN BOT'}
+              </button>
+            )}
             <RunResultsPanel
               tab={resultsTab}
               onTabChange={setResultsTab}
