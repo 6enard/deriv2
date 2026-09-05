@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import RiskDisclaimer from './RiskDisclaimer'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { isAuthenticated, account, accountType, switchAccountType, logout } = useAuth()
@@ -195,9 +196,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <main className="flex-1 pb-20 lg:pb-0">{children}</main>
 
-      <footer className="hidden lg:block border-t border-border-default bg-bg-secondary/50 py-4">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 text-center text-[11px] text-text-muted leading-relaxed">
-          Trading derivatives and synthetic instruments may carry a high level of risk to your capital. DeriTraders is an independent third-party platform powered by the Deriv API and is not affiliated with, endorsed by, or sponsored by Deriv.
+      <footer className="hidden lg:block border-t border-border-default bg-bg-secondary/50 py-6">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+          <RiskDisclaimer compact />
+          <p className="text-center text-[11px] text-text-muted leading-relaxed">
+            Trading derivatives and synthetic instruments may carry a high level of risk to your capital. DeriTraders is an independent third-party platform powered by the Deriv API and is not affiliated with, endorsed by, or sponsored by Deriv.
+          </p>
         </div>
       </footer>
 

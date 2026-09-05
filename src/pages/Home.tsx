@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useDerivAuth } from '../hooks/useDerivAuth'
+import RiskDisclaimer from '../components/RiskDisclaimer'
 
 const marketBarItems = [
   { symbol: 'R_100', change: '+2.41%', positive: true },
@@ -1113,6 +1114,14 @@ export default function Home() {
               description="Create automated strategies using the Bot Builder."
             />
           </div>
+        </section>
+
+        {/* ===================================================
+            RISK DISCLAIMER
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28 fade-in-up">
+          <RiskDisclaimer />
         </section>
 
         {/* ===================================================
