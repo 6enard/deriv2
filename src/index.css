@@ -454,6 +454,11 @@ h1, h2, h3, h4 {
   animation-play-state: paused;
 }
 
+.mask-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
 /* ===== Vibrant gradient animations ===== */
 @keyframes gradient-shift {
   0% { background-position: 0% 50%; }

@@ -20,6 +20,29 @@ const STEPS: Omit<Step, 'status'>[] = [
 
 const STEP_DURATION_MS = 1400
 
+const TICKER_MARKETS = [
+  'Volatility 100 Index',
+  'Volatility 75 Index',
+  'Volatility 50 Index',
+  'Volatility 25 Index',
+  'Boom 1000 Index',
+  'Crash 1000 Index',
+  'Boom 500 Index',
+  'Crash 500 Index',
+  'Jump 100 Index',
+  'Jump 75 Index',
+  'Step Index',
+  'EUR/USD',
+  'GBP/USD',
+  'USD/JPY',
+  'AUD/USD',
+  'BTC/USD',
+  'ETH/USD',
+  'Gold',
+  'Silver',
+  'Oil - US Crude',
+]
+
 export default function LoadingScreen({
   error,
   onComplete,
@@ -99,6 +122,31 @@ export default function LoadingScreen({
             {error ? 'Connection could not be completed' : 'Connecting to the markets'}
           </p>
         </div>
+
+        {/* Scrolling markets ticker */}
+        {!error && (
+          <div className="mb-8 overflow-hidden fade-in-up" style={{ animationDelay: '0.15s' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-muted">
+                Live Markets
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-green pulse-glow" />
+            </div>
+            <div className="relative overflow-hidden mask-fade">
+              <div className="flex gap-6 marquee-left py-1">
+                {[...TICKER_MARKETS, ...TICKER_MARKETS].map((m, i) => (
+                  <span
+                    key={i}
+                    className="text-xs font-medium text-text-secondary whitespace-nowrap flex items-center gap-2"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-brand-red/60" />
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress bar */}
         <div className="mb-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
