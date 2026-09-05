@@ -7,6 +7,13 @@ import {
   setGlobalMarketOptions,
   workspaceToXml,
   extractTradeParams,
+  getFirstMarketValue,
+  getFirstSubmarketValue,
+  getFirstSymbolValue,
+  getFirstTradeTypeCategoryValue,
+  getFirstTradeTypeValue,
+  getFirstContractTypeValue,
+  getFirstPurchaseValue,
 } from '../blockly'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
@@ -41,7 +48,7 @@ export default function BotBuilder() {
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
-  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
+  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(true)
   const autoRunRef = useRef(false)
 
   useEffect(() => {
@@ -179,6 +186,10 @@ export default function BotBuilder() {
             }
           }
         } else {
+          const workspace = workspaceRef.current
+          if (workspace) {
+            repairDefaultTradeFields(workspace)
+          }
           showToast('success', 'Markets loaded.')
         }
 
@@ -819,8 +830,8 @@ export default function BotBuilder() {
       ========================================================== */}
 
       <div
-        className={`lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-all duration-300 ${
-          mobilePanelExpanded ? 'h-[50vh]' : 'h-[48px]'
+        className={`lg:hidden fixed left-0 right-0 bottom-16 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-all duration-300 ${
+          mobilePanelExpanded ? 'top-0' : 'h-[48px]'
         }`
         }
       >
@@ -831,7 +842,7 @@ export default function BotBuilder() {
           <div className="flex items-center gap-2.5">
             <Activity className="w-4 h-4 text-text-secondary" />
             <div className="text-sm font-bold text-text-primary">
-              Bot Performance
+              {mobilePanelExpanded ? 'Bot Performance' : 'Edit blocks'}
             </div>
           </div>
 
