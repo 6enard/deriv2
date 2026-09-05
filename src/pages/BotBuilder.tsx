@@ -843,11 +843,7 @@ export default function BotBuilder() {
       ========================================================== */}
 
       <div
-        className={`lg:hidden fixed left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-[height,transform] duration-300 ease-out ${
-          mobilePanelExpanded
-            ? ''
-            : ''
-        }`}
+        className={`lg:hidden fixed left-0 right-0 z-40 flex flex-col bg-bg-secondary border-t border-border-default shadow-2xl transition-[height,transform] duration-300 ease-out overflow-hidden`}
         style={{
           bottom: 'calc(56px + env(safe-area-inset-bottom))',
           height: mobilePanelExpanded
