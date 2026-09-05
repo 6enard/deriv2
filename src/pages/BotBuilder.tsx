@@ -459,6 +459,13 @@ export default function BotBuilder() {
     setDragOver(false)
   }, [])
 
+  // Auto-expand the mobile results panel when the bot starts running
+  useEffect(() => {
+    if (isRunning) {
+      setMobilePanelExpanded(true)
+    }
+  }, [isRunning])
+
   useEffect(() => {
     if (resultsTab === 'journal' && journalEndRef.current) {
       journalEndRef.current.scrollIntoView({

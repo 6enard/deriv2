@@ -146,6 +146,22 @@ if (!code) {
           totalStake: prev.totalStake + (data.stake ?? 0),
           totalPayout: prev.totalPayout + (data.payout ?? 0),
         }))
+
+        // Also update the trades list with the final settled profit so
+        // the transactions tab shows real P/L instead of 0.
+        setTrades((prev) => {
+          const idx = prev.findIndex((t) => t.contract_id === data.contractId)
+          if (idx < 0) return prev
+          const next = [...prev]
+          next[idx] = {
+            ...next[idx],
+            profit,
+            is_sold: true,
+            is_expired: true,
+            status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
+          }
+          return next
+        })
       },
       onTrade: (contractId: number) => {
         subscribeToContract(contractId)
