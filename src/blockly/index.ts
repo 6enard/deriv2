@@ -1558,6 +1558,15 @@ export async function loadBotXmlSafely(
 }
 
 export { setGlobalMarketOptions } from './blocks'
+export {
+  getFirstMarketValue,
+  getFirstSubmarketValue,
+  getFirstSymbolValue,
+  getFirstTradeTypeCategoryValue,
+  getFirstTradeTypeValue,
+  getFirstContractTypeValue,
+  getFirstPurchaseValue,
+} from './blocks'
 export { createBotApi } from './botApi'
 
 export type {

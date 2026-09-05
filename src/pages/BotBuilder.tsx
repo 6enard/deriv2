@@ -186,9 +186,39 @@ export default function BotBuilder() {
             }
           }
         } else {
-          const workspace = workspaceRef.current
-          if (workspace) {
-            repairDefaultTradeFields(workspace)
+          const ws = workspaceRef.current
+          if (ws) {
+            const blocks = ws.getAllBlocks(false)
+            const marketBlock = blocks.find((b) => b.type === 'trade_definition_market')
+            const tradeTypeBlock = blocks.find((b) => b.type === 'trade_definition_tradetype')
+            const contractBlock = blocks.find((b) => b.type === 'trade_definition_contracttype')
+            const purchaseBlock = blocks.find((b) => b.type === 'purchase')
+
+            if (marketBlock) {
+              const setIfEmpty = (block: Blockly.Block, field: string, value: string) => {
+                if (!block.getFieldValue(field) && value) {
+                  block.getField(field)?.setValue(value)
+                }
+              }
+              const m = getFirstMarketValue()
+              const sm = getFirstSubmarketValue(m)
+              const sym = getFirstSymbolValue(sm)
+              setIfEmpty(marketBlock, 'MARKET_LIST', m)
+              setIfEmpty(marketBlock, 'SUBMARKET_LIST', sm)
+              setIfEmpty(marketBlock, 'SYMBOL_LIST', sym)
+              if (tradeTypeBlock) {
+                const cat = getFirstTradeTypeCategoryValue()
+                const tt = getFirstTradeTypeValue(cat)
+                setIfEmpty(tradeTypeBlock, 'TRADETYPECAT_LIST', cat)
+                setIfEmpty(tradeTypeBlock, 'TRADETYPE_LIST', tt)
+                if (contractBlock) {
+                  setIfEmpty(contractBlock, 'TYPE_LIST', getFirstContractTypeValue(tt) || 'both')
+                }
+                if (purchaseBlock) {
+                  setIfEmpty(purchaseBlock, 'PURCHASE_LIST', getFirstPurchaseValue(tt) || 'CALL')
+                }
+              }
+            }
           }
           showToast('success', 'Markets loaded.')
         }
