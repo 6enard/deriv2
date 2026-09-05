@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunner } from '../hooks/useBotRunner'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, FileCode as FileCode2, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -475,7 +475,7 @@ export default function BotBuilder() {
   const currency = account?.currency || 'USD'
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-176px)] pb-12 lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden lg:pb-0 bg-bg-primary overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-64px)] lg:flex-row lg:h-[calc(100vh-105px)] lg:overflow-hidden lg:pb-0 bg-bg-primary overflow-hidden">
       {/* =========================================================
           DESKTOP / MAIN EDITOR
       ========================================================== */}
@@ -708,7 +708,7 @@ export default function BotBuilder() {
             WORKSPACE — shown on both mobile and desktop
         ========================================================== */}
 
-        <div className="relative bg-bg-tertiary flex-1 min-h-0">
+        <div className="relative bg-bg-tertiary flex-1 min-h-0 pb-14 lg:pb-0">
 
           {/* Floating zoom controls */}
           <div className="absolute right-3 bottom-4 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm">
@@ -765,15 +765,7 @@ export default function BotBuilder() {
             className="absolute inset-0 overflow-hidden"
           />
 
-          {/* Workspace title strip */}
-          <div className="absolute top-3 left-3 z-20 pointer-events-none">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg-secondary/90 border border-border-light shadow-sm backdrop-blur-sm">
-              <FileCode2 className="w-3.5 h-3.5 text-text-muted" />
-              <span className="text-[11px] font-medium text-text-secondary">
-                Strategy workspace
-              </span>
-            </div>
-          </div>
+
         </div>
       </div>
 
@@ -827,9 +819,10 @@ export default function BotBuilder() {
       ========================================================== */}
 
       <div
-        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-transform duration-300 ${
-          mobilePanelExpanded ? 'h-[55vh]' : 'h-[48px]'
-        }`}
+        className={`lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-bg-secondary border-t border-border-default shadow-2xl transition-all duration-300 ${
+          mobilePanelExpanded ? 'h-[50vh]' : 'h-[48px]'
+        }`
+        }
       >
         <button
           onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
