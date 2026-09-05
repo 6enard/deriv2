@@ -17,10 +17,59 @@ import {
   DollarSign,
   Clock,
   Layers,
+  MessageCircle,
+  Send,
+  Phone,
+  Mail,
   type LucideIcon,
 } from 'lucide-react'
 import { useDerivAuth } from '../hooks/useDerivAuth'
 import RiskDisclaimer from '../components/RiskDisclaimer'
+
+const socialLinks = [
+  {
+    label: 'WhatsApp Group',
+    href: 'https://chat.whatsapp.com/JO4DEAgjFW15ky7h01pZ41?mode=gi_t',
+    icon: MessageCircle,
+    color: 'from-[#25D366] to-[#128C7E]',
+    description: 'Join our community',
+  },
+  {
+    label: 'Telegram Channel',
+    href: 'https://t.me/deritraderslounge',
+    icon: Send,
+    color: 'from-[#0088cc] to-[#005580]',
+    description: 'Get latest signals',
+  },
+  {
+    label: 'Instagram',
+    href: 'https://www.instagram.com/odongo.fx_?igsi=MXNpeWE3cGIycm5pbA%3D%3D&utm_source=qr',
+    icon: InstagramIcon,
+    color: 'from-[#E1306C] via-[#FD1D1D] to-[#F77737]',
+    description: 'Follow our journey',
+  },
+  {
+    label: 'TikTok',
+    href: 'https://www.tiktok.com/@odongo.fx_?_r=1&_t=ZS-99SXXvSd7yr',
+    icon: TikTokIcon,
+    color: 'from-[#000000] to-[#25F4EE]',
+    description: 'Watch our content',
+  },
+  {
+    label: 'Call or Text',
+    href: 'tel:+254180557929',
+    icon: Phone,
+    color: 'from-brand-green to-brand-green-dim',
+    description: '+254 18 0557929',
+  },
+  {
+    label: 'Email',
+    href: 'mailto:odongofx@gmail.com',
+    icon: Mail,
+    color: 'from-brand-blue to-[#1e40af]',
+    description: 'odongofx@gmail.com',
+  },
+]
 
 const marketBarItems = [
   { symbol: 'R_100', change: '+2.41%', positive: true },
@@ -86,11 +135,12 @@ function StartTradingButton() {
         group relative inline-flex items-center justify-center
         gap-3 px-7 sm:px-8 py-4
         rounded-xl
-        bg-brand-red
+        bg-gradient-to-r from-brand-red via-[#ff5252] to-brand-red-dim
+        gradient-animate
         text-white
         font-semibold
-        shadow-[0_10px_35px_rgba(255,45,85,0.18)]
-        hover:shadow-[0_14px_45px_rgba(255,45,85,0.30)]
+        shadow-[0_10px_35px_rgba(255,45,85,0.25)]
+        hover:shadow-[0_14px_50px_rgba(255,45,85,0.40)]
         hover:-translate-y-0.5
         active:translate-y-0
         transition-all duration-300
@@ -165,7 +215,7 @@ export default function Home() {
             w-[900px]
             h-[650px]
             rounded-full
-            bg-brand-red/[0.035]
+            bg-gradient-to-br from-brand-red/[0.05] to-brand-amber/[0.03]
             blur-[130px]
             drift
           "
@@ -179,7 +229,7 @@ export default function Home() {
             w-[550px]
             h-[550px]
             rounded-full
-            bg-slate-200/50
+            bg-gradient-to-br from-blue-200/40 to-slate-200/30
             blur-[130px]
             drift-slow
           "
@@ -193,7 +243,7 @@ export default function Home() {
             w-[500px]
             h-[500px]
             rounded-full
-            bg-slate-200/40
+            bg-gradient-to-br from-amber-100/40 to-slate-200/30
             blur-[130px]
             float
           "
@@ -225,7 +275,7 @@ export default function Home() {
             w-[900px]
             -translate-x-1/2
             rounded-full
-            bg-brand-red/10
+            bg-gradient-to-br from-brand-red/12 to-brand-amber/5
             blur-[140px]
             drift
           "
@@ -239,7 +289,7 @@ export default function Home() {
             h-[400px]
             w-[400px]
             rounded-full
-            bg-brand-red/5
+            bg-gradient-to-br from-brand-red/8 to-brand-blue/5
             blur-[120px]
             drift-slow
           "
@@ -253,7 +303,7 @@ export default function Home() {
             h-[350px]
             w-[350px]
             rounded-full
-            bg-purple-500/5
+            bg-gradient-to-br from-brand-green/5 to-brand-blue/5
             blur-[120px]
             float
           "
@@ -372,7 +422,7 @@ export default function Home() {
               Trade smarter.
             </span>
 
-            <span className="block text-brand-red">
+            <span className="block shimmer-text">
               Move faster.
             </span>
           </h1>
@@ -1117,6 +1167,48 @@ export default function Home() {
         </section>
 
         {/* ===================================================
+            SOCIAL CONTACTS
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28 fade-in-up">
+          <SectionHeading
+            eyebrow="Connect"
+            title="Join the community"
+            description="Follow us, reach out, and stay connected across your favorite platforms."
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+            {socialLinks.map((link) => {
+              const Icon = link.icon
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target={link.href.startsWith('http') ? '_blank' : undefined}
+                  rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_50px_rgba(15,23,42,0.08)] dark:border-white/[0.07] dark:bg-white/[0.025] dark:hover:border-white/[0.12] fade-in-scale"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${link.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-text-primary">
+                        {link.label}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-text-secondary mt-0.5 truncate">
+                        {link.description}
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-300 dark:text-text-secondary/30 ml-auto group-hover:text-brand-red group-hover:translate-x-1 transition-all shrink-0" />
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ===================================================
             RISK DISCLAIMER
             =================================================== */}
 
@@ -1183,7 +1275,7 @@ export default function Home() {
             >
               Your next trade
               <br />
-              <span className="text-brand-red">
+              <span className="shimmer-text">
                 starts here.
               </span>
             </h2>
@@ -1480,15 +1572,16 @@ function ProductCard({
           featured
             ? `
               border-brand-red/20
-              bg-brand-red/[0.035]
-              dark:bg-brand-red/[0.045]
+              bg-gradient-to-br from-brand-red/[0.04] to-[#ff5252]/[0.02]
+              dark:bg-gradient-to-br dark:from-brand-red/[0.06] dark:to-[#ff5252]/[0.03]
+              glow-pulse
             `
             : `
               border-slate-200
-              bg-white
+              bg-gradient-to-br from-white to-slate-50
               hover:border-slate-300
               dark:border-white/[0.07]
-              dark:bg-white/[0.025]
+              dark:bg-gradient-to-br dark:from-white/[0.03] dark:to-white/[0.01]
               dark:hover:border-white/[0.12]
             `
         }
@@ -1503,21 +1596,21 @@ function ProductCard({
         "
       >
         <div
-          className="
+          className={`
             flex
             items-center
             justify-center
             w-11
             h-11
             rounded-xl
-            bg-slate-100
             border
-            border-slate-200
-            dark:bg-white/[0.04]
-            dark:border-white/[0.07]
-          "
+            ${featured
+              ? 'bg-gradient-to-br from-brand-red to-brand-red-dim border-brand-red/30 text-white shadow-lg'
+              : 'bg-slate-100 border-slate-200 dark:bg-white/[0.04] dark:border-white/[0.07]'
+            }
+          `}
         >
-          <Icon className="w-5 h-5 text-brand-red" />
+          <Icon className={`w-5 h-5 ${featured ? 'text-white' : 'text-brand-red'}`} />
         </div>
 
         <span
@@ -1977,7 +2070,9 @@ function PlatformStat({
       `}
     >
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-brand-red" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red/15 to-brand-amber/10">
+          <Icon className="w-4 h-4 text-brand-red" />
+        </div>
       </div>
 
       <div
@@ -1985,8 +2080,9 @@ function PlatformStat({
           text-2xl sm:text-3xl
           font-bold
           tracking-tight
-          text-slate-900
-          dark:text-text-primary
+          bg-gradient-to-r from-slate-900 to-slate-700
+          bg-clip-text text-transparent
+          dark:from-text-primary dark:to-text-secondary
         "
       >
         {prefix}{formatted}{suffix}
@@ -2005,6 +2101,26 @@ function PlatformStat({
         {label}
       </div>
     </div>
+  )
+}
+
+/* =========================================================
+   TIKTOK ICON
+   ========================================================= */
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M19.589 6.825a4.533 4.533 0 0 1-2.626-.833 4.533 4.533 0 0 1-1.726-2.383v-.088H12.42v11.819a2.594 2.594 0 0 1-2.594 2.594 2.594 2.594 0 0 1-2.594-2.594 2.594 2.594 0 0 1 2.594-2.594c.283 0 .561.046.825.137V9.498a5.689 5.689 0 0 0-.825-.06A5.689 5.689 0 0 0 3.53 15.127a5.689 5.689 0 0 0 5.688 5.689 5.689 5.689 0 0 0 5.688-5.689V9.275a7.567 7.567 0 0 0 4.428 1.425V6.825h-.06Z" />
+    </svg>
+  )
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
+    </svg>
   )
 }
 

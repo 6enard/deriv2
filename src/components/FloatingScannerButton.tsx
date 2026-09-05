@@ -142,7 +142,8 @@ export default function FloatingScannerButton() {
         onPointerCancel={handlePointerUp}
         onMouseEnter={() => setShowLabel(true)}
         onMouseLeave={() => { if (!dragging) setShowLabel(false) }}
-        className={`relative w-full h-full rounded-full bg-brand-red text-white shadow-xl flex items-center justify-center transition-transform duration-200 ${
+        style={{ touchAction: 'none' }}
+        className={`relative w-full h-full rounded-full bg-gradient-to-br from-brand-red to-brand-red-dim text-white shadow-xl flex items-center justify-center transition-transform duration-200 ${
           dragging ? 'scale-110 cursor-grabbing' : 'cursor-grab hover:scale-105 active:scale-95'
         }`}
         aria-label="Open AI Scanner"

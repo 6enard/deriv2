@@ -453,3 +453,35 @@ h1, h2, h3, h4 {
 .marquee-left-slow:hover {
   animation-play-state: paused;
 }
+
+/* ===== Vibrant gradient animations ===== */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.gradient-animate {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes shimmer-text {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer-text {
+  background: linear-gradient(90deg, #e53935 0%, #ff6b6b 25%, #ffa940 50%, #ff6b6b 75%, #e53935 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-text 4s linear infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(229, 57, 53, 0.15), 0 0 40px rgba(229, 57, 53, 0.05); }
+  50% { box-shadow: 0 0 30px rgba(229, 57, 53, 0.3), 0 0 60px rgba(229, 57, 53, 0.1); }
+}
+.glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
