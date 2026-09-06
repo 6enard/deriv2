@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Blockly from 'blockly'
 import {
   createBotApi,
@@ -7,6 +7,7 @@ import {
   type BotApi,
   type NotificationType,
   type NotifyData,
+  type TradeParams,
 } from '../blockly'
 import { useAuth } from './AuthContext'
 import { useToast } from '../components/Toast'
@@ -32,6 +33,11 @@ export interface JournalEntry {
 
 const PERSIST_XML_KEY = 'deriv_running_bot_xml'
 const PERSIST_RUNNING_KEY = 'deriv_bot_was_running'
+const PERSIST_STATS_KEY = 'deriv_bot_stats'
+const PERSIST_JOURNAL_KEY = 'deriv_bot_journal'
+const PERSIST_TRADES_KEY = 'deriv_bot_trades'
+const PERSIST_PARAMS_KEY = 'deriv_bot_params'
+const PERSIST_CODE_KEY = 'deriv_bot_code'
 
 interface BotRunnerContextValue {
   isRunning: boolean
@@ -46,9 +52,74 @@ interface BotRunnerContextValue {
   wasRunningBeforeReload: boolean
   clearWasRunning: () => void
   getSavedBotXml: () => string | null
+  getSavedBotCode: () => string | null
+  getSavedBotParams: () => TradeParams | null
+  resumeRun: (code: string, params: TradeParams) => Promise<void>
 }
 
 const BotRunnerContext = createContext<BotRunnerContextValue | null>(null)
+
+function restoreStats(): RunStats {
+  try {
+    const raw = sessionStorage.getItem(PERSIST_STATS_KEY)
+    if (!raw) return { totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 }
+    const parsed = JSON.parse(raw)
+    return {
+      totalRuns: parsed.totalRuns ?? 0,
+      wins: parsed.wins ?? 0,
+      losses: parsed.losses ?? 0,
+      totalProfit: parsed.totalProfit ?? 0,
+      totalStake: parsed.totalStake ?? 0,
+      totalPayout: parsed.totalPayout ?? 0,
+    }
+  } catch {
+    return { totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 }
+  }
+}
+
+function restoreJournal(): JournalEntry[] {
+  try {
+    const raw = sessionStorage.getItem(PERSIST_JOURNAL_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as Array<{ time: string; type: NotificationType; message: string }>
+    return parsed.map((e) => ({ time: new Date(e.time), type: e.type, message: e.message }))
+  } catch {
+    return []
+  }
+}
+
+function restoreTrades(): OpenContract[] {
+  try {
+    const raw = sessionStorage.getItem(PERSIST_TRADES_KEY)
+    if (!raw) return []
+    return JSON.parse(raw) as OpenContract[]
+  } catch {
+    return []
+  }
+}
+
+function restoreParams(): TradeParams | null {
+  try {
+    const raw = sessionStorage.getItem(PERSIST_PARAMS_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as TradeParams
+  } catch {
+    return null
+  }
+}
+
+function clearAllPersist() {
+  try {
+    sessionStorage.removeItem(PERSIST_RUNNING_KEY)
+    sessionStorage.removeItem(PERSIST_STATS_KEY)
+    sessionStorage.removeItem(PERSIST_JOURNAL_KEY)
+    sessionStorage.removeItem(PERSIST_TRADES_KEY)
+    sessionStorage.removeItem(PERSIST_PARAMS_KEY)
+    sessionStorage.removeItem(PERSIST_CODE_KEY)
+  } catch {
+    // ignore
+  }
+}
 
 export function BotRunnerProvider({ children }: { children: ReactNode }) {
   const { ws, account, refreshBalance } = useAuth()
@@ -56,10 +127,16 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   const { subscribeToContract } = useOpenContracts()
 
   const [isRunning, setIsRunning] = useState(false)
-  const [runStats, setRunStats] = useState<RunStats>({ totalRuns: 0, wins: 0, losses: 0, totalProfit: 0, totalStake: 0, totalPayout: 0 })
-  const [journal, setJournal] = useState<JournalEntry[]>([])
-  const [trades, setTrades] = useState<OpenContract[]>([])
-  const [hasRunOnce, setHasRunOnce] = useState(false)
+  const [runStats, setRunStats] = useState<RunStats>(restoreStats)
+  const [journal, setJournal] = useState<JournalEntry[]>(restoreJournal)
+  const [trades, setTrades] = useState<OpenContract[]>(restoreTrades)
+  const [hasRunOnce, setHasRunOnce] = useState(() => {
+    try {
+      return sessionStorage.getItem(PERSIST_RUNNING_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
 
   const stopRef = useRef(false)
   const settledContractIds = useRef<Set<number>>(new Set())
@@ -72,6 +149,29 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       return false
     }
   })
+
+  // Persist stats/journal/trades whenever they change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PERSIST_STATS_KEY, JSON.stringify(runStats))
+    } catch { /* ignore */ }
+  }, [runStats])
+
+  useEffect(() => {
+    try {
+      // Keep last 200 entries to avoid exceeding storage limits
+      const toStore = journal.slice(-200)
+      sessionStorage.setItem(PERSIST_JOURNAL_KEY, JSON.stringify(
+        toStore.map((e) => ({ time: e.time.toISOString(), type: e.type, message: e.message }))
+      ))
+    } catch { /* ignore */ }
+  }, [journal])
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PERSIST_TRADES_KEY, JSON.stringify(trades.slice(-100)))
+    } catch { /* ignore */ }
+  }, [trades])
 
   const clearWasRunning = useCallback(() => {
     try {
@@ -87,6 +187,18 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     } catch {
       return null
     }
+  }, [])
+
+  const getSavedBotCode = useCallback(() => {
+    try {
+      return sessionStorage.getItem(PERSIST_CODE_KEY)
+    } catch {
+      return null
+    }
+  }, [])
+
+  const getSavedBotParams = useCallback(() => {
+    return restoreParams()
   }, [])
 
   const handleRun = useCallback(async (
@@ -134,10 +246,12 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Persist the bot XML so we can resume after a full page reload
+    // Persist the bot XML, code, and params so we can resume after a full page reload
     try {
       const xml = Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace))
       sessionStorage.setItem(PERSIST_XML_KEY, xml)
+      sessionStorage.setItem(PERSIST_CODE_KEY, code)
+      sessionStorage.setItem(PERSIST_PARAMS_KEY, JSON.stringify(params))
       sessionStorage.setItem(PERSIST_RUNNING_KEY, 'true')
     } catch {
       // ignore serialization errors
@@ -234,11 +348,118 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       await botApi.cleanup().catch(() => {})
       botApiRef.current = null
       setIsRunning(false)
-      try {
-        sessionStorage.removeItem(PERSIST_RUNNING_KEY)
-      } catch {
-        // ignore
+      clearAllPersist()
+    }
+  }, [ws, account, subscribeToContract, showToast, refreshBalance])
+
+  const resumeRun = useCallback(async (code: string, params: TradeParams) => {
+    if (!ws || !account) {
+      showToast('error', 'Connect your Deriv account before running a bot.')
+      return
+    }
+
+    stopRef.current = false
+
+    try {
+      sessionStorage.setItem(PERSIST_CODE_KEY, code)
+      sessionStorage.setItem(PERSIST_PARAMS_KEY, JSON.stringify(params))
+      sessionStorage.setItem(PERSIST_RUNNING_KEY, 'true')
+    } catch {
+      // ignore
+    }
+
+    const botApi: BotApi = createBotApi(ws, account, params, {
+      onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
+        setJournal((prev) => [...prev, { time: new Date(), type, message }])
+
+        if (!data?.contractId) return
+        if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
+        if (settledContractIds.current.has(data.contractId)) return
+        settledContractIds.current.add(data.contractId)
+
+        const profit = data.profit ?? 0
+        const isWin = profit > 0
+        const isLoss = profit < 0
+
+        if (isWin) {
+          playSound('win')
+        } else if (isLoss) {
+          playSound('loss')
+        } else {
+          playSound('sold')
+        }
+
+        setRunStats((prev) => ({
+          totalRuns: prev.totalRuns + 1,
+          wins: prev.wins + (isWin ? 1 : 0),
+          losses: prev.losses + (isLoss ? 1 : 0),
+          totalProfit: prev.totalProfit + profit,
+          totalStake: prev.totalStake + (data.stake ?? 0),
+          totalPayout: prev.totalPayout + (data.payout ?? 0),
+        }))
+
+        setTrades((prev) => {
+          const idx = prev.findIndex((t) => t.contract_id === data.contractId)
+          if (idx < 0) return prev
+          const next = [...prev]
+          next[idx] = {
+            ...next[idx],
+            profit,
+            is_sold: true,
+            is_expired: true,
+            status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
+          }
+          return next
+        })
+      },
+      onTrade: (contractId: number) => {
+        subscribeToContract(contractId)
+        ws.subscribe(
+          { proposal_open_contract: 1, contract_id: contractId },
+          (data: any) => {
+            if (data.proposal_open_contract) {
+              const contract = mapOpenContract(data.proposal_open_contract)
+              setTrades((prev) => {
+                const idx = prev.findIndex((t) => t.contract_id === contract.contract_id)
+                if (idx >= 0) {
+                  const next = [...prev]
+                  next[idx] = contract
+                  return next
+                }
+                return [contract, ...prev]
+              })
+            }
+          },
+        ).catch(() => {})
+      },
+      shouldStop: () => stopRef.current,
+    })
+
+    botApiRef.current = botApi
+
+    try {
+      setIsRunning(true)
+      setHasRunOnce(true)
+      showToast('info', 'Bot resumed after page reload.')
+      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+      const fn = new AsyncFunction('Bot', code)
+      await fn(botApi)
+      showToast('success', 'Bot finished running.')
+      playSound('done')
+      refreshBalance()
+    } catch (err: unknown) {
+      if (stopRef.current) {
+        showToast('info', 'Bot stopped.')
+        playSound('done')
+      } else {
+        showToast('error', errorMessage(err, 'Bot execution failed.'))
+        playSound('error')
       }
+    } finally {
+      await botApi.cleanup().catch(() => {})
+      botApiRef.current = null
+      setIsRunning(false)
+      clearAllPersist()
     }
   }, [ws, account, subscribeToContract, showToast, refreshBalance])
 
@@ -253,6 +474,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     setTrades([])
     setHasRunOnce(false)
     settledContractIds.current = new Set()
+    clearAllPersist()
   }, [])
 
   const handleClearJournal = useCallback(() => {
@@ -267,12 +489,15 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       trades,
       hasRunOnce,
       handleRun,
+      resumeRun,
       handleStop,
       handleResetStats,
       handleClearJournal,
       wasRunningBeforeReload,
       clearWasRunning,
       getSavedBotXml,
+      getSavedBotCode,
+      getSavedBotParams,
     }}>
       {children}
     </BotRunnerContext.Provider>

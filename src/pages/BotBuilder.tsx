@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
+import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert, Lock, Clock as Unlock } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -29,7 +29,7 @@ export default function BotBuilder() {
   const moreActionsRef = useRef<HTMLDivElement | null>(null)
 
   const { showToast } = useToast()
-  const { account } = useAuth()
+  const { account, ws } = useAuth()
   const { fetchSymbols, symbols } = useMarketData()
   const fetchSymbolsRef = useRef(fetchSymbols)
   fetchSymbolsRef.current = fetchSymbols
@@ -44,12 +44,14 @@ export default function BotBuilder() {
 
   const pendingXmlRef = useRef<string | null>(null)
 
-  const [resultsTab, setResultsTab] = useState<ResultsTab>('summary')
+  const [resultsTab, setResultsTab] = useState<ResultsTab>('journal')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
   const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
+  const [blocksLocked, setBlocksLocked] = useState(true)
   const autoRunRef = useRef(false)
+  const resumeAttemptedRef = useRef(false)
 
   const {
     isRunning: globalIsRunning,
@@ -58,12 +60,15 @@ export default function BotBuilder() {
     trades,
     hasRunOnce,
     handleRun: contextHandleRun,
+    resumeRun,
     handleStop,
     handleResetStats,
     handleClearJournal,
     wasRunningBeforeReload,
     clearWasRunning,
     getSavedBotXml,
+    getSavedBotCode,
+    getSavedBotParams,
   } = useBotRunnerContext()
 
   const isRunning = globalIsRunning
@@ -102,15 +107,14 @@ export default function BotBuilder() {
       autoRunRef.current = true
     }
 
-    // If the bot was running before a page reload, restore its XML and
-    // auto-run it once markets are loaded.
+    // If the bot was running before a page reload, restore its XML
+    // so the user can see the bot. The actual resume is handled by a
+    // separate effect that calls resumeRun once ws is available.
     if (wasRunningBeforeReload) {
       const savedXml = getSavedBotXml()
       if (savedXml) {
         pendingXmlRef.current = savedXml
-        autoRunRef.current = true
       }
-      clearWasRunning()
     }
 
     const resize = () => {
@@ -135,7 +139,31 @@ export default function BotBuilder() {
       ws.dispose()
       workspaceRef.current = null
     }
-  }, [wasRunningBeforeReload, clearWasRunning, getSavedBotXml])
+  }, [wasRunningBeforeReload, getSavedBotXml])
+
+  /*
+   * Auto-resume the bot after a page reload using saved code/params.
+   * This fires once ws becomes available, independently of market loading.
+   */
+  useEffect(() => {
+    if (resumeAttemptedRef.current) return
+    if (!ws || !wasRunningBeforeReload) return
+
+    const savedCode = getSavedBotCode()
+    const savedParams = getSavedBotParams()
+
+    if (savedCode && savedParams) {
+      resumeAttemptedRef.current = true
+      clearWasRunning()
+      setMobilePanelExpanded(true)
+      setTimeout(() => {
+        void resumeRun(savedCode, savedParams)
+      }, 500)
+    } else {
+      clearWasRunning()
+      autoRunRef.current = true
+    }
+  }, [ws, wasRunningBeforeReload, clearWasRunning, getSavedBotCode, getSavedBotParams, resumeRun])
 
   /*
    * Load market data into Blockly dropdowns.
@@ -724,6 +752,36 @@ export default function BotBuilder() {
           className="relative bg-bg-tertiary flex-1 min-h-0 overflow-hidden"
           style={{ touchAction: 'none' }}
         >
+          {/* Mobile lock overlay — prevents accidental block edits while scrolling.
+              Tap the lock icon to unlock the workspace for editing. */}
+          {blocksLocked && (
+            <div
+              className="lg:hidden absolute inset-0 z-[35] flex items-center justify-center bg-bg-tertiary/40 backdrop-blur-[1px] cursor-pointer transition-opacity"
+              onClick={() => setBlocksLocked(false)}
+            >
+              <div className="flex flex-col items-center gap-2 px-5 py-4 rounded-2xl bg-bg-secondary/90 border border-border-light shadow-xl pointer-events-none">
+                <div className="w-10 h-10 rounded-xl bg-brand-amber/15 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-brand-amber" />
+                </div>
+                <span className="text-xs font-semibold text-text-secondary">Tap to unlock blocks</span>
+                <span className="text-[10px] text-text-muted text-center max-w-[200px] leading-relaxed">
+                  Blocks are locked to prevent accidental edits while scrolling
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile unlock/lock toggle button — visible when unlocked */}
+          {!blocksLocked && (
+            <button
+              onClick={() => setBlocksLocked(true)}
+              className="lg:hidden absolute top-2 left-2 z-[35] w-9 h-9 rounded-xl bg-bg-secondary/90 border border-border-light shadow-lg flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Lock blocks"
+            >
+              <Unlock className="w-4 h-4 text-brand-green" />
+            </button>
+          )}
+
           {/* Floating zoom controls — always above workspace, below results sheet */}
           <div className="absolute right-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-xl border border-border-light bg-bg-secondary/95 shadow-xl backdrop-blur-sm lg:bottom-4">
             <WorkspaceControl
