@@ -20,7 +20,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react'
 import type { OpenContract } from '../lib/types'
-import type { RunStats, JournalEntry } from '../hooks/useBotRunner'
+import type { RunStats, JournalEntry } from '../context/BotRunnerContext'
 
 export type ResultsTab = 'summary' | 'transactions' | 'journal'
 

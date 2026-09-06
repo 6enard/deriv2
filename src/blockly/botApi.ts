@@ -397,6 +397,26 @@ export function createBotApi(
       return false
     }
 
+  /*
+   * When the WebSocket drops, all server-side subscriptions are
+   * silently destroyed. The DerivWS class clears its own internal
+   * bookkeeping (sharedKeyToReqId, subIdToKey, subIdRefCount) on
+   * disconnect, but the BotApi's local subscription IDs are
+   * separate — if we don't clear them too, startTickStream() will
+   * see tickSubscriptionId still set and return early, thinking
+   * the stream is alive. The bot then hangs forever waiting for
+   * ticks that will never arrive. This is the primary cause of
+   * "bot loads but doesn't make trades" after a reconnect.
+   */
+  const statusUnsubscribe = ws.onStatusChange((status: string) => {
+    if (status === 'disconnected' || status === 'reconnecting') {
+      tickSubscriptionId = null
+      contractSubscriptionId = null
+    } else if (status === 'connected' && !disposed) {
+      void startTickStream().catch(() => {})
+    }
+  })
+
   /* =======================================================
   NOTIFICATIONS
   ======================================================= */
@@ -2352,6 +2372,7 @@ export function createBotApi(
         disposed =
           true
 
+        statusUnsubscribe()
         await cleanupSubscriptions()
       },
   }
