@@ -43,14 +43,15 @@ export default function Dashboard() {
   const [pendingUploadXml, setPendingUploadXml] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const accountId = account?.account_id
   const loadData = useCallback(async () => {
-    if (!account) return
+    if (!accountId) return
     setLoading(true)
     try {
       const [mineRes, freeRes, stratRes] = await Promise.all([
-        supabase.from('bots').select('*').eq('deriv_account_id', account.account_id).order('created_at', { ascending: false }),
+        supabase.from('bots').select('*').eq('deriv_account_id', accountId).order('created_at', { ascending: false }),
         supabase.from('bots').select('*').eq('is_free', true).order('created_at', { ascending: false }),
-        supabase.from('quick_strategies').select('*').or(`deriv_account_id.eq.${account.account_id},deriv_account_id.eq.system`).order('created_at', { ascending: false }),
+        supabase.from('quick_strategies').select('*').or(`deriv_account_id.eq.${accountId},deriv_account_id.eq.system`).order('created_at', { ascending: false }),
       ])
       if (mineRes.data) setMyBots(mineRes.data)
       if (freeRes.data) setFreeBots(freeRes.data)
@@ -60,7 +61,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [account])
+  }, [accountId])
 
   useEffect(() => {
     loadData()

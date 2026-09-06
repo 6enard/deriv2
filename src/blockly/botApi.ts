@@ -251,6 +251,40 @@ function isBarrierContract(
   ].includes(contractType)
 }
 
+/*
+ * When the workspace's contract type block is set to "both"
+ * (meaning "buy whichever side the purchase block specifies"),
+ * the generated code may still pass "both" through to
+ * Bot.purchase(). Deriv's API rejects contract_type "BOTH" as
+ * invalid, so the proposal request fails silently on every
+ * retry and the bot appears stuck "running" without trading.
+ * This maps "both" to the first concrete contract type for the
+ * given trade type, matching Deriv's own bot builder behaviour.
+ */
+const BOTH_RESOLVED: Record<string, string> = {
+  risefall: 'CALL',
+  higherlower: 'CALL',
+  touchnotouch: 'ONETOUCH',
+  endsinout: 'EXPIRYRANGE',
+  staysinout: 'RANGE',
+  matchesdiffers: 'DIGITDIFF',
+  evenodd: 'DIGITEVEN',
+  overunder: 'DIGITOVER',
+  multiplier: 'MULTUP',
+  accumulator: 'ACCU',
+}
+
+function resolveContractType(
+  rawType: string,
+  tradeType: string,
+): string {
+  const normalized = rawType.toUpperCase()
+  if (normalized === 'BOTH') {
+    return BOTH_RESOLVED[tradeType] || 'CALL'
+  }
+  return normalized
+}
+
 function decimalPlaces(
   value: number,
 ): number {
@@ -311,10 +345,13 @@ export function createBotApi(
     number(params.amount, 0)
 
   let currentContractType =
-    String(
-      params.contract_type ||
-        '',
-    ).toUpperCase()
+    resolveContractType(
+      String(
+        params.contract_type ||
+          '',
+      ),
+      String(params.trade_type || ''),
+    )
 
   let currentBarrier =
     params.barrier !==
@@ -1582,12 +1619,15 @@ export function createBotApi(
     await startTickStream()
 
     const ct =
-      String(
-        contractType ||
-          currentContractType ||
-          params.contract_type ||
-          '',
-      ).toUpperCase()
+      resolveContractType(
+        String(
+          contractType ||
+            currentContractType ||
+            params.contract_type ||
+            '',
+        ),
+        String(params.trade_type || ''),
+      )
 
     if (!ct) {
       throw new Error(
