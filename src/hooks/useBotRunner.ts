@@ -13,6 +13,7 @@ import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from './useOpenContracts'
 import { mapOpenContract, type OpenContract } from '../lib/types'
+import { playSound } from '../lib/sounds'
 
 export interface RunStats {
   totalRuns: number
@@ -138,6 +139,14 @@ if (!code) {
         const isWin = profit > 0
         const isLoss = profit < 0
 
+        if (isWin) {
+          playSound('win')
+        } else if (isLoss) {
+          playSound('loss')
+        } else {
+          playSound('sold')
+        }
+
         setRunStats((prev) => ({
           totalRuns: prev.totalRuns + 1,
           wins: prev.wins + (isWin ? 1 : 0),
@@ -189,17 +198,21 @@ if (!code) {
     try {
       setIsRunning(true)
       setHasRunOnce(true)
+      playSound('start')
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
       const fn = new AsyncFunction('Bot', code)
       await fn(botApi)
       showToast('success', 'Bot finished running.')
+      playSound('done')
       refreshBalance()
       optionsRef.current.onRunComplete?.()
     } catch (err: unknown) {
       if (stopRef.current) {
         showToast('info', 'Bot stopped.')
+        playSound('done')
       } else {
         showToast('error', errorMessage(err, 'Bot execution failed.'))
+        playSound('error')
       }
     } finally {
       // Always release tick/contract subscriptions, whether the run
