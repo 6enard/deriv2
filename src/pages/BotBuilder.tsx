@@ -49,6 +49,7 @@ export default function BotBuilder() {
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
   const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
+  const [toolboxOpen, setToolboxOpen] = useState(false)
   const autoRunRef = useRef(false)
 
   const {
@@ -75,6 +76,20 @@ export default function BotBuilder() {
   const handleRunRef = useRef(handleRun)
   handleRunRef.current = handleRun
 
+  // Toggle the full-screen mobile block-picker overlay (styled in index.css)
+  useEffect(() => {
+    containerRef.current?.classList.toggle('toolbox-open', toolboxOpen)
+  }, [toolboxOpen])
+
+  useEffect(() => {
+    if (!toolboxOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setToolboxOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [toolboxOpen])
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -84,8 +99,14 @@ export default function BotBuilder() {
     loadDefaultWorkspace(ws)
     setIsLoaded(true)
 
-    const onChange = () => {
+    const onChange = (e: Blockly.Events.Abstract) => {
       setWorkspaceModified(true)
+      // On mobile the toolbox/flyout is a full-screen overlay (see index.css).
+      // Once the person drags a block into the workspace, close it automatically
+      // so they land back on the canvas instead of the block picker.
+      if (e.type === Blockly.Events.BLOCK_CREATE) {
+        setToolboxOpen(false)
+      }
     }
 
     ws.addChangeListener(onChange)
@@ -749,6 +770,29 @@ export default function BotBuilder() {
             />
           </div>
 
+          {/* Mobile: open the block picker — the toolbox/flyout are hidden by
+              default below lg (see index.css) until this adds .toolbox-open */}
+          <button
+            onClick={() => setToolboxOpen(true)}
+            className="lg:hidden absolute left-3 bottom-3 z-30 h-11 pl-3 pr-4 rounded-xl bg-brand-red text-white text-sm font-bold flex items-center gap-2 shadow-xl shadow-brand-red/20 active:scale-[0.97] transition-transform"
+          >
+            <BlocksIcon className="w-[18px] h-[18px]" />
+            Blocks
+          </button>
+
+          {/* Mobile block picker close button — sits above the full-screen
+              toolbox/flyout overlay so it's always reachable */}
+          {toolboxOpen && (
+            <button
+              onClick={() => setToolboxOpen(false)}
+              aria-label="Close block picker"
+              className="lg:hidden fixed top-3 right-3 z-[110] w-10 h-10 rounded-full bg-bg-secondary border border-border-light shadow-2xl flex items-center justify-center text-text-primary"
+              style={{ marginTop: 'env(safe-area-inset-top)' }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Drop overlay */}
           {dragOver && (
             <div className="absolute inset-0 z-[60] bg-brand-red/10 border-2 border-dashed border-brand-red rounded-2xl flex items-center justify-center pointer-events-none backdrop-blur-[2px]">
@@ -913,25 +957,8 @@ export default function BotBuilder() {
 
         {mobilePanelExpanded && (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            {/* Stop/Run button — always visible above results content */}
-            {isRunning ? (
-              <button
-                onClick={handleStop}
-                className="mx-3 mt-2 mb-1 h-10 shrink-0 flex items-center justify-center gap-2 rounded-xl bg-brand-red text-white text-sm font-bold active:scale-[0.98] transition-transform"
-              >
-                <Square className="w-4 h-4 fill-current" />
-                STOP BOT
-              </button>
-            ) : (
-              <button
-                onClick={handleRun}
-                disabled={marketsLoading || !marketsLoaded}
-                className="mx-3 mt-2 mb-1 h-10 shrink-0 flex items-center justify-center gap-2 rounded-xl bg-brand-red text-white text-sm font-bold active:scale-[0.98] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {marketsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                {marketsLoading ? 'LOADING' : 'RUN BOT'}
-              </button>
-            )}
+            {/* Run/Stop lives in the persistent bar directly below this sheet —
+                no need to repeat it here, so results get the full sheet height. */}
             <RunResultsPanel
               tab={resultsTab}
               onTabChange={setResultsTab}
