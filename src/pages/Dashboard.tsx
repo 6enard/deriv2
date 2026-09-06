@@ -131,15 +131,12 @@ export default function Dashboard() {
       </div>
       <input ref={fileInputRef} type="file" accept=".xml" onChange={handleComputerFile} className="hidden" />
 
-      {/* Tab Bar — horizontally scrollable on mobile with edge fades to hint more content */}
-      <div className="relative mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
-          <TabButton active={activeTab === 'my-bots'} onClick={() => setActiveTab('my-bots')} icon={BotIcon} label="My Bots" count={myBots.length} />
-          <TabButton active={activeTab === 'free-bots'} onClick={() => setActiveTab('free-bots')} icon={Sparkles} label="Free Bots" count={freeBots.length} />
-          <TabButton active={activeTab === 'editor'} onClick={() => setActiveTab('editor')} icon={Code2} label="Bot Editor" />
-          <TabButton active={activeTab === 'strategy'} onClick={() => setActiveTab('strategy')} icon={Zap} label="Quick Strategy" count={strategies.length} />
-        </div>
-        <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-bg-primary to-transparent" />
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
+        <TabButton active={activeTab === 'my-bots'} onClick={() => setActiveTab('my-bots')} icon={BotIcon} label="My Bots" count={myBots.length} />
+        <TabButton active={activeTab === 'free-bots'} onClick={() => setActiveTab('free-bots')} icon={Sparkles} label="Free Bots" count={freeBots.length} />
+        <TabButton active={activeTab === 'editor'} onClick={() => setActiveTab('editor')} icon={Code2} label="Bot Editor" />
+        <TabButton active={activeTab === 'strategy'} onClick={() => setActiveTab('strategy')} icon={Zap} label="Quick Strategy" count={strategies.length} />
       </div>
 
       {loading ? (
@@ -234,7 +231,7 @@ function TabButton({ active, onClick, icon: Icon, label, count }: { active: bool
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
         active
           ? 'bg-bg-tertiary text-text-primary border border-border-light'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
@@ -266,7 +263,7 @@ function MyBotsTab({ bots, onChanged, onBotClick }: { bots: Bot[]; onChanged: ()
       </div>
 
       {bots.length === 0 ? (
-        <div className="rounded-xl bg-bg-secondary border border-border-default px-6 py-10 sm:p-12 text-center">
+        <div className="rounded-xl bg-bg-secondary border border-border-default p-12 text-center">
           <BotIcon className="w-10 h-10 text-text-muted mx-auto mb-3" />
           <p className="text-text-secondary mb-1">No bots uploaded yet.</p>
           <p className="text-sm text-text-muted">Use the shortcuts above to upload a bot from your computer or build one from scratch.</p>
@@ -330,31 +327,31 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
       </p>
 
       {bots.length === 0 ? (
-        <div className="rounded-xl bg-bg-secondary border border-border-default px-6 py-10 sm:p-12 text-center text-text-muted text-sm">
+        <div className="rounded-xl bg-bg-secondary border border-border-default p-12 text-center text-text-muted text-sm">
           No free bots available yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => (
-            <div key={bot.id} className="rounded-xl bg-bg-secondary border border-border-default p-4 sm:p-5 active:border-border-light sm:hover:border-border-light transition-colors flex flex-col">
+            <div key={bot.id} className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-amber/15 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-brand-amber/15 flex items-center justify-center">
                   {(() => {
                     const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
                     return <Icon className="w-5 h-5 text-brand-amber" />
                   })()}
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-brand-amber/15 text-brand-amber font-medium shrink-0">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-brand-amber/15 text-brand-amber font-medium">
                   {STRATEGY_LABELS[bot.strategy_type]}
                 </span>
               </div>
-              <h3 className="font-semibold mb-1 truncate">{bot.name}</h3>
-              <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1 line-clamp-2">{bot.description}</p>
+              <h3 className="font-semibold mb-1">{bot.name}</h3>
+              <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{bot.description}</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => runBot(bot)}
                   disabled={!ws || !account}
-                  className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-xl bg-brand-green text-bg-primary text-sm font-medium active:bg-brand-green-dim sm:hover:bg-brand-green-dim transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-brand-green text-bg-primary text-sm font-medium hover:bg-brand-green-dim transition-colors disabled:opacity-50"
                 >
                   <Play className="w-4 h-4" />
                   Run
@@ -362,7 +359,7 @@ function FreeBotsTab({ bots, onChanged }: { bots: Bot[]; onChanged: () => void }
                 <button
                   onClick={() => copyBot(bot)}
                   disabled={copying === bot.id}
-                  className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium active:bg-bg-hover sm:hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors disabled:opacity-50"
                 >
                   {copied === bot.id ? <Check className="w-4 h-4 text-brand-green" /> : copying === bot.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                   {copied === bot.id ? 'Copied!' : 'Copy'}
@@ -975,28 +972,27 @@ function QuickStrategyTab({ strategies, onChanged, externalShowForm, onExternalC
 function BotCard({ bot, onOpen, onDelete, showControls }: { bot: Bot; onOpen: () => void; onDelete: () => void; showControls?: boolean }) {
   const Icon = STRATEGY_ICONS[bot.strategy_type] || BotIcon
   return (
-    <div className="rounded-xl bg-bg-secondary border border-border-default p-4 sm:p-5 active:border-border-light sm:hover:border-border-light transition-colors flex flex-col">
+    <div className="rounded-xl bg-bg-secondary border border-border-default p-5 hover:border-border-light transition-colors flex flex-col">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center">
           <Icon className="w-5 h-5 text-brand-green" />
         </div>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary shrink-0">{STRATEGY_LABELS[bot.strategy_type]}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary">{STRATEGY_LABELS[bot.strategy_type]}</span>
       </div>
-      <h3 className="font-semibold mb-1 truncate">{bot.name}</h3>
-      <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1 line-clamp-2">{bot.description || 'No description provided.'}</p>
+      <h3 className="font-semibold mb-1">{bot.name}</h3>
+      <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{bot.description || 'No description provided.'}</p>
       {showControls && (
         <div className="flex items-center gap-2">
           <button
             onClick={onOpen}
-            className="flex-1 flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium active:bg-bg-hover sm:hover:bg-bg-hover transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-bg-tertiary border border-border-light text-sm font-medium hover:bg-bg-hover transition-colors"
           >
             <ArrowRight className="w-3.5 h-3.5" />
             Open
           </button>
           <button
             onClick={onDelete}
-            aria-label="Delete bot"
-            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl text-text-muted active:text-brand-red active:bg-brand-red/10 sm:hover:text-brand-red sm:hover:bg-brand-red/10 transition-colors"
+            className="p-2 rounded-xl text-text-muted hover:text-brand-red hover:bg-brand-red/10 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
