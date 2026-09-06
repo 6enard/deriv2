@@ -279,15 +279,6 @@ h1, h2, h3, h4 {
 .blocklyPathLight {
   stroke-opacity: 0.3 !important;
 }
-/* Hide scrollbar on horizontally-scrollable tab/chip rows while keeping scroll */
-.scrollbar-none {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-
 /* Mobile toolbox scrollbar */
 .blocklyToolboxDiv::-webkit-scrollbar {
   width: 4px;
