@@ -18,7 +18,7 @@ import {
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
-import { useBotRunner } from '../hooks/useBotRunner'
+import { useBotRunnerContext } from '../context/BotRunnerContext'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
 import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert } from 'lucide-react'
 
@@ -51,6 +51,30 @@ export default function BotBuilder() {
   const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
   const autoRunRef = useRef(false)
 
+  const {
+    isRunning: globalIsRunning,
+    runStats,
+    journal,
+    trades,
+    hasRunOnce,
+    handleRun: contextHandleRun,
+    handleStop,
+    handleResetStats,
+    handleClearJournal,
+    wasRunningBeforeReload,
+    clearWasRunning,
+    getSavedBotXml,
+  } = useBotRunnerContext()
+
+  const isRunning = globalIsRunning
+
+  const handleRun = useCallback(() => {
+    return contextHandleRun(workspaceRef, marketsLoaded)
+  }, [contextHandleRun, workspaceRef, marketsLoaded])
+
+  const handleRunRef = useRef(handleRun)
+  handleRunRef.current = handleRun
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -78,6 +102,17 @@ export default function BotBuilder() {
       autoRunRef.current = true
     }
 
+    // If the bot was running before a page reload, restore its XML and
+    // auto-run it once markets are loaded.
+    if (wasRunningBeforeReload) {
+      const savedXml = getSavedBotXml()
+      if (savedXml) {
+        pendingXmlRef.current = savedXml
+        autoRunRef.current = true
+      }
+      clearWasRunning()
+    }
+
     const resize = () => {
       Blockly.svgResize(ws)
     }
@@ -100,22 +135,7 @@ export default function BotBuilder() {
       ws.dispose()
       workspaceRef.current = null
     }
-  }, [])
-
-  const {
-    handleRun,
-    handleStop,
-    isRunning,
-    runStats,
-    journal,
-    trades,
-    hasRunOnce,
-    handleResetStats,
-    handleClearJournal,
-  } = useBotRunner(workspaceRef, { marketsLoaded })
-
-  const handleRunRef = useRef(handleRun)
-  handleRunRef.current = handleRun
+  }, [wasRunningBeforeReload, clearWasRunning, getSavedBotXml])
 
   /*
    * Load market data into Blockly dropdowns.

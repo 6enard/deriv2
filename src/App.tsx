@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { OpenContractsProvider } from './context/OpenContractsContext'
+import { BotRunnerProvider } from './context/BotRunnerContext'
 import { ToastProvider } from './components/Toast'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -23,6 +24,7 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
         <OpenContractsProvider>
+        <BotRunnerProvider>
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout><Home /></Layout>} />
@@ -66,6 +68,7 @@ export default function App() {
         </Routes>
         <FloatingScannerButton />
       </BrowserRouter>
+        </BotRunnerProvider>
         </OpenContractsProvider>
         </ToastProvider>
       </AuthProvider>
