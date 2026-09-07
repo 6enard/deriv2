@@ -487,6 +487,28 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     }
   }, [ws, account, subscribeToContract, showToast, refreshBalance])
 
+  // Auto-resume the bot after a page reload, regardless of which page
+  // the user lands on. This fires once when ws becomes available and
+  // there are saved code+params indicating the bot was running.
+  const autoResumeAttempted = useRef(false)
+  useEffect(() => {
+    if (autoResumeAttempted.current) return
+    if (!ws || !account) return
+    if (!wasRunningBeforeReload) return
+
+    const savedCode = getSavedBotCode()
+    const savedParams = getSavedBotParams()
+
+    if (savedCode && savedParams) {
+      autoResumeAttempted.current = true
+      clearWasRunning()
+      showToast('info', 'Resuming bot after page reload...')
+      void resumeRun(savedCode, savedParams)
+    } else {
+      clearWasRunning()
+    }
+  }, [ws, account, wasRunningBeforeReload, clearWasRunning, getSavedBotCode, getSavedBotParams, resumeRun, showToast])
+
   const handleStop = useCallback(() => {
     stopRef.current = true
     showToast('info', 'Stopping bot after current trade...')

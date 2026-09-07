@@ -29,7 +29,7 @@ export default function BotBuilder() {
   const moreActionsRef = useRef<HTMLDivElement | null>(null)
 
   const { showToast } = useToast()
-  const { account, ws } = useAuth()
+  const { account } = useAuth()
   const { fetchSymbols, symbols } = useMarketData()
   const fetchSymbolsRef = useRef(fetchSymbols)
   fetchSymbolsRef.current = fetchSymbols
@@ -51,7 +51,6 @@ export default function BotBuilder() {
   const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
   const [blocksLocked, setBlocksLocked] = useState(true)
   const autoRunRef = useRef(false)
-  const resumeAttemptedRef = useRef(false)
 
   const {
     isRunning: globalIsRunning,
@@ -60,15 +59,11 @@ export default function BotBuilder() {
     trades,
     hasRunOnce,
     handleRun: contextHandleRun,
-    resumeRun,
     handleStop,
     handleResetStats,
     handleClearJournal,
     wasRunningBeforeReload,
-    clearWasRunning,
     getSavedBotXml,
-    getSavedBotCode,
-    getSavedBotParams,
   } = useBotRunnerContext()
 
   const isRunning = globalIsRunning
@@ -108,8 +103,8 @@ export default function BotBuilder() {
     }
 
     // If the bot was running before a page reload, restore its XML
-    // so the user can see the bot. The actual resume is handled by a
-    // separate effect that calls resumeRun once ws is available.
+    // so the user can see the bot in the workspace. Auto-resume is
+    // handled by BotRunnerContext (works from any page).
     if (wasRunningBeforeReload) {
       const savedXml = getSavedBotXml()
       if (savedXml) {
@@ -140,30 +135,6 @@ export default function BotBuilder() {
       workspaceRef.current = null
     }
   }, [wasRunningBeforeReload, getSavedBotXml])
-
-  /*
-   * Auto-resume the bot after a page reload using saved code/params.
-   * This fires once ws becomes available, independently of market loading.
-   */
-  useEffect(() => {
-    if (resumeAttemptedRef.current) return
-    if (!ws || !wasRunningBeforeReload) return
-
-    const savedCode = getSavedBotCode()
-    const savedParams = getSavedBotParams()
-
-    if (savedCode && savedParams) {
-      resumeAttemptedRef.current = true
-      clearWasRunning()
-      setMobilePanelExpanded(true)
-      setTimeout(() => {
-        void resumeRun(savedCode, savedParams)
-      }, 500)
-    } else {
-      clearWasRunning()
-      autoRunRef.current = true
-    }
-  }, [ws, wasRunningBeforeReload, clearWasRunning, getSavedBotCode, getSavedBotParams, resumeRun])
 
   /*
    * Load market data into Blockly dropdowns.
