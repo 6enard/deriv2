@@ -1325,6 +1325,30 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD']
 
 type RawSymbol = import('../hooks/useMarketData').RawSymbol
 
+function setOrCreateNumberInput(
+  parentBlock: Blockly.Block,
+  inputName: string,
+  value: string,
+) {
+  if (!value) return
+
+  const input = parentBlock.getInput(inputName)
+  if (!input) return
+
+  let childBlock = parentBlock.getInputTargetBlock(inputName)
+
+  if (!childBlock) {
+    const ws = parentBlock.workspace
+    childBlock = ws.newBlock('math_number') as Blockly.Block
+    const conn = input.connection
+    if (conn && childBlock.outputConnection) {
+      conn.connect(childBlock.outputConnection)
+    }
+  }
+
+  childBlock.getField('NUM')?.setValue(value)
+}
+
 function EditBotModal({
   workspaceRef,
   currency,
@@ -1514,20 +1538,11 @@ function EditBotModal({
 
     const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
     if (optionsBlock) {
-      const durBlock = optionsBlock.getInputTargetBlock('DURATION')
-      durBlock?.getField('NUM')?.setValue(duration)
-
-      const amtBlock = optionsBlock.getInputTargetBlock('AMOUNT')
-      amtBlock?.getField('NUM')?.setValue(stake)
-
-      const predBlock = optionsBlock.getInputTargetBlock('PREDICTION')
-      predBlock?.getField('NUM')?.setValue(prediction)
-
-      const barBlock = optionsBlock.getInputTargetBlock('BARRIER')
-      barBlock?.getField('NUM')?.setValue(barrier)
-
-      const bar2Block = optionsBlock.getInputTargetBlock('SECOND_BARRIER')
-      bar2Block?.getField('NUM')?.setValue(secondBarrier)
+      setOrCreateNumberInput(optionsBlock, 'DURATION', duration)
+      setOrCreateNumberInput(optionsBlock, 'AMOUNT', stake)
+      setOrCreateNumberInput(optionsBlock, 'PREDICTION', prediction)
+      setOrCreateNumberInput(optionsBlock, 'BARRIER', barrier)
+      setOrCreateNumberInput(optionsBlock, 'SECOND_BARRIER', secondBarrier)
 
       optionsBlock.getField('DURATIONTYPE_LIST')?.setValue(durationUnit)
       optionsBlock.getField('CURRENCY_LIST')?.setValue(selectedCurrency)
