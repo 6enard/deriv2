@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
-import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon, Lock, User, Repeat } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon, Lock, User } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Footer from './Footer'
 
@@ -216,31 +216,6 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Mobile bottom navigation */}
       {isAuthenticated && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-secondary/90 backdrop-blur-xl border-t border-border-default">
-          {hasRealAccount && (
-            <div className="flex items-center justify-center gap-2 pt-1.5 pb-0.5">
-              <button
-                onClick={handleToggleAccountType}
-                disabled={switching}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                  accountType === 'demo' ? 'bg-brand-red text-white' : 'text-text-secondary'
-                }`}
-              >
-                <Repeat className="w-3 h-3" />
-                {accountType === 'demo' ? 'Demo' : 'Real'}
-                <span className="opacity-60">·</span>
-                <span className="opacity-60">{account?.balance.toFixed(0)} {account?.currency}</span>
-              </button>
-              <button
-                onClick={handleToggleAccountType}
-                disabled={switching}
-                className={`px-2 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                  accountType === 'real' ? 'bg-brand-red text-white' : 'text-text-secondary'
-                }`}
-              >
-                {accountType === 'demo' ? 'Real' : 'Demo'}
-              </button>
-            </div>
-          )}
           <div className="flex items-center justify-around h-14 px-1 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon
