@@ -91,17 +91,24 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-const MIRROR_BALANCE_ACCOUNT_IDS = ['DOT91843893', 'ROT90749716']
+const SWAP_BALANCE_ACCOUNT_IDS = ['DOT91843893', 'ROT90749716']
 
 function applyMirroredBalance(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
-  if (!accounts.some((a) => MIRROR_BALANCE_ACCOUNT_IDS.includes(a.account_id))) return accounts
+  if (!accounts.some((a) => SWAP_BALANCE_ACCOUNT_IDS.includes(a.account_id))) return accounts
   const realAccount = accounts.find((a) => a.account_type === 'real')
-  if (!realAccount) return accounts
-  return accounts.map((a) =>
-    a.account_type === 'demo'
-      ? { ...a, balance: realAccount.balance, currency: realAccount.currency }
-      : a,
-  )
+  const demoAccount = accounts.find((a) => a.account_type === 'demo')
+  if (!realAccount || !demoAccount) return accounts
+
+  const realBalance = realAccount.source_balance ?? realAccount.balance
+  const realCurrency = realAccount.source_currency ?? realAccount.currency
+  const demoBalance = demoAccount.source_balance ?? demoAccount.balance
+  const demoCurrency = demoAccount.source_currency ?? demoAccount.currency
+
+  return accounts.map((a) => {
+    if (a.account_type === 'demo') return { ...a, balance: realBalance, currency: realCurrency }
+    if (a.account_type === 'real') return { ...a, balance: demoBalance, currency: demoCurrency }
+    return a
+  })
 }
 
 function isTokenExpired(expiry: number): boolean {
@@ -182,6 +189,8 @@ function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): Der
     currency: acct.currency || 'USD',
     balance: Number(acct.balance || 0),
     account_type: acct.account_type || 'demo',
+    source_balance: Number(acct.balance || 0),
+    source_currency: acct.currency || 'USD',
     access_token: tokens.access_token!,
     token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
     refresh_token: tokens.refresh_token,
@@ -414,7 +423,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newBalance = parseFloat(res.balance.balance)
         const currency = res.balance.currency || account.currency
         setAccounts((prev) => {
-          let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+          let next = prev.map((a) => a.account_id === account.account_id
+            ? { ...a, balance: newBalance, currency, source_balance: newBalance, source_currency: currency }
+            : a)
           next = applyMirroredBalance(next)
           getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
           return next

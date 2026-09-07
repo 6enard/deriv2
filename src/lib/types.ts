@@ -10,6 +10,8 @@ export interface DerivSessionAccount extends DerivAccount {
   token_expiry: number
   ws_url?: string
   refresh_token?: string
+  source_balance?: number
+  source_currency?: string
 }
 
 export interface SymbolInfo {
