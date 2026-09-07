@@ -13,7 +13,7 @@ type PendingRequest = {
 }
 
 const REQUEST_TIMEOUT_MS = 15000
-const SUBSCRIPTION_TIMEOUT_MS = 30000
+const SUBSCRIPTION_TIMEOUT_MS = 10000
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_DELAY_MS = 30000
 
@@ -392,7 +392,7 @@ export class DerivWS {
           }
         }
         if (key) this.sharedKeyToReqId.delete(key)
-        await new Promise((r) => setTimeout(r, isTimeout ? 1000 : 300))
+        await new Promise((r) => setTimeout(r, isTimeout ? 500 : 300))
         return this.sendSubscribe(request, callback, key, attempt + 1)
       }
 

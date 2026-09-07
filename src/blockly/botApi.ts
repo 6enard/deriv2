@@ -617,7 +617,7 @@ export function createBotApi(
             // best effort
           }
 
-          const delay = Math.min(500 * (attempt + 1), 3000)
+          const delay = Math.min(200 * (attempt + 1), 1500)
           await sleep(delay)
         } else {
           writeConsole(
@@ -2023,7 +2023,7 @@ export function createBotApi(
 
         // Retryable (connection drop, timeout, etc.) — wait
         // and try again. The bot should never die on its own.
-        const delay = Math.min(attempt * 2, 10)
+        const delay = Math.min(attempt, 5)
         notify(
           'warn',
           'Purchase attempt ' +

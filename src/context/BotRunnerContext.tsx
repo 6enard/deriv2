@@ -344,9 +344,9 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
         } catch (err: unknown) {
           if (stopRef.current) break
           const msg = errorMessage(err, 'Bot execution failed.')
-          showToast('error', `${msg} — restarting in 5s...`)
+          showToast('error', `${msg} — restarting in 2s...`)
           playSound('error')
-          await new Promise<void>((resolve) => setTimeout(resolve, 5000))
+          await new Promise<void>((resolve) => setTimeout(resolve, 2000))
         }
       }
 
@@ -464,9 +464,9 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
         } catch (err: unknown) {
           if (stopRef.current) break
           const msg = errorMessage(err, 'Bot execution failed.')
-          showToast('error', `${msg} — restarting in 5s...`)
+          showToast('error', `${msg} — restarting in 2s...`)
           playSound('error')
-          await new Promise<void>((resolve) => setTimeout(resolve, 5000))
+          await new Promise<void>((resolve) => setTimeout(resolve, 2000))
         }
       }
 
