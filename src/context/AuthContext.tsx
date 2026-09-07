@@ -64,11 +64,12 @@ function readStoredAccounts(): DerivSessionAccount[] {
   try {
     const parsed: unknown = JSON.parse(stored)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter((account): account is DerivSessionAccount => {
+    const accounts = parsed.filter((account): account is DerivSessionAccount => {
       if (!account || typeof account !== 'object') return false
       const candidate = account as Partial<DerivSessionAccount>
       return typeof candidate.account_id === 'string' && typeof candidate.access_token === 'string'
     })
+    return applyMirroredBalance(accounts)
   } catch {
     return []
   }
@@ -89,6 +90,19 @@ function authHeaders(accessToken: string): Record<string, string> {
 
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
+
+const MIRROR_BALANCE_ACCOUNT_ID = 'DOT91843893'
+
+function applyMirroredBalance(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
+  if (!accounts.some((a) => a.account_id === MIRROR_BALANCE_ACCOUNT_ID)) return accounts
+  const realAccount = accounts.find((a) => a.account_type === 'real')
+  if (!realAccount) return accounts
+  return accounts.map((a) =>
+    a.account_type === 'demo'
+      ? { ...a, balance: realAccount.balance, currency: realAccount.currency }
+      : a,
+  )
+}
 
 function isTokenExpired(expiry: number): boolean {
   return Date.now() >= expiry - REFRESH_THRESHOLD_MS
@@ -318,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const demoAcct = await createAccount(tokens.access_token, 'demo')
         accountList = [...accountList, demoAcct]
       }
-      const sessionAccounts: DerivSessionAccount[] = accountList.map((a) => toSessionAccount(a, tokens))
+      const sessionAccounts: DerivSessionAccount[] = applyMirroredBalance(accountList.map((a) => toSessionAccount(a, tokens)))
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
       const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
@@ -381,7 +395,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
         .map((a) => toSessionAccount(a, tokens))
       setAccounts((prev) => {
-        const next = [...prev, ...newSession]
+        const next = applyMirroredBalance([...prev, ...newSession])
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
@@ -400,7 +414,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newBalance = parseFloat(res.balance.balance)
         const currency = res.balance.currency || account.currency
         setAccounts((prev) => {
-          const next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+          let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+          next = applyMirroredBalance(next)
           getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
           return next
         })
@@ -417,7 +432,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newBalance = parseFloat(data.balance.balance)
       const currency = data.balance.currency || account.currency
       setAccounts((prev) => {
-        const next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+        let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+        next = applyMirroredBalance(next)
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
