@@ -638,7 +638,7 @@ export function RunResultsPanel({
             ) : (
               <>
                 <div className="space-y-1">
-                  {[...journal].reverse().map((entry, index) => {
+                  {journal.map((entry, index) => {
                     const dotClass =
                       entry.type === 'success'
                         ? 'bg-brand-green'

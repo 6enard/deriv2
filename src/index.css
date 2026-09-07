@@ -293,27 +293,30 @@ h1, h2, h3, h4 {
 .blocklyBlock[type="trade_definition"] .blocklyPath {
   fill: #3a3d44 !important;
 }
-/* Dropdown fields: white background with black text in both themes */
+/* Dropdown fields: dark semi-transparent background with white text */
 .blocklyDropdownText {
-  fill: #000 !important;
+  fill: #fff !important;
+  font-weight: 600 !important;
 }
 .blocklyDropdownDiv {
-  background-color: #ffffff !important;
-  border: 1px solid #ccc !important;
+  background-color: #1a1c23 !important;
+  border: 1px solid #3a3d44 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
 }
 .blocklyDropdownDiv .goog-menuitem-content {
-  color: #000 !important;
+  color: #f0f1f5 !important;
 }
 .blocklyDropdownDiv .goog-menuitem-highlight {
-  background-color: #e8e8e8 !important;
+  background-color: #2a2d36 !important;
 }
 /* Dropdown field background on the block itself */
 .blocklyEditableText > rect {
-  fill: #ffffff !important;
+  fill: rgba(255,255,255,0.13) !important;
   fill-opacity: 1 !important;
 }
 .blocklyEditableText > text {
-  fill: #000 !important;
+  fill: #fff !important;
+  font-weight: 600 !important;
 }
 /* Non-editable text fields on blocks (labels) keep white text */
 .blocklyNonEditableText > text {
@@ -432,6 +435,22 @@ h1, h2, h3, h4 {
   fill: #1a1a1a !important;
 }
 :root.light .blocklyDropdownText {
+  fill: #1a1a1a !important;
+}
+:root.light .blocklyDropdownDiv {
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+}
+:root.light .blocklyDropdownDiv .goog-menuitem-content {
+  color: #1a1a1a !important;
+}
+:root.light .blocklyDropdownDiv .goog-menuitem-highlight {
+  background-color: #f2f3f5 !important;
+}
+:root.light .blocklyEditableText > rect {
+  fill: rgba(0,0,0,0.06) !important;
+}
+:root.light .blocklyEditableText > text {
   fill: #1a1a1a !important;
 }
 :root.light .blocklyZoom {
