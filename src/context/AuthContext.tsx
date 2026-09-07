@@ -8,6 +8,7 @@ const ACCOUNTS_KEY = 'deriv_accounts'
 const SELECTED_ACCOUNT_KEY = 'deriv_selected_account'
 const ACCOUNT_TYPE_KEY = 'deriv_account_type'
 const REMEMBER_ME_KEY = 'deriv_remember_me'
+const FORCE_LOGIN_KEY = 'deriv_force_login'
 
 type AccountType = 'demo' | 'real'
 
@@ -222,7 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async () => {
     setError(null)
-    const authUrl = await buildAuthUrl()
+    const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === 'true'
+    sessionStorage.removeItem(FORCE_LOGIN_KEY)
+    const authUrl = await buildAuthUrl(forceLogin)
     window.location.assign(authUrl)
   }, [])
 
@@ -247,6 +250,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
     setRememberMeState(false)
     clearOAuthState()
+    try {
+      sessionStorage.setItem(FORCE_LOGIN_KEY, 'true')
+    } catch { /* ignore */ }
   }, [ws])
 
   const ensureValidToken = useCallback(async (acct: DerivSessionAccount): Promise<DerivSessionAccount> => {

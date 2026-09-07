@@ -17,7 +17,7 @@ function toBase64Url(buffer: ArrayBuffer): string {
   return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
 }
 
-export async function buildAuthUrl(): Promise<string> {
+export async function buildAuthUrl(forceLogin = false): Promise<string> {
   const state = generateRandomString(32)
   const verifier = generateRandomString(64)
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
@@ -35,6 +35,10 @@ export async function buildAuthUrl(): Promise<string> {
     code_challenge_method: 'S256',
     state,
   })
+
+  if (forceLogin) {
+    params.set('prompt', 'login')
+  }
 
   return `https://auth.deriv.com/oauth2/auth?${params.toString()}`
 }

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useDerivAuth } from '../hooks/useDerivAuth'
 import RiskDisclaimer from '../components/RiskDisclaimer'
+import DepositGuide from '../components/DepositGuide'
 
 const socialLinks = [
   {
@@ -1205,6 +1206,22 @@ export default function Home() {
                 </a>
               )
             })}
+          </div>
+        </section>
+
+        {/* ===================================================
+            HOW TO DEPOSIT
+            =================================================== */}
+
+        <section className="mt-20 sm:mt-28 fade-in-up">
+          <SectionHeading
+            eyebrow="Getting started"
+            title="How to deposit funds."
+            description="Fund your Deriv account to start trading with real money. Follow these simple steps."
+          />
+
+          <div className="mt-8">
+            <DepositGuide defaultExpanded />
           </div>
         </section>
 
