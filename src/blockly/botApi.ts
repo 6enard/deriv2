@@ -414,6 +414,9 @@ export function createBotApi(
       contractSubscriptionId = null
     } else if (status === 'connected' && !disposed) {
       void startTickStream().catch(() => {})
+      if (openContractId !== null) {
+        void reSubscribeContract(openContractId).catch(() => {})
+      }
     }
   })
 
@@ -1465,6 +1468,57 @@ export function createBotApi(
     )
   }
 
+  async function reSubscribeContract(
+    contractId: number,
+  ): Promise<void> {
+    if (disposed || contractSubscriptionId) {
+      return
+    }
+
+    try {
+      const result =
+        await ws.subscribe(
+          {
+            proposal_open_contract: 1,
+            contract_id: contractId,
+          },
+          (data: any) => {
+            const contract =
+              data?.proposal_open_contract
+
+            if (contract) {
+              handleSettlement(
+                contract,
+              )
+            }
+          },
+        )
+
+      const subscriptionId =
+        result.data?.subscription
+          ?.id
+
+      if (subscriptionId) {
+        contractSubscriptionId =
+          String(
+            subscriptionId,
+          )
+      }
+
+      if (
+        result.data
+          ?.proposal_open_contract
+      ) {
+        handleSettlement(
+          result.data
+            .proposal_open_contract,
+        )
+      }
+    } catch {
+      // Will be retried by the polling loop in waitForContractSettlement.
+    }
+  }
+
   async function waitForContractSettlement(
     contractId: number,
   ): Promise<void> {
@@ -1519,21 +1573,52 @@ export function createBotApi(
         'warn',
         'Contract subscription failed; using polling fallback.',
       )
+    }
 
-      /*
-       * Polling fallback — poll indefinitely until the contract
-       * settles or the user stops the bot.
-       */
-      while (
-        openContractId !==
-          null &&
-        openContractId ===
-          contractId
+    /*
+     * Active polling loop — periodically checks contract status
+     * even when a subscription is active. This is the critical
+     * fix: if the WebSocket drops and reconnects, the subscription
+     * is silently destroyed and contractSubscriptionId is cleared
+     * by the status change handler. Without this polling loop,
+     * the passive wait below would spin forever because nobody
+     * re-subscribes and nobody calls handleSettlement. The poll
+     * both re-subscribes (via reSubscribeContract) and directly
+     * checks the contract status as a belt-and-suspenders fallback.
+     */
+    let pollInterval = 0
+
+    while (
+      openContractId ===
+        contractId
+    ) {
+      if (
+        shouldStop()
       ) {
+        return
+      }
+
+      await sleep(250)
+
+      if (
+        openContractId ===
+        null
+      ) {
+        return
+      }
+
+      pollInterval += 1
+
+      // Every ~5 seconds (20 * 250ms), poll the contract status
+      // and re-subscribe if the subscription was lost.
+      if (pollInterval % 20 === 0) {
         if (
-          shouldStop()
+          !contractSubscriptionId &&
+          !disposed
         ) {
-          return
+          void reSubscribeContract(
+            contractId,
+          ).catch(() => {})
         }
 
         try {
@@ -1554,42 +1639,8 @@ export function createBotApi(
             )
           }
         } catch {
-          writeConsole(
-            'warn',
-            'Unable to read contract status; will retry.',
-          )
+          // Connection may still be down — will retry next cycle.
         }
-
-        if (
-          openContractId ===
-          null
-        ) {
-          return
-        }
-
-        await sleep(2000)
-      }
-    }
-
-    // Wait for settlement — no timeout. The bot should keep
-    // running until the contract settles or the user stops it.
-    while (
-      openContractId ===
-        contractId
-    ) {
-      if (
-        shouldStop()
-      ) {
-        return
-      }
-
-      await sleep(250)
-
-      if (
-        openContractId ===
-        null
-      ) {
-        return
       }
     }
 

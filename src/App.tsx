@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import RequireAdmin from './components/RequireAdmin'
 import FloatingScannerButton from './components/FloatingScannerButton'
 import FloatingBotStatus from './components/FloatingBotStatus'
+import NavigationGuard from './components/NavigationGuard'
 import Home from './pages/Home'
 import CallbackPage from './pages/CallbackPage'
 import Dashboard from './pages/Dashboard'
@@ -67,6 +68,7 @@ export default function App() {
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <NavigationGuard />
         <FloatingScannerButton />
         <FloatingBotStatus />
       </BrowserRouter>

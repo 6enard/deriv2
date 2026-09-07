@@ -1,13 +1,15 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon } from 'lucide-react'
+import { useBotRunnerContext } from '../context/BotRunnerContext'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon, Lock } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Footer from './Footer'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { isAuthenticated, account, accountType, switchAccountType, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const { isRunning: botRunning } = useBotRunnerContext()
   const location = useLocation()
   const navigate = useNavigate()
   const [switching, setSwitching] = useState(false)
@@ -77,6 +79,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   {navItems.map((item) => {
                     const Icon = item.icon
                     const active = location.pathname === item.to
+                    const locked = botRunning && !active
                     return (
                       <Link
                         key={item.to}
@@ -84,11 +87,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                         className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           active
                             ? 'text-text-primary bg-bg-tertiary'
-                            : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
+                            : locked
+                              ? 'text-text-muted cursor-not-allowed'
+                              : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50'
                         }`}
                       >
                         <Icon className={`w-4 h-4 transition-transform ${active ? 'scale-110' : ''}`} />
                         {item.label}
+                        {locked && <Lock className="w-3 h-3 opacity-50" />}
                         {active && (
                           <span className="absolute -bottom-px left-3 right-3 h-0.5 rounded-full bg-brand-red" />
                         )}
@@ -205,6 +211,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {navItems.map((item) => {
               const Icon = item.icon
               const active = location.pathname === item.to
+              const locked = botRunning && !active
               return (
                 <Link
                   key={item.to}
@@ -212,7 +219,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                   className={`flex flex-col items-center justify-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
                     active
                       ? 'text-brand-red'
-                      : 'text-text-secondary hover:text-text-primary'
+                      : locked
+                        ? 'text-text-muted cursor-not-allowed'
+                        : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   <Icon className={`w-5 h-5 ${active ? 'scale-110' : ''} transition-transform`} />
