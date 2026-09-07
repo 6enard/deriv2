@@ -260,7 +260,7 @@ export class DerivWS {
    */
   async sendWithRetry(
     request: Record<string, unknown>,
-    maxRetries = 3,
+    maxRetries = 6,
   ): Promise<any> {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const res = await this.send(request)
@@ -268,14 +268,14 @@ export class DerivWS {
         const msg = String(res.error.message || '')
         const isRateLimit = /rate.?limit|too many|RateLimit/i.test(msg)
         if (isRateLimit && attempt < maxRetries) {
-          const delay = Math.min(2000 * Math.pow(2, attempt), 10000)
+          const delay = Math.min(3000 * Math.pow(1.5, attempt), 30000)
           await new Promise((r) => setTimeout(r, delay))
           continue
         }
       }
       return res
     }
-    return { error: { message: 'Rate limit exceeded after retries' } }
+    return { error: { message: 'Rate limit exceeded' } }
   }
 
   async subscribe(

@@ -72,10 +72,9 @@ export default function History() {
       if (res.error) {
         const msg = res.error.message || 'Failed to load closed trades'
         if (/rate.?limit|too many|RateLimit/i.test(msg)) {
-          setError('Rate limit reached. Please wait a few seconds and try again.')
-        } else {
-          setError(msg)
+          return
         }
+        setError(msg)
         return
       }
       if (res.profit_table?.transactions) {
@@ -105,10 +104,9 @@ export default function History() {
     } catch (err) {
       const msg = errorMessage(err, 'Failed to load closed trades')
       if (/rate.?limit|too many|RateLimit/i.test(msg)) {
-        setError('Rate limit reached. Please wait a few seconds and try again.')
-      } else {
-        setError(msg)
+        return
       }
+      setError(msg)
     }
   }, [ws, dateFrom, dateTo, closedTrades])
 
@@ -131,10 +129,9 @@ export default function History() {
       if (res.error) {
         const msg = res.error.message || 'Failed to load statement'
         if (/rate.?limit|too many|RateLimit/i.test(msg)) {
-          setError('Rate limit reached. Please wait a few seconds and try again.')
-        } else {
-          setError(msg)
+          return
         }
+        setError(msg)
         return
       }
       if (res.statement?.transactions) {
@@ -154,7 +151,11 @@ export default function History() {
         setHasMore(false)
       }
     } catch (err) {
-      setError(errorMessage(err, 'Failed to load statement'))
+      const msg = errorMessage(err, 'Failed to load statement')
+      if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+        return
+      }
+      setError(msg)
     }
   }, [ws, dateFrom, dateTo, statement])
 
@@ -166,7 +167,11 @@ export default function History() {
       await refreshPortfolio()
       await loadClosedTrades(0, false)
     } catch (err) {
-      setError(errorMessage(err, 'Failed to load history'))
+      const msg = errorMessage(err, 'Failed to load history')
+      if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+        return
+      }
+      setError(msg)
     } finally {
       setLoading(false)
       setRefreshing(false)

@@ -62,10 +62,9 @@ export default function Portfolio() {
     } catch (err) {
       const msg = errorMessage(err, 'Failed to load portfolio data')
       if (/rate.?limit|too many|RateLimit/i.test(msg)) {
-        setError('Rate limit reached. Please wait a few seconds and try again.')
-      } else {
-        setError(msg)
+        return
       }
+      setError(msg)
     } finally {
       setLoading(false)
       setRefreshing(false)

@@ -124,11 +124,14 @@ export function RunResultsPanel({
   }
 
   const downloadJournalTxt = () => {
+    const pad = (n: number) => String(n).padStart(2, '0')
     const text = journal
-      .map(
-        (entry) =>
-          `[${entry.time.toLocaleString()}] ${entry.type.toUpperCase()} — ${entry.message}`,
-      )
+      .map((entry) => {
+        const d = entry.time
+        const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+        const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+        return `${entry.message}\n${dateStr} | ${timeStr} GMT`
+      })
       .join('\n')
 
     triggerDownload(
@@ -634,22 +637,27 @@ export function RunResultsPanel({
                             ? 'bg-brand-amber'
                             : 'bg-brand-blue'
 
+                    const pad = (n: number) => String(n).padStart(2, '0')
+                    const d = entry.time
+                    const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+                    const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+
                     return (
                       <div
                         key={index}
-                        className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 hover:bg-bg-tertiary transition-colors"
+                        className="rounded-xl px-3 py-2.5 hover:bg-bg-tertiary transition-colors"
                       >
-                        <span
-                          className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`}
-                        />
-
-                        <span className="text-[10px] text-text-muted tabular shrink-0 pt-0.5">
-                          {entry.time.toLocaleTimeString()}
-                        </span>
-
-                        <span className="text-xs leading-relaxed text-text-secondary min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`}
+                          />
+                          <span className="text-[10px] text-text-muted tabular shrink-0">
+                            {dateStr} | {timeStr}
+                          </span>
+                        </div>
+                        <div className="text-xs leading-relaxed text-text-secondary pl-3.5">
                           {entry.message}
-                        </span>
+                        </div>
                       </div>
                     )
                   })}
