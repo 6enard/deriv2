@@ -146,10 +146,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                         onClick={() => setAccountMenuOpen(!accountMenuOpen)}
                         className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-border-light bg-bg-tertiary hover:border-brand-red transition-colors"
                       >
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-red to-brand-red-dim flex items-center justify-center text-white text-xs font-bold">
-                          {account.account_id.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex flex-col items-start leading-tight">
+                        <div className="flex flex-col items-start leading-tight pl-1">
                           <span className="text-xs font-semibold tabular">
                             {account.balance.toFixed(2)} {account.currency}
                           </span>
