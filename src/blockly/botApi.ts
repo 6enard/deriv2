@@ -1468,12 +1468,6 @@ export function createBotApi(
   async function waitForContractSettlement(
     contractId: number,
   ): Promise<void> {
-    const timeoutMs =
-      120000
-
-    const started =
-      Date.now()
-
     try {
       const result =
         await ws.subscribe(
@@ -1527,16 +1521,14 @@ export function createBotApi(
       )
 
       /*
-       * Polling fallback.
+       * Polling fallback — poll indefinitely until the contract
+       * settles or the user stops the bot.
        */
       while (
         openContractId !==
           null &&
         openContractId ===
-          contractId &&
-        Date.now() -
-            started <
-          timeoutMs
+          contractId
       ) {
         if (
           shouldStop()
@@ -1561,10 +1553,10 @@ export function createBotApi(
               response.proposal_open_contract,
             )
           }
-        } catch (pollError) {
+        } catch {
           writeConsole(
             'warn',
-            'Unable to read contract status.',
+            'Unable to read contract status; will retry.',
           )
         }
 
@@ -1575,16 +1567,15 @@ export function createBotApi(
           return
         }
 
-        await sleep(1000)
+        await sleep(2000)
       }
     }
 
+    // Wait for settlement — no timeout. The bot should keep
+    // running until the contract settles or the user stops it.
     while (
       openContractId ===
-        contractId &&
-      Date.now() -
-          started <
-        timeoutMs
+        contractId
     ) {
       if (
         shouldStop()
@@ -1602,19 +1593,6 @@ export function createBotApi(
       }
     }
 
-    if (
-      openContractId ===
-      contractId
-    ) {
-      notify(
-        'warn',
-        'Contract settlement timed out.',
-        {
-          event: 'info',
-          contractId,
-        },
-      )
-    }
   }
 
   /* =======================================================
@@ -1731,11 +1709,13 @@ export function createBotApi(
     let lastError:
       unknown = null
 
-    for (
-      let attempt = 1;
-      attempt <= 3;
+    let attempt = 0
+
+    // Retry indefinitely on connection errors — the bot should
+    // never stop on its own. Only stop if the user requested a stop
+    // or if the error is a non-retryable API rejection.
+    while (true) {
       attempt += 1
-    ) {
       try {
         if (
           shouldStop()
@@ -1921,23 +1901,59 @@ export function createBotApi(
         )
 
         if (
-          attempt < 3
+          shouldStop()
         ) {
-          await sleep(
-            attempt * 1000,
+          throw new Error(
+            'Bot stop requested.',
           )
         }
+
+        const errMsg =
+          error instanceof Error
+            ? error.message
+            : String(error)
+
+        writeConsole(
+          'error',
+          error,
+        )
+
+        // Non-retryable: invalid contract parameters, invalid
+        // stake, etc. These will never succeed on retry.
+        const nonRetryable =
+          /Invalid|not available|No contract type|Invalid stake/i.test(
+            errMsg,
+          )
+
+        if (nonRetryable) {
+          throw (
+            lastError instanceof
+            Error
+              ? lastError
+              : new Error(
+                  'Unable to purchase contract.',
+                )
+          )
+        }
+
+        // Retryable (connection drop, timeout, etc.) — wait
+        // and try again. The bot should never die on its own.
+        const delay = Math.min(attempt * 2, 10)
+        notify(
+          'warn',
+          'Purchase attempt ' +
+            attempt +
+            ' failed (' +
+            errMsg +
+            '). Retrying in ' +
+            delay +
+            's...',
+          { event: 'info' },
+        )
+
+        await sleep(delay * 1000)
       }
     }
-
-    throw (
-      lastError instanceof
-      Error
-        ? lastError
-        : new Error(
-            'Unable to purchase contract.',
-          )
-    )
   }
 
   /* =======================================================

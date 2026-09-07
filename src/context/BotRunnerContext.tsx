@@ -332,18 +332,32 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       playSound('start')
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
       const fn = new AsyncFunction('Bot', code)
-      await fn(botApi)
-      showToast('success', 'Bot finished running.')
-      playSound('done')
-      refreshBalance()
-    } catch (err: unknown) {
-      if (stopRef.current) {
-        showToast('info', 'Bot stopped.')
+
+      // Auto-restart loop: if the generated bot code throws for
+      // any reason other than a user-requested stop, wait a few
+      // seconds and restart it. The bot should run until the user
+      // stops it or stop-loss/take-profit is reached.
+      while (!stopRef.current) {
+        try {
+          await fn(botApi)
+          break
+        } catch (err: unknown) {
+          if (stopRef.current) break
+          const msg = errorMessage(err, 'Bot execution failed.')
+          showToast('error', `${msg} — restarting in 5s...`)
+          playSound('error')
+          await new Promise<void>((resolve) => setTimeout(resolve, 5000))
+        }
+      }
+
+      if (!stopRef.current) {
+        showToast('success', 'Bot finished running.')
         playSound('done')
       } else {
-        showToast('error', errorMessage(err, 'Bot execution failed.'))
-        playSound('error')
+        showToast('info', 'Bot stopped.')
+        playSound('done')
       }
+      refreshBalance()
     } finally {
       await botApi.cleanup().catch(() => {})
       botApiRef.current = null
@@ -443,18 +457,28 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       showToast('info', 'Bot resumed after page reload.')
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
       const fn = new AsyncFunction('Bot', code)
-      await fn(botApi)
-      showToast('success', 'Bot finished running.')
-      playSound('done')
-      refreshBalance()
-    } catch (err: unknown) {
-      if (stopRef.current) {
-        showToast('info', 'Bot stopped.')
+
+      while (!stopRef.current) {
+        try {
+          await fn(botApi)
+          break
+        } catch (err: unknown) {
+          if (stopRef.current) break
+          const msg = errorMessage(err, 'Bot execution failed.')
+          showToast('error', `${msg} — restarting in 5s...`)
+          playSound('error')
+          await new Promise<void>((resolve) => setTimeout(resolve, 5000))
+        }
+      }
+
+      if (!stopRef.current) {
+        showToast('success', 'Bot finished running.')
         playSound('done')
       } else {
-        showToast('error', errorMessage(err, 'Bot execution failed.'))
-        playSound('error')
+        showToast('info', 'Bot stopped.')
+        playSound('done')
       }
+      refreshBalance()
     } finally {
       await botApi.cleanup().catch(() => {})
       botApiRef.current = null

@@ -14,7 +14,7 @@ type PendingRequest = {
 
 const REQUEST_TIMEOUT_MS = 15000
 const RECONNECT_DELAY_MS = 2000
-const MAX_RECONNECT_ATTEMPTS = 5
+const MAX_RECONNECT_DELAY_MS = 30000
 
 export class DerivWS {
   private ws: WebSocket | null = null
@@ -25,6 +25,7 @@ export class DerivWS {
   private shouldReconnect = false
   private reconnectAttempts = 0
   private connectPromise: Promise<void> | null = null
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
 
   /*
    * Deriv's API only allows one active `ticks` subscription per symbol,
@@ -79,6 +80,7 @@ export class DerivWS {
         this.reconnectAttempts = 0
         this.setStatus('connected')
         this.connectPromise = null
+        this.startHeartbeat()
         resolve()
       }
 
@@ -91,6 +93,7 @@ export class DerivWS {
       }
 
       this.ws.onclose = () => {
+        this.stopHeartbeat()
         this.setStatus('disconnected')
         this.failAllPending(new Error('Connection closed'))
         this.connectPromise = null
@@ -107,18 +110,24 @@ export class DerivWS {
   }
 
   private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      this.setStatus('failed')
-      return
-    }
     this.reconnectAttempts++
     this.setStatus('reconnecting')
+
+    // Exponential backoff capped at MAX_RECONNECT_DELAY_MS.
+    // The connection should always retry — never give up, so the
+    // bot and market data stay alive 24/7 even through extended
+    // network outages.
+    const delay = Math.min(
+      RECONNECT_DELAY_MS * Math.pow(1.5, this.reconnectAttempts - 1),
+      MAX_RECONNECT_DELAY_MS,
+    )
+
     setTimeout(() => {
       if (!this.shouldReconnect) return
       this.doConnect().catch(() => {
         // doConnect already handles re-scheduling on close
       })
-    }, RECONNECT_DELAY_MS)
+    }, delay)
   }
 
   private failAllPending(error: Error): void {
@@ -359,8 +368,31 @@ export class DerivWS {
     }
   }
 
+  private startHeartbeat(): void {
+    this.stopHeartbeat()
+    // Send a ping every 30 seconds to keep the connection alive
+    // through idle periods and detect dead connections faster.
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ ping: 1 }))
+        } catch {
+          // If sending fails, the onclose handler will trigger reconnect
+        }
+      }
+    }, 30000)
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
+    }
+  }
+
   disconnect(): void {
     this.shouldReconnect = false
+    this.stopHeartbeat()
     this.ws?.close()
     this.ws = null
     this.failAllPending(new Error('Connection closed'))
