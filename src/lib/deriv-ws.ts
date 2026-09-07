@@ -252,6 +252,32 @@ export class DerivWS {
     })
   }
 
+  /*
+   * Sends a request and automatically retries on rate-limit errors
+   * with exponential backoff. Use this for non-subscription requests
+   * that are prone to hitting Deriv's per-minute rate limits
+   * (profit_table, statement, etc.).
+   */
+  async sendWithRetry(
+    request: Record<string, unknown>,
+    maxRetries = 3,
+  ): Promise<any> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const res = await this.send(request)
+      if (res?.error) {
+        const msg = String(res.error.message || '')
+        const isRateLimit = /rate.?limit|too many|RateLimit/i.test(msg)
+        if (isRateLimit && attempt < maxRetries) {
+          const delay = Math.min(2000 * Math.pow(2, attempt), 10000)
+          await new Promise((r) => setTimeout(r, delay))
+          continue
+        }
+      }
+      return res
+    }
+    return { error: { message: 'Rate limit exceeded after retries' } }
+  }
+
   async subscribe(
     request: Record<string, unknown>,
     callback: (data: any) => void,

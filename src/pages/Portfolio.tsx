@@ -34,26 +34,38 @@ export default function Portfolio() {
     setError(null)
     try {
       const [profitRes] = await Promise.all([
-        ws.send({ profit_table: 1, description: 1, limit: 50, sort: 'DESC' }),
+        ws.sendWithRetry({ profit_table: 1, description: 1, limit: 50, sort: 'DESC' }),
         refreshPortfolio(),
       ])
 
+      if (profitRes.error) {
+        throw new Error(profitRes.error.message || 'Failed to load profit table')
+      }
+
       if (profitRes.profit_table?.transactions) {
-        setTradeHistory(profitRes.profit_table.transactions.map((t: any) => ({
-          contract_id: t.contract_id,
-          symbol: t.underlying_symbol ?? t.symbol ?? '',
-          display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
-          contract_type: t.contract_type || '',
-          buy_price: parseFloat(t.buy_price || '0'),
-          sell_price: parseFloat(t.sell_price || '0'),
-          profit: parseFloat(t.profit || '0'),
-          purchase_time: t.purchase_time,
-          sell_time: t.sell_time,
-          status: parseFloat(t.profit) >= 0 ? 'won' : 'lost',
-        })))
+        setTradeHistory(profitRes.profit_table.transactions.map((t: any) => {
+          const profit = parseFloat(t.profit || '0')
+          return {
+            contract_id: t.contract_id,
+            symbol: t.underlying_symbol ?? t.symbol ?? '',
+            display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
+            contract_type: t.contract_type || '',
+            buy_price: parseFloat(t.buy_price || '0'),
+            sell_price: parseFloat(t.sell_price || '0'),
+            profit,
+            purchase_time: t.purchase_time,
+            sell_time: t.sell_time,
+            status: profit > 0 ? 'won' : profit < 0 ? 'lost' : 'sold',
+          }
+        }))
       }
     } catch (err) {
-      setError(errorMessage(err, 'Failed to load portfolio data'))
+      const msg = errorMessage(err, 'Failed to load portfolio data')
+      if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+        setError('Rate limit reached. Please wait a few seconds and try again.')
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)

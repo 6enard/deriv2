@@ -68,8 +68,16 @@ export default function History() {
       }
       if (offset > 0) params.offset = offset
 
-      const res = await ws.send(params)
-      if (res.error) throw new Error(res.error.message)
+      const res = await ws.sendWithRetry(params)
+      if (res.error) {
+        const msg = res.error.message || 'Failed to load closed trades'
+        if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+          setError('Rate limit reached. Please wait a few seconds and try again.')
+        } else {
+          setError(msg)
+        }
+        return
+      }
       if (res.profit_table?.transactions) {
         const mapped: ClosedTrade[] = res.profit_table.transactions.map((t: any) => {
           const buyPrice = parseFloat(t.buy_price || '0')
@@ -85,7 +93,7 @@ export default function History() {
             profit,
             purchase_time: t.purchase_time,
             sell_time: t.sell_time,
-            status: profit >= 0 ? 'won' : 'lost',
+            status: profit > 0 ? 'won' : profit < 0 ? 'lost' : 'sold',
           }
         })
         setClosedTrades(append ? [...closedTrades, ...mapped] : mapped)
@@ -95,7 +103,12 @@ export default function History() {
         setHasMore(false)
       }
     } catch (err) {
-      setError(errorMessage(err, 'Failed to load closed trades'))
+      const msg = errorMessage(err, 'Failed to load closed trades')
+      if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+        setError('Rate limit reached. Please wait a few seconds and try again.')
+      } else {
+        setError(msg)
+      }
     }
   }, [ws, dateFrom, dateTo, closedTrades])
 
@@ -114,8 +127,16 @@ export default function History() {
       }
       if (offset > 0) params.offset = offset
 
-      const res = await ws.send(params)
-      if (res.error) throw new Error(res.error.message)
+      const res = await ws.sendWithRetry(params)
+      if (res.error) {
+        const msg = res.error.message || 'Failed to load statement'
+        if (/rate.?limit|too many|RateLimit/i.test(msg)) {
+          setError('Rate limit reached. Please wait a few seconds and try again.')
+        } else {
+          setError(msg)
+        }
+        return
+      }
       if (res.statement?.transactions) {
         const mapped: StatementEntry[] = res.statement.transactions.map((t: any) => ({
           id: t.id,

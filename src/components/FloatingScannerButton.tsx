@@ -118,7 +118,7 @@ export default function FloatingScannerButton() {
 
   return (
     <div
-      className="fixed z-[90] select-none"
+      className={`fixed z-[90] select-none ${dragging ? '' : 'float'}`}
       style={{
         left: position.x,
         top: position.y,
@@ -127,6 +127,13 @@ export default function FloatingScannerButton() {
       }}
     >
       <div className="absolute inset-0 rounded-full bg-brand-red/20 blur-lg pulse-glow pointer-events-none" />
+
+      {!dragging && (
+        <>
+          <span className="absolute inset-0 rounded-full border-2 border-brand-red/25 pulse-ring pointer-events-none" />
+          <span className="absolute inset-0 rounded-full border-2 border-brand-red/20 pulse-ring pointer-events-none" style={{ animationDelay: '1.2s' }} />
+        </>
+      )}
 
       {showLabel && !dragging && (
         <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-xl bg-bg-secondary border border-border-light px-3 py-2 shadow-xl slide-in pointer-events-none">
