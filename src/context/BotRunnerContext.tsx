@@ -454,7 +454,6 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     try {
       setIsRunning(true)
       setHasRunOnce(true)
-      showToast('info', 'Bot resumed after page reload.')
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
       const fn = new AsyncFunction('Bot', code)
 
@@ -502,7 +501,6 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     if (savedCode && savedParams) {
       autoResumeAttempted.current = true
       clearWasRunning()
-      showToast('info', 'Resuming bot after page reload...')
       void resumeRun(savedCode, savedParams)
     } else {
       clearWasRunning()
