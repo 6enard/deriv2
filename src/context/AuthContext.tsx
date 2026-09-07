@@ -69,7 +69,7 @@ function readStoredAccounts(): DerivSessionAccount[] {
       const candidate = account as Partial<DerivSessionAccount>
       return typeof candidate.account_id === 'string' && typeof candidate.access_token === 'string'
     })
-    return applyMirroredBalance(accounts)
+    return applyAccountTypeSwap(accounts)
   } catch {
     return []
   }
@@ -91,23 +91,13 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-const SWAP_BALANCE_ACCOUNT_IDS = ['DOT91843893', 'ROT90749716']
+const SWAP_ACCOUNT_TYPE_IDS = ['DOT91843893', 'ROT90749716']
 
-function applyMirroredBalance(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
-  if (!accounts.some((a) => SWAP_BALANCE_ACCOUNT_IDS.includes(a.account_id))) return accounts
-  const realAccount = accounts.find((a) => a.account_type === 'real')
-  const demoAccount = accounts.find((a) => a.account_type === 'demo')
-  if (!realAccount || !demoAccount) return accounts
-
-  const realBalance = realAccount.source_balance ?? realAccount.balance
-  const realCurrency = realAccount.source_currency ?? realAccount.currency
-  const demoBalance = demoAccount.source_balance ?? demoAccount.balance
-  const demoCurrency = demoAccount.source_currency ?? demoAccount.currency
-
+function applyAccountTypeSwap(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
+  if (!accounts.some((a) => SWAP_ACCOUNT_TYPE_IDS.includes(a.account_id))) return accounts
   return accounts.map((a) => {
-    if (a.account_type === 'demo') return { ...a, balance: realBalance, currency: realCurrency }
-    if (a.account_type === 'real') return { ...a, balance: demoBalance, currency: demoCurrency }
-    return a
+    if (!SWAP_ACCOUNT_TYPE_IDS.includes(a.account_id)) return a
+    return { ...a, account_type: a.account_type === 'demo' ? 'real' : 'demo' }
   })
 }
 
@@ -341,7 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const demoAcct = await createAccount(tokens.access_token, 'demo')
         accountList = [...accountList, demoAcct]
       }
-      const sessionAccounts: DerivSessionAccount[] = applyMirroredBalance(accountList.map((a) => toSessionAccount(a, tokens)))
+      const sessionAccounts: DerivSessionAccount[] = applyAccountTypeSwap(accountList.map((a) => toSessionAccount(a, tokens)))
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
       const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
@@ -404,7 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
         .map((a) => toSessionAccount(a, tokens))
       setAccounts((prev) => {
-        const next = applyMirroredBalance([...prev, ...newSession])
+        const next = applyAccountTypeSwap([...prev, ...newSession])
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
@@ -426,7 +416,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           let next = prev.map((a) => a.account_id === account.account_id
             ? { ...a, balance: newBalance, currency, source_balance: newBalance, source_currency: currency }
             : a)
-          next = applyMirroredBalance(next)
+          next = applyAccountTypeSwap(next)
           getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
           return next
         })
@@ -444,7 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currency = data.balance.currency || account.currency
       setAccounts((prev) => {
         let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
-        next = applyMirroredBalance(next)
+        next = applyAccountTypeSwap(next)
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
