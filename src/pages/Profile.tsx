@@ -26,7 +26,7 @@ export default function Profile() {
   if (!account) return null
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden">
       <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Dashboard
       </button>

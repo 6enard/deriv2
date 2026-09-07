@@ -195,7 +195,7 @@ export default function Home() {
   return (
     <div
       className="
-        relative min-h-screen overflow-hidden
+        relative min-h-screen overflow-x-hidden
         bg-[#f8f9fb]
         text-slate-950
         dark:bg-transparent
@@ -316,8 +316,9 @@ export default function Home() {
           relative
           max-w-7xl
           mx-auto
-          px-5 sm:px-8 lg:px-10
+          px-4 sm:px-8 lg:px-10
           py-12 sm:py-20 lg:py-24
+          overflow-x-hidden
         "
       >
         {/* ===================================================
@@ -408,7 +409,7 @@ export default function Home() {
 
           <h1
             className="
-              text-5xl
+              text-4xl
               sm:text-6xl
               lg:text-7xl
               xl:text-[88px]
@@ -657,6 +658,7 @@ export default function Home() {
                 divide-x
                 divide-slate-200
                 dark:divide-white/[0.07]
+                overflow-x-auto
               "
             >
               <MarketTicker
