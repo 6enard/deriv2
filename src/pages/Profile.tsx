@@ -38,7 +38,7 @@ export default function Profile() {
       <div className="rounded-2xl bg-bg-secondary border border-border-default p-5 mb-4">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-red to-brand-red-dim flex items-center justify-center text-white text-xl font-bold shrink-0">
-            {accountType === 'real' ? 'R' : 'D'}
+            {accountType === 'real' ? 'D' : 'R'}
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-bold truncate">{account.account_id}</h2>
