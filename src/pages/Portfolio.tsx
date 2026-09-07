@@ -44,14 +44,16 @@ export default function Portfolio() {
 
       if (profitRes.profit_table?.transactions) {
         setTradeHistory(profitRes.profit_table.transactions.map((t: any) => {
-          const profit = parseFloat(t.profit || '0')
+          const buyPrice = parseFloat(t.buy_price || '0')
+          const sellPrice = parseFloat(t.sell_price || '0')
+          const profit = t.profit != null ? parseFloat(t.profit) : sellPrice - buyPrice
           return {
             contract_id: t.contract_id,
             symbol: t.underlying_symbol ?? t.symbol ?? '',
             display_name: t.longcode || t.shortcode || t.underlying_symbol || t.symbol || '',
             contract_type: t.contract_type || '',
-            buy_price: parseFloat(t.buy_price || '0'),
-            sell_price: parseFloat(t.sell_price || '0'),
+            buy_price: buyPrice,
+            sell_price: sellPrice,
             profit,
             purchase_time: t.purchase_time,
             sell_time: t.sell_time,

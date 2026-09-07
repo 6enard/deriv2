@@ -125,12 +125,23 @@ export function RunResultsPanel({
 
   const downloadJournalTxt = () => {
     const pad = (n: number) => String(n).padStart(2, '0')
-    const text = journal
+    const text = [...journal]
+      .reverse()
       .map((entry) => {
         const d = entry.time
         const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
         const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-        return `${entry.message}\n${dateStr} | ${timeStr} GMT`
+
+        const profitMatch = entry.message.match(/Contract settled:.*?\(([-\d.]+)\)/)
+        let msg = entry.message
+        if (profitMatch) {
+          const amount = parseFloat(profitMatch[1])
+          if (amount > 0) msg = `Profit: +${amount.toFixed(2)}`
+          else if (amount < 0) msg = `Loss: ${amount.toFixed(2)}`
+          else msg = `Sold: ${amount.toFixed(2)}`
+        }
+
+        return `${msg}\n${dateStr} | ${timeStr} GMT`
       })
       .join('\n')
 
@@ -627,7 +638,7 @@ export function RunResultsPanel({
             ) : (
               <>
                 <div className="space-y-1">
-                  {journal.map((entry, index) => {
+                  {[...journal].reverse().map((entry, index) => {
                     const dotClass =
                       entry.type === 'success'
                         ? 'bg-brand-green'
@@ -642,6 +653,31 @@ export function RunResultsPanel({
                     const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
                     const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 
+                    const profitMatch = entry.message.match(/Contract settled:.*?\(([-\d.]+)\)/)
+                    const isProfitEntry = profitMatch !== null
+                    const profitAmount = profitMatch ? parseFloat(profitMatch[1]) : 0
+                    const isGain = profitAmount > 0
+                    const isLoss = profitAmount < 0
+
+                    let displayMessage = entry.message
+                    if (isProfitEntry) {
+                      if (isGain) {
+                        displayMessage = `Profit: +${profitAmount.toFixed(2)}`
+                      } else if (isLoss) {
+                        displayMessage = `Loss: ${profitAmount.toFixed(2)}`
+                      } else {
+                        displayMessage = `Sold: ${profitAmount.toFixed(2)}`
+                      }
+                    }
+
+                    const messageClass = isProfitEntry
+                      ? isGain
+                        ? 'text-brand-green font-semibold'
+                        : isLoss
+                          ? 'text-brand-red font-semibold'
+                          : 'text-text-secondary'
+                      : 'text-text-secondary'
+
                     return (
                       <div
                         key={index}
@@ -655,8 +691,8 @@ export function RunResultsPanel({
                             {dateStr} | {timeStr}
                           </span>
                         </div>
-                        <div className="text-xs leading-relaxed text-text-secondary pl-3.5">
-                          {entry.message}
+                        <div className={`text-xs leading-relaxed pl-3.5 ${messageClass}`}>
+                          {displayMessage}
                         </div>
                       </div>
                     )
