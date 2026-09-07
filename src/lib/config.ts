@@ -49,18 +49,24 @@ export const OPTIONS_API_BASE =
 export const PUBLIC_WS_URL =
   'wss://api.derivws.com/trading/v1/options/ws/public'
 
-export const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089'
+export const DERIV_WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID || '1089'}`
+
+function ensureCallbackPath(uri: string): string {
+  if (!uri) return uri
+  if (uri.endsWith('/callback')) return uri
+  return uri.replace(/\/$/, '') + '/callback'
+}
 
 function buildRedirectUri(): string {
-  if (configuredRedirectUri) {
-    return configuredRedirectUri
-  }
-
   if (
     typeof window !== 'undefined' &&
     window.location.origin
   ) {
     return `${window.location.origin}/callback`
+  }
+
+  if (configuredRedirectUri) {
+    return ensureCallbackPath(configuredRedirectUri)
   }
 
   return 'https://deriv1.vercel.app/callback'
