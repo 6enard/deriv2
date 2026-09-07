@@ -327,24 +327,69 @@ export class DerivWS {
       }
     }
 
+    return this.sendSubscribe(request, callback, key, 0)
+  }
+
+  /*
+   * Deriv only allows one active subscription per symbol/contract per
+   * connection. If a previous bot's cleanup `forget` failed silently,
+   * the server still holds a stale subscription and rejects new
+   * subscribe requests with "AlreadySubscribed" — causing the bot to
+   * hang forever on the tick stream step without ever trading.
+   *
+   * This method detects that error, sends `forget_all` to clear any
+   * orphaned server-side subscriptions, then retries.
+   */
+  private async sendSubscribe(
+    request: Record<string, unknown>,
+    callback: (data: any) => void,
+    key: string | null,
+    attempt: number,
+  ): Promise<{ reqId: number; data: any }> {
+    await this.ensureConnected()
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected')
+    }
+
     const id = this.reqId++
     const msg = JSON.stringify({ ...request, req_id: id, subscribe: 1 })
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id)
-        if (key) this.sharedKeyToReqId.delete(key)
-        reject(new Error('Subscription request timed out'))
-      }, REQUEST_TIMEOUT_MS)
-      this.pending.set(id, {
-        resolve: (data: any) => resolve({ reqId: id, data }),
-        reject,
-        subscribeCallbacks: new Set([callback]),
-        timer,
-        key,
+
+    try {
+      return await new Promise<{ reqId: number; data: any }>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pending.delete(id)
+          if (key) this.sharedKeyToReqId.delete(key)
+          reject(new Error('Subscription request timed out'))
+        }, REQUEST_TIMEOUT_MS)
+        this.pending.set(id, {
+          resolve: (data: any) => resolve({ reqId: id, data }),
+          reject,
+          subscribeCallbacks: new Set([callback]),
+          timer,
+          key,
+        })
+        if (key) this.sharedKeyToReqId.set(key, id)
+        this.ws!.send(msg)
       })
-      if (key) this.sharedKeyToReqId.set(key, id)
-      this.ws!.send(msg)
-    })
+    } catch (error: any) {
+      const errMsg = String(error?.message || error || '')
+      const isAlreadySubscribed = /already.?subscribed/i.test(errMsg)
+
+      if (isAlreadySubscribed && attempt < 2) {
+        let forgetType = ''
+        if (typeof request.ticks === 'string') forgetType = 'ticks'
+        else if (request.proposal_open_contract) forgetType = 'proposal_open_contract'
+
+        if (forgetType) {
+          try { await this.send({ forget_all: forgetType }) } catch { /* retry anyway */ }
+        }
+        if (key) this.sharedKeyToReqId.delete(key)
+        await new Promise((r) => setTimeout(r, 300))
+        return this.sendSubscribe(request, callback, key, attempt + 1)
+      }
+
+      throw error
+    }
   }
 
   forget(id: string): Promise<any> {

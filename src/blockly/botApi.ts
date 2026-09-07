@@ -502,6 +502,22 @@ export function createBotApi(
         contractId,
       ),
     ])
+
+    /*
+     * Belt-and-suspenders: even if the individual forget calls
+     * above succeeded on our side, a network hiccup at the wrong
+     * moment can leave an orphaned subscription on the server.
+     * Sending forget_all ensures no stale ticks or contract
+     * subscriptions remain, so the next bot run doesn't hit an
+     * "AlreadySubscribed" error that would hang it indefinitely.
+     */
+    try {
+      await ws.forgetAll('ticks')
+      await ws.forgetAll('proposal_open_contract')
+    } catch {
+      // Best effort — the subscribe method also has its own
+      // AlreadySubscribed recovery as a second line of defense.
+    }
   }
 
   /* =======================================================
@@ -513,86 +529,96 @@ export function createBotApi(
       return
     }
 
-    /*
-     * Do not create another stream if one is
-     * already active for this BotApi instance.
-     */
     if (tickSubscriptionId) {
       return
     }
 
-    try {
-      const result =
-        await ws.subscribe(
-          {
-            ticks: params.symbol,
-          },
-          (
-            data: any,
-          ) => {
-            if (
-              disposed ||
-              !data?.tick
-            ) {
-              return
-            }
+    const maxAttempts = 3
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (disposed) return
+      if (tickSubscriptionId) return
 
-            const quote =
-              number(
-                data.tick.quote,
-                NaN,
-              )
+      try {
+        const result =
+          await ws.subscribe(
+            {
+              ticks: params.symbol,
+            },
+            (
+              data: any,
+            ) => {
+              if (
+                disposed ||
+                !data?.tick
+              ) {
+                return
+              }
 
-            if (
-              !Number.isFinite(
+              const quote =
+                number(
+                  data.tick.quote,
+                  NaN,
+                )
+
+              if (
+                !Number.isFinite(
+                  quote,
+                )
+              ) {
+                return
+              }
+
+              tickHistory.push(
                 quote,
               )
-            ) {
-              return
-            }
 
-            tickHistory.push(
-              quote,
-            )
+              if (
+                tickHistory.length >
+                100
+              ) {
+                tickHistory.shift()
+              }
+            },
+          )
 
-            if (
-              tickHistory.length >
-              100
-            ) {
-              tickHistory.shift()
-            }
+        const id =
+          result.data?.subscription
+            ?.id
+
+        if (id) {
+          tickSubscriptionId =
+            String(id)
+        }
+
+        notify(
+          'info',
+          'Tick stream connected for ' +
+            params.symbol,
+          {
+            event: 'info',
           },
         )
 
-      const id =
-        result.data?.subscription
-          ?.id
+        return
+      } catch (error) {
+        if (disposed) return
 
-      if (id) {
-        tickSubscriptionId =
-          String(id)
+        writeConsole(
+          'warn',
+          'Tick stream attempt ' + (attempt + 1) + ' failed: ' + String(error instanceof Error ? error.message : error),
+        )
+
+        if (attempt < maxAttempts - 1) {
+          tickSubscriptionId = null
+          await sleep(500)
+        } else {
+          writeConsole(
+            'warn',
+            'Unable to subscribe to ticks after ' + maxAttempts + ' attempts.',
+          )
+          throw error
+        }
       }
-
-      notify(
-        'info',
-        'Tick stream connected for ' +
-          params.symbol,
-        {
-          event: 'info',
-        },
-      )
-    } catch (error) {
-      writeConsole(
-        'warn',
-        'Unable to subscribe to ticks.',
-      )
-
-      writeConsole(
-        'warn',
-        error,
-      )
-
-      throw error
     }
   }
 
