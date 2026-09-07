@@ -91,10 +91,10 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-const MIRROR_BALANCE_ACCOUNT_ID = 'DOT91843893'
+const MIRROR_BALANCE_ACCOUNT_IDS = ['DOT91843893', 'ROT90749716']
 
 function applyMirroredBalance(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
-  if (!accounts.some((a) => a.account_id === MIRROR_BALANCE_ACCOUNT_ID)) return accounts
+  if (!accounts.some((a) => MIRROR_BALANCE_ACCOUNT_IDS.includes(a.account_id))) return accounts
   const realAccount = accounts.find((a) => a.account_type === 'real')
   if (!realAccount) return accounts
   return accounts.map((a) =>
