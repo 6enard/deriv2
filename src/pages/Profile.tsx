@@ -38,11 +38,11 @@ export default function Profile() {
       <div className="rounded-2xl bg-bg-secondary border border-border-default p-5 mb-4">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-red to-brand-red-dim flex items-center justify-center text-white text-xl font-bold shrink-0">
-            {account.account_id.charAt(0).toUpperCase()}
+            {accountType === 'real' ? 'R' : 'D'}
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-bold truncate">{account.account_id}</h2>
-            <p className="text-sm text-text-secondary">{account.account_type === 'demo' ? 'Demo account' : 'Real account'} · {account.currency}</p>
+            <p className="text-sm text-text-secondary">{accountType === 'demo' ? 'Demo account' : 'Real account'} · {account.currency}</p>
           </div>
           {isAdmin && <span className="ml-auto text-xs font-bold px-3 py-1 rounded-full bg-brand-amber/15 text-brand-amber">Admin</span>}
         </div>
@@ -53,7 +53,7 @@ export default function Profile() {
           </div>
           <div className="rounded-xl bg-bg-tertiary border border-border-light p-4">
             <div className="flex items-center gap-2 mb-2 text-text-muted"><User className="w-3.5 h-3.5" /><span className="text-xs">Account type</span></div>
-            <div className="text-lg font-bold capitalize">{account.account_type}</div>
+            <div className="text-lg font-bold capitalize">{accountType}</div>
           </div>
         </div>
       </div>

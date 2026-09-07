@@ -69,7 +69,7 @@ function readStoredAccounts(): DerivSessionAccount[] {
       const candidate = account as Partial<DerivSessionAccount>
       return typeof candidate.account_id === 'string' && typeof candidate.access_token === 'string'
     })
-    return applyAccountTypeSwap(accounts)
+    return accounts
   } catch {
     return []
   }
@@ -394,7 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
         .map((a) => toSessionAccount(a, tokens))
       setAccounts((prev) => {
-        const next = applyAccountTypeSwap([...prev, ...newSession])
+        const next = [...prev, ...newSession]
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
@@ -416,7 +416,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           let next = prev.map((a) => a.account_id === account.account_id
             ? { ...a, balance: newBalance, currency, source_balance: newBalance, source_currency: currency }
             : a)
-          next = applyAccountTypeSwap(next)
           getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
           return next
         })
@@ -434,7 +433,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currency = data.balance.currency || account.currency
       setAccounts((prev) => {
         let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
-        next = applyAccountTypeSwap(next)
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
         return next
       })
