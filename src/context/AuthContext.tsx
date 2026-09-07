@@ -232,11 +232,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccounts([])
     setSelectedAccountId(null)
     setAccountType('demo')
-    const storage = getStorage()
-    storage.removeItem(ACCOUNTS_KEY)
-    storage.removeItem(SELECTED_ACCOUNT_KEY)
-    storage.removeItem(ACCOUNT_TYPE_KEY)
-    try { localStorage.removeItem(REMEMBER_ME_KEY) } catch { /* ignore */ }
+    // Clear ALL auth-related data from BOTH storage locations so no
+    // stale tokens survive to auto-login on the next page load.
+    try {
+      localStorage.removeItem(ACCOUNTS_KEY)
+      localStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      localStorage.removeItem(ACCOUNT_TYPE_KEY)
+      localStorage.removeItem(REMEMBER_ME_KEY)
+    } catch { /* ignore */ }
+    try {
+      sessionStorage.removeItem(ACCOUNTS_KEY)
+      sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
+    } catch { /* ignore */ }
     setRememberMeState(false)
     clearOAuthState()
   }, [ws])

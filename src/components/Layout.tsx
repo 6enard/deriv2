@@ -118,11 +118,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {isAuthenticated && account ? (
                   <div className="flex items-center gap-3">
                     {hasRealAccount && (
-                      <div className="hidden sm:flex items-center rounded-full bg-bg-tertiary border border-border-light p-0.5">
+                      <div className="flex items-center rounded-full bg-bg-tertiary border border-border-light p-0.5">
                         <button
                           onClick={handleToggleAccountType}
                           disabled={switching}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                          className={`px-2 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                             accountType === 'demo' ? 'bg-brand-red text-white' : 'text-text-secondary hover:text-text-primary'
                           }`}
                         >
@@ -131,7 +131,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                         <button
                           onClick={handleToggleAccountType}
                           disabled={switching}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                          className={`px-2 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                             accountType === 'real' ? 'bg-brand-red text-white' : 'text-text-secondary hover:text-text-primary'
                           }`}
                         >
