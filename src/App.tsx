@@ -10,6 +10,7 @@ import RequireAdmin from './components/RequireAdmin'
 import FloatingScannerButton from './components/FloatingScannerButton'
 import FloatingBotStatus from './components/FloatingBotStatus'
 import NavigationGuard from './components/NavigationGuard'
+import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import CallbackPage from './pages/CallbackPage'
 import Dashboard from './pages/Dashboard'
@@ -19,6 +20,7 @@ import History from './pages/History'
 import BotBuilder from './pages/BotBuilder'
 import Scanner from './pages/Scanner'
 import Admin from './pages/Admin'
+import Profile from './pages/Profile'
 
 export default function App() {
   return (
@@ -66,8 +68,14 @@ export default function App() {
               <Layout><Admin /></Layout>
             </RequireAdmin>
           } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Layout><Profile /></Layout>
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ScrollToTop />
         <NavigationGuard />
         <FloatingScannerButton />
         <FloatingBotStatus />

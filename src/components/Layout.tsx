@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
-import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon, Lock } from 'lucide-react'
+import { TrendingUp, Wallet, LogOut, LayoutDashboard, Factory as HistoryIcon, Sun, Moon, ChevronDown, Boxes as BotBuilderIcon, Radar as ScannerIcon, Lock, User, Repeat } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Footer from './Footer'
 
@@ -23,6 +23,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
     { to: '/history', label: 'History', icon: HistoryIcon },
     { to: '/bot-builder', label: 'Bot Builder', icon: BotBuilderIcon },
+    { to: '/profile', label: 'Profile', icon: User },
   ]
 
   const handleLogout = () => {
@@ -172,12 +173,20 @@ export default function Layout({ children }: { children: ReactNode }) {
                             <p className="text-xs text-text-muted mb-2">Balance</p>
                             <p className="text-lg font-bold tabular">{account.balance.toFixed(2)} {account.currency}</p>
                           </div>
+                          <Link
+                            to="/profile"
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                          >
+                            <User className="w-4 h-4" />
+                            Profile
+                          </Link>
                           <button
                             onClick={() => { handleLogout(); setAccountMenuOpen(false) }}
                             className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-brand-red hover:bg-brand-red/5 transition-colors"
                           >
                             <LogOut className="w-4 h-4" />
-                            Disconnect
+                            Log out
                           </button>
                         </div>
                       )}
@@ -207,7 +216,32 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Mobile bottom navigation */}
       {isAuthenticated && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-secondary/90 backdrop-blur-xl border-t border-border-default">
-          <div className="flex items-center justify-around h-16 px-2">
+          {hasRealAccount && (
+            <div className="flex items-center justify-center gap-2 pt-1.5 pb-0.5">
+              <button
+                onClick={handleToggleAccountType}
+                disabled={switching}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                  accountType === 'demo' ? 'bg-brand-red text-white' : 'text-text-secondary'
+                }`}
+              >
+                <Repeat className="w-3 h-3" />
+                {accountType === 'demo' ? 'Demo' : 'Real'}
+                <span className="opacity-60">·</span>
+                <span className="opacity-60">{account?.balance.toFixed(0)} {account?.currency}</span>
+              </button>
+              <button
+                onClick={handleToggleAccountType}
+                disabled={switching}
+                className={`px-2 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                  accountType === 'real' ? 'bg-brand-red text-white' : 'text-text-secondary'
+                }`}
+              >
+                {accountType === 'demo' ? 'Real' : 'Demo'}
+              </button>
+            </div>
+          )}
+          <div className="flex items-center justify-around h-14 px-1 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon
               const active = location.pathname === item.to
@@ -216,7 +250,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
+                  className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-colors shrink-0 ${
                     active
                       ? 'text-brand-red'
                       : locked
@@ -224,8 +258,8 @@ export default function Layout({ children }: { children: ReactNode }) {
                         : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${active ? 'scale-110' : ''} transition-transform`} />
-                  <span className="text-[10px] font-medium">{item.label}</span>
+                  <Icon className={`w-[18px] h-[18px] ${active ? 'scale-110' : ''} transition-transform`} />
+                  <span className="text-[9px] font-medium">{item.label}</span>
                 </Link>
               )
             })}

@@ -7,6 +7,7 @@ import type { DerivSessionAccount } from '../lib/types'
 const ACCOUNTS_KEY = 'deriv_accounts'
 const SELECTED_ACCOUNT_KEY = 'deriv_selected_account'
 const ACCOUNT_TYPE_KEY = 'deriv_account_type'
+const REMEMBER_ME_KEY = 'deriv_remember_me'
 
 type AccountType = 'demo' | 'real'
 
@@ -19,6 +20,8 @@ type AuthContextType = {
   isAdmin: boolean
   isLoading: boolean
   error: string | null
+  rememberMe: boolean
+  setRememberMe: (v: boolean) => void
   login: () => Promise<void>
   logout: () => void
   handleCallback: (params: URLSearchParams) => Promise<void>
@@ -45,10 +48,18 @@ type OptionsAccount = {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-function readStoredAccounts(): DerivSessionAccount[] {
-  const stored = sessionStorage.getItem(ACCOUNTS_KEY)
-  if (!stored) return []
+function getStorage(): Storage {
+  try {
+    return localStorage.getItem(REMEMBER_ME_KEY) === 'true' ? localStorage : sessionStorage
+  } catch {
+    return sessionStorage
+  }
+}
 
+function readStoredAccounts(): DerivSessionAccount[] {
+  const storage = getStorage()
+  const stored = storage.getItem(ACCOUNTS_KEY)
+  if (!stored) return []
   try {
     const parsed: unknown = JSON.parse(stored)
     if (!Array.isArray(parsed)) return []
@@ -170,15 +181,44 @@ async function connectViaOtp(url: string): Promise<DerivWS> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<DerivSessionAccount[]>(readStoredAccounts)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => sessionStorage.getItem(SELECTED_ACCOUNT_KEY))
-  const [accountType, setAccountType] = useState<AccountType>(() => (sessionStorage.getItem(ACCOUNT_TYPE_KEY) as AccountType) || 'demo')
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
+    return getStorage().getItem(SELECTED_ACCOUNT_KEY)
+  })
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    return (getStorage().getItem(ACCOUNT_TYPE_KEY) as AccountType) || 'demo'
+  })
   const [ws, setWs] = useState<DerivWS | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rememberMe, setRememberMeState] = useState<boolean>(() => {
+    try { return localStorage.getItem(REMEMBER_ME_KEY) === 'true' } catch { return false }
+  })
 
   const account = accounts.find((candidate) => candidate.account_id === selectedAccountId) || accounts[0] || null
-
   const isAdmin = account ? ADMIN_ACCOUNT_IDS.includes(account.account_id) : false
+
+  const setRememberMe = useCallback((v: boolean) => {
+    setRememberMeState(v)
+    try {
+      if (v) {
+        localStorage.setItem(REMEMBER_ME_KEY, 'true')
+        const sd = sessionStorage.getItem(ACCOUNTS_KEY)
+        if (sd) { localStorage.setItem(ACCOUNTS_KEY, sd); sessionStorage.removeItem(ACCOUNTS_KEY) }
+        const sel = sessionStorage.getItem(SELECTED_ACCOUNT_KEY)
+        if (sel) { localStorage.setItem(SELECTED_ACCOUNT_KEY, sel); sessionStorage.removeItem(SELECTED_ACCOUNT_KEY) }
+        const at = sessionStorage.getItem(ACCOUNT_TYPE_KEY)
+        if (at) { localStorage.setItem(ACCOUNT_TYPE_KEY, at); sessionStorage.removeItem(ACCOUNT_TYPE_KEY) }
+      } else {
+        localStorage.removeItem(REMEMBER_ME_KEY)
+        const ld = localStorage.getItem(ACCOUNTS_KEY)
+        if (ld) { sessionStorage.setItem(ACCOUNTS_KEY, ld); localStorage.removeItem(ACCOUNTS_KEY) }
+        const sel = localStorage.getItem(SELECTED_ACCOUNT_KEY)
+        if (sel) { sessionStorage.setItem(SELECTED_ACCOUNT_KEY, sel); localStorage.removeItem(SELECTED_ACCOUNT_KEY) }
+        const at = localStorage.getItem(ACCOUNT_TYPE_KEY)
+        if (at) { sessionStorage.setItem(ACCOUNT_TYPE_KEY, at); localStorage.removeItem(ACCOUNT_TYPE_KEY) }
+      }
+    } catch { /* ignore */ }
+  }, [])
 
   const login = useCallback(async () => {
     setError(null)
@@ -192,16 +232,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccounts([])
     setSelectedAccountId(null)
     setAccountType('demo')
-    sessionStorage.removeItem(ACCOUNTS_KEY)
-    sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
-    sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
+    const storage = getStorage()
+    storage.removeItem(ACCOUNTS_KEY)
+    storage.removeItem(SELECTED_ACCOUNT_KEY)
+    storage.removeItem(ACCOUNT_TYPE_KEY)
+    try { localStorage.removeItem(REMEMBER_ME_KEY) } catch { /* ignore */ }
+    setRememberMeState(false)
     clearOAuthState()
   }, [ws])
 
   const ensureValidToken = useCallback(async (acct: DerivSessionAccount): Promise<DerivSessionAccount> => {
     if (!isTokenExpired(acct.token_expiry)) return acct
     if (!acct.refresh_token) throw new Error(SESSION_EXPIRED_MESSAGE)
-
     const tokens = await refreshAccessToken(acct.refresh_token)
     const updated: DerivSessionAccount = {
       ...acct,
@@ -209,10 +251,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
       refresh_token: tokens.refresh_token || acct.refresh_token,
     }
-
     setAccounts((prev) => {
       const next = prev.map((a) => a.account_id === updated.account_id ? updated : a)
-      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
+      getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
       return next
     })
     return updated
@@ -221,17 +262,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const switchAccount = useCallback(async (accountId: string) => {
     const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
     if (!nextAccount) throw new Error('Account not found.')
-
     setIsLoading(true)
     setError(null)
     try {
       const refreshed = await ensureValidToken(nextAccount)
       const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
       const nextWs = await connectViaOtp(otpUrl)
-
       refreshed.ws_url = otpUrl
       ws?.disconnect()
-      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
+      getStorage().setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
       setSelectedAccountId(nextAccount.account_id)
       setAccounts((prev) => prev.map((a) => a.account_id === refreshed.account_id ? refreshed : a))
       setWs(nextWs)
@@ -246,50 +285,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleCallback = useCallback(async (params: URLSearchParams) => {
     setIsLoading(true)
     setError(null)
-
     try {
       const callbackError = params.get('error_description') || params.get('error')
       if (callbackError) throw new Error(callbackError)
-
       const code = params.get('code')
       const returnedState = params.get('state')
       const storedState = getStoredOAuthState()
       const codeVerifier = getStoredCodeVerifier()
-
       if (!code || !returnedState || !storedState || returnedState !== storedState) {
         throw new Error('The Deriv sign-in session could not be verified. Please try again.')
       }
       if (!codeVerifier) throw new Error('The Deriv sign-in session has expired. Please try again.')
-
-      const tokens = await callDerivOAuth({
-        code,
-        code_verifier: codeVerifier,
-        client_id: DERIV_CLIENT_ID,
-        redirect_uri: DERIV_REDIRECT_URI,
-      })
+      const tokens = await callDerivOAuth({ code, code_verifier: codeVerifier, client_id: DERIV_CLIENT_ID, redirect_uri: DERIV_REDIRECT_URI })
       if (!tokens.access_token) throw new Error('Deriv did not return an access token.')
-
       let accountList = await fetchAccounts(tokens.access_token)
-
       const hasDemo = accountList.some((a) => a.account_type === 'demo')
       if (!hasDemo) {
         const demoAcct = await createAccount(tokens.access_token, 'demo')
         accountList = [...accountList, demoAcct]
       }
-
       const sessionAccounts: DerivSessionAccount[] = accountList.map((a) => toSessionAccount(a, tokens))
-
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
       const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
       const nextWs = await connectViaOtp(otpUrl)
-
       firstAccount.ws_url = otpUrl
-
       ws?.disconnect()
-      sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(sessionAccounts))
-      sessionStorage.setItem(SELECTED_ACCOUNT_KEY, firstAccount.account_id)
-      sessionStorage.setItem(ACCOUNT_TYPE_KEY, 'demo')
+      const storage = getStorage()
+      storage.setItem(ACCOUNTS_KEY, JSON.stringify(sessionAccounts))
+      storage.setItem(SELECTED_ACCOUNT_KEY, firstAccount.account_id)
+      storage.setItem(ACCOUNT_TYPE_KEY, 'demo')
       clearOAuthState()
       setAccounts(sessionAccounts)
       setSelectedAccountId(firstAccount.account_id)
@@ -316,9 +341,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     if (targetAccount.account_id === account?.account_id) return
-
     setAccountType(type)
-    sessionStorage.setItem(ACCOUNT_TYPE_KEY, type)
+    getStorage().setItem(ACCOUNT_TYPE_KEY, type)
     await switchAccount(targetAccount.account_id)
   }, [accounts, account?.account_id, switchAccount])
 
@@ -334,7 +358,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const realAcct = await createAccount(account.access_token, 'real')
         accountList = [...accountList, realAcct]
       }
-
       const tokens: OAuthTokenResponse = {
         access_token: validated.access_token,
         expires_in: Math.floor((validated.token_expiry - Date.now()) / 1000),
@@ -343,8 +366,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newSession = accountList
         .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
         .map((a) => toSessionAccount(a, tokens))
-
-      setAccounts((prev) => [...prev, ...newSession])
+      setAccounts((prev) => {
+        const next = [...prev, ...newSession]
+        getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+        return next
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to enable real trading.')
     } finally {
@@ -360,108 +386,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newBalance = parseFloat(res.balance.balance)
         const currency = res.balance.currency || account.currency
         setAccounts((prev) => {
-          const next = prev.map((a) =>
-            a.account_id === account.account_id
-              ? { ...a, balance: newBalance, currency }
-              : a
-          )
-          sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
+          const next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+          getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
           return next
         })
       }
-    } catch {
-      // ignore balance refresh errors
-    }
+    } catch { /* ignore */ }
   }, [ws, account])
 
-  // Subscribe to real-time balance updates so the displayed balance
-  // updates automatically after every trade, deposit, or withdrawal
-  // without needing a manual refresh.
   useEffect(() => {
     if (!ws || !account) return
-
     let reqId: number | null = null
     let cancelled = false
-
-    ws.subscribe(
-      { balance: 1 },
-      (data: any) => {
-        if (cancelled || !data.balance) return
-        const newBalance = parseFloat(data.balance.balance)
-        const currency = data.balance.currency || account.currency
-        setAccounts((prev) => {
-          const next = prev.map((a) =>
-            a.account_id === account.account_id
-              ? { ...a, balance: newBalance, currency }
-              : a
-          )
-          sessionStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next))
-          return next
-        })
-      },
-    ).then(({ reqId: id }) => {
-      reqId = id
-    }).catch(() => {
-      // subscription failed — one-shot refreshBalance calls still work
-    })
-
-    return () => {
-      cancelled = true
-      if (reqId !== null) ws.unsubscribe(reqId)
-    }
+    ws.subscribe({ balance: 1 }, (data: any) => {
+      if (cancelled || !data.balance) return
+      const newBalance = parseFloat(data.balance.balance)
+      const currency = data.balance.currency || account.currency
+      setAccounts((prev) => {
+        const next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+        getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+        return next
+      })
+    }).then(({ reqId: id }) => { reqId = id }).catch(() => {})
+    return () => { cancelled = true; if (reqId !== null) ws.unsubscribe(reqId) }
   }, [ws, account])
 
   useEffect(() => {
     if (!account || ws) return
-
     let cancelled = false
     ensureValidToken(account)
       .then((validated) => {
         if (cancelled) return
         return fetchOtpUrl(validated.access_token, validated.account_id)
-        .then(async (otpUrl) => {
-          if (cancelled) return
-          const nextWs = await connectViaOtp(otpUrl)
-          if (cancelled) {
-            nextWs.disconnect()
-            return
-          }
-          validated.ws_url = otpUrl
-          setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
-          setWs(nextWs)
-        })
+          .then(async (otpUrl) => {
+            if (cancelled) return
+            const nextWs = await connectViaOtp(otpUrl)
+            if (cancelled) { nextWs.disconnect(); return }
+            validated.ws_url = otpUrl
+            setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
+            setWs(nextWs)
+          })
       })
       .catch(() => {
         if (cancelled) return
-        sessionStorage.removeItem(ACCOUNTS_KEY)
-        sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
-        sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
+        const storage = getStorage()
+        storage.removeItem(ACCOUNTS_KEY)
+        storage.removeItem(SELECTED_ACCOUNT_KEY)
+        storage.removeItem(ACCOUNT_TYPE_KEY)
         setAccounts([])
         setSelectedAccountId(null)
         setError(SESSION_EXPIRED_MESSAGE)
       })
-
     return () => { cancelled = true }
   }, [account, ws, ensureValidToken])
 
   return (
     <AuthContext.Provider value={{
-      accounts,
-      account,
-      accountType,
-      ws,
-      isAuthenticated: accounts.length > 0,
-      isAdmin,
-      isLoading,
-      error,
-      login,
-      logout,
-      handleCallback,
-      selectAccount,
-      switchAccount,
-      switchAccountType,
-      enableRealTrading,
-      refreshBalance,
+      accounts, account, accountType, ws,
+      isAuthenticated: accounts.length > 0, isAdmin, isLoading, error,
+      rememberMe, setRememberMe,
+      login, logout, handleCallback,
+      selectAccount, switchAccount, switchAccountType, enableRealTrading, refreshBalance,
     }}>
       {children}
     </AuthContext.Provider>
