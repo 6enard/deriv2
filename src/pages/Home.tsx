@@ -490,6 +490,27 @@ export default function Home() {
               <StartTradingButton />
             )}
 
+            <a
+              href="https://t.deriv.link?t=396G2MG2BR8N"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="
+                text-sm
+                text-slate-500
+                dark:text-text-secondary
+                hover:text-brand-red
+                dark:hover:text-brand-red
+                transition-colors
+                fade-in-up
+              "
+              style={{ animationDelay: '0.6s' }}
+            >
+              Don't have a Deriv account?{' '}
+              <span className="font-semibold text-brand-red">
+                Create one
+              </span>
+            </a>
+
             <div
               className="
                 flex
@@ -1317,6 +1338,26 @@ export default function Home() {
             </p>
 
             <StartTradingButton />
+
+            <a
+              href="https://t.deriv.link?t=396G2MG2BR8N"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="
+                text-sm
+                text-slate-500
+                dark:text-text-secondary
+                hover:text-brand-red
+                dark:hover:text-brand-red
+                transition-colors
+                mt-2
+              "
+            >
+              Don't have a Deriv account?{' '}
+              <span className="font-semibold text-brand-red">
+                Create one
+              </span>
+            </a>
           </div>
         </section>
       </main>
