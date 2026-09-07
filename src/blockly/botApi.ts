@@ -533,7 +533,7 @@ export function createBotApi(
       return
     }
 
-    const maxAttempts = 3
+    const maxAttempts = 5
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (disposed) return
       if (tickSubscriptionId) return
@@ -610,7 +610,15 @@ export function createBotApi(
 
         if (attempt < maxAttempts - 1) {
           tickSubscriptionId = null
-          await sleep(500)
+
+          try {
+            await ws.forgetAll('ticks')
+          } catch {
+            // best effort
+          }
+
+          const delay = Math.min(500 * (attempt + 1), 3000)
+          await sleep(delay)
         } else {
           writeConsole(
             'warn',

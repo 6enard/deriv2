@@ -13,6 +13,7 @@ type PendingRequest = {
 }
 
 const REQUEST_TIMEOUT_MS = 15000
+const SUBSCRIPTION_TIMEOUT_MS = 30000
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_DELAY_MS = 30000
 
@@ -226,8 +227,12 @@ export class DerivWS {
   private async ensureConnected(): Promise<void> {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return
     if (this.connectPromise) {
-      await this.connectPromise
-      return
+      try {
+        await this.connectPromise
+      } catch {
+        // connectPromise rejected — fall through to reconnect
+      }
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) return
     }
     if (!this.shouldReconnect) {
       this.shouldReconnect = true
@@ -360,7 +365,7 @@ export class DerivWS {
           this.pending.delete(id)
           if (key) this.sharedKeyToReqId.delete(key)
           reject(new Error('Subscription request timed out'))
-        }, REQUEST_TIMEOUT_MS)
+        }, SUBSCRIPTION_TIMEOUT_MS)
         this.pending.set(id, {
           resolve: (data: any) => resolve({ reqId: id, data }),
           reject,
@@ -374,17 +379,20 @@ export class DerivWS {
     } catch (error: any) {
       const errMsg = String(error?.message || error || '')
       const isAlreadySubscribed = /already.?subscribed/i.test(errMsg)
+      const isTimeout = /timed out/i.test(errMsg)
 
-      if (isAlreadySubscribed && attempt < 2) {
-        let forgetType = ''
-        if (typeof request.ticks === 'string') forgetType = 'ticks'
-        else if (request.proposal_open_contract) forgetType = 'proposal_open_contract'
+      if ((isAlreadySubscribed || isTimeout) && attempt < 3) {
+        if (isAlreadySubscribed) {
+          let forgetType = ''
+          if (typeof request.ticks === 'string') forgetType = 'ticks'
+          else if (request.proposal_open_contract) forgetType = 'proposal_open_contract'
 
-        if (forgetType) {
-          try { await this.send({ forget_all: forgetType }) } catch { /* retry anyway */ }
+          if (forgetType) {
+            try { await this.send({ forget_all: forgetType }) } catch { /* retry anyway */ }
+          }
         }
         if (key) this.sharedKeyToReqId.delete(key)
-        await new Promise((r) => setTimeout(r, 300))
+        await new Promise((r) => setTimeout(r, isTimeout ? 1000 : 300))
         return this.sendSubscribe(request, callback, key, attempt + 1)
       }
 
