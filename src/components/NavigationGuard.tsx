@@ -1,14 +1,23 @@
-import { useEffect } from 'react'
-import { useBlocker } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
 
 export default function NavigationGuard() {
   const { isRunning } = useBotRunnerContext()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const lastPath = useRef(location.pathname)
 
-  useBlocker(({ currentLocation, nextLocation }) => {
-    if (!isRunning) return false
-    return currentLocation.pathname !== nextLocation.pathname
-  })
+  useEffect(() => {
+    if (!isRunning) {
+      lastPath.current = location.pathname
+      return
+    }
+
+    if (location.pathname !== lastPath.current) {
+      navigate(lastPath.current, { replace: true })
+    }
+  }, [location.pathname, isRunning, navigate])
 
   useEffect(() => {
     if (!isRunning) return
