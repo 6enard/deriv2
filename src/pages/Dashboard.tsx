@@ -684,7 +684,7 @@ function QuickStrategyTab({ strategies, onChanged, externalShowForm, onExternalC
       name: name.trim(),
       symbol,
       contract_type: contractType,
-      stake: parseFloat(stake) || 1,
+      stake: Math.max(0.35, parseFloat(stake) || 0.35),
       duration: parseInt(duration) || 5,
       duration_unit: durationUnit,
       martingale_steps: parseInt(martingaleSteps) || 0,

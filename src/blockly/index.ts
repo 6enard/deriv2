@@ -1447,7 +1447,7 @@ export function extractTradeParams(
     return { ok: false, missingField: 'duration' }
   }
 
-  if (amount === undefined || amount <= 0) {
+  if (amount === undefined || amount < 0.35) {
     return { ok: false, missingField: 'stake amount' }
   }
 

@@ -2384,7 +2384,7 @@ export function createBotApi(
       !Number.isFinite(
         value,
       ) ||
-      value <= 0
+      value < 0.35
     ) {
       throw new Error(
         'Stake must be greater than zero.',
