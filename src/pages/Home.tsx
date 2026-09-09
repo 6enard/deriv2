@@ -1266,7 +1266,6 @@ export default function Home() {
             mt-24
             sm:mt-36
             pb-10
-            text-center
             fade-in-up
           "
         >
@@ -1287,77 +1286,166 @@ export default function Home() {
             "
           />
 
-          <div className="relative">
+          <div className="relative max-w-5xl mx-auto text-center">
             <div
               className="
+                inline-flex items-center gap-2.5
+                px-4 py-2
+                rounded-full
+                border
+                border-slate-200
+                bg-white/80
+                shadow-[0_8px_30px_rgba(15,23,42,0.05)]
+                backdrop-blur-xl
+                text-xs sm:text-sm
+                text-slate-500
+                dark:border-white/[0.08]
+                dark:bg-white/[0.035]
+                dark:text-text-secondary
+                dark:shadow-lg
+                fade-in-down
+              "
+            >
+              <span className="relative flex w-2 h-2">
+                <span
+                  className="
+                    absolute
+                    inline-flex
+                    w-full h-full
+                    rounded-full
+                    bg-brand-red
+                    opacity-40
+                    animate-ping
+                  "
+                />
+
+                <span className="relative w-2 h-2 rounded-full bg-brand-red" />
+              </span>
+
+              <span>
+                Powered by{' '}
+                <span className="font-semibold text-slate-900 dark:text-text-primary">
+                  Deriv
+                </span>
+              </span>
+            </div>
+
+            <div
+              className="
+                flex
+                items-center
+                justify-center
+                gap-3
+                mt-8
+                mb-5
                 text-[10px]
+                sm:text-xs
                 uppercase
-                tracking-[0.26em]
+                tracking-[0.28em]
                 font-semibold
                 text-slate-400
                 dark:text-text-secondary
-                mb-5
+                fade-in-up
               "
+              style={{ animationDelay: '0.1s' }}
             >
+              <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
+
               Your next move
+
+              <span className="w-8 h-px bg-slate-300 dark:bg-white/10" />
             </div>
 
             <h2
               className="
                 text-4xl
-                sm:text-5xl
-                lg:text-6xl
+                sm:text-6xl
+                lg:text-7xl
+                xl:text-[88px]
                 font-bold
-                tracking-[-0.05em]
-                text-slate-950
-                dark:text-text-primary
+                tracking-[-0.055em]
+                leading-[0.94]
+                fade-in-up
               "
+              style={{ animationDelay: '0.2s' }}
             >
-              Your next trade
-              <br />
-              <span className="shimmer-text">
+              <span className="block text-slate-950 dark:text-text-primary">
+                Your next trade
+              </span>
+
+              <span className="block shimmer-text">
                 starts here.
               </span>
             </h2>
 
             <p
               className="
-                max-w-md
+                max-w-2xl
                 mx-auto
-                mt-5
-                mb-8
-                text-sm
-                sm:text-base
+                mt-7
+                text-base
+                sm:text-lg
                 leading-relaxed
                 text-slate-500
                 dark:text-text-secondary
+                fade-in-up
               "
+              style={{ animationDelay: '0.35s' }}
             >
               Connect your Deriv account and enter the markets
               through a modern trading experience.
             </p>
 
-            <StartTradingButton />
+            <div className="mt-10 flex flex-col items-center gap-5 fade-in-up" style={{ animationDelay: '0.5s' }}>
+              <StartTradingButton />
 
-            <a
-              href="https://t.deriv.link?t=396G2MG2BR8N"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="
-                text-sm
-                text-slate-500
-                dark:text-text-secondary
-                hover:text-brand-red
-                dark:hover:text-brand-red
-                transition-colors
-                mt-2
-              "
-            >
-              Don't have a Deriv account?{' '}
-              <span className="font-semibold text-brand-red">
-                Create one
-              </span>
-            </a>
+              <a
+                href="https://t.deriv.link?t=396G2MG2BR8N"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="
+                  text-sm
+                  text-slate-500
+                  dark:text-text-secondary
+                  hover:text-brand-red
+                  dark:hover:text-brand-red
+                  transition-colors
+                  fade-in-up
+                "
+                style={{ animationDelay: '0.6s' }}
+              >
+                Don't have a Deriv account?{' '}
+                <span className="font-semibold text-brand-red">
+                  Create one
+                </span>
+              </a>
+
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  justify-center
+                  items-center
+                  gap-x-5
+                  gap-y-2
+                  text-xs
+                  text-slate-400
+                  dark:text-text-secondary
+                  fade-in-up
+                "
+                style={{ animationDelay: '0.65s' }}
+              >
+                <TrustItem text="Secure authentication" />
+
+                <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300 dark:bg-white/20" />
+
+                <TrustItem text="Real-time markets" />
+
+                <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300 dark:bg-white/20" />
+
+                <TrustItem text="Built for traders" />
+              </div>
+            </div>
           </div>
         </section>
       </main>

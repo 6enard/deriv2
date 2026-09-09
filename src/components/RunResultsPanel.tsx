@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type RefObject } from 'react'
-import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause } from 'lucide-react'
+import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause, Activity } from 'lucide-react'
 import type { OpenContract } from '../lib/types'
 import type { RunStats, JournalEntry } from '../context/BotRunnerContext'
 
@@ -138,7 +138,7 @@ export function RunResultsPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
-        {tab === 'summary' && <SummaryView runStats={runStats} winRate={winRate} currency={currency} latest={latest} phase={phase} onReset={onResetStats} />}
+        {tab === 'summary' && <SummaryView runStats={runStats} winRate={winRate} currency={currency} latest={latest} phase={phase} isRunning={isRunning} onReset={onResetStats} />}
         {tab === 'transactions' && <TransactionsView trades={trades} currency={currency} onDetails={setDetailContract} onReset={onResetStats} onDownload={downloadTransactionsCsv} />}
         {tab === 'journal' && <JournalView journal={journal} journalEndRef={journalEndRef} onReset={onResetStats} onClear={onClearJournal} onDownload={downloadJournalTxt} />}
       </div>
@@ -148,45 +148,118 @@ export function RunResultsPanel({
   )
 }
 
-function SummaryView({ runStats, winRate, currency, latest, phase, onReset }: { runStats: RunStats; winRate: number; currency: string; latest?: OpenContract; phase: Phase; onReset: () => void }) {
+function contractTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    CALL: 'Rise', PUT: 'Fall', HIGHER: 'Higher', LOWER: 'Lower',
+    ONETOUCH: 'Touch', NOTOUCH: 'No Touch', DIGITMATCH: 'Matches',
+    DIGITDIFF: 'Differs', DIGITEVEN: 'Even', DIGITODD: 'Odd',
+    DIGITOVER: 'Over', DIGITUNDER: 'Under', MULTUP: 'Multiplier Up',
+    MULTDOWN: 'Multiplier Down', ACCU: 'Accumulator',
+  }
+  return map[type?.toUpperCase()] || type || '—'
+}
+
+function SummaryView({ runStats, winRate, currency, latest, phase, isRunning, onReset }: { runStats: RunStats; winRate: number; currency: string; latest?: OpenContract; phase: Phase; isRunning: boolean; onReset: () => void }) {
   const profit = latest?.profit ?? runStats.totalProfit
   const buyPrice = latest?.buy_price ?? runStats.totalStake
   const payout = latest?.payout ?? runStats.totalPayout
   const activeSteps = PHASE_STEPS[phase]
+  const isSettled = phase === 'settled' && latest?.is_sold
+  const isWin = isSettled && profit > 0
+  const isLoss = isSettled && profit < 0
+
+  if (!isRunning && !latest && runStats.totalRuns === 0) {
+    return (
+      <div className="p-3 sm:p-5">
+        <div className="rounded-xl border border-border-light bg-bg-primary/40 p-6 sm:p-10 flex flex-col items-center justify-center text-center min-h-[280px]">
+          <div className="w-12 h-12 rounded-2xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center mb-4">
+            <Activity className="w-6 h-6 text-brand-red" />
+          </div>
+          <p className="text-sm sm:text-base text-text-secondary leading-relaxed max-w-xs">
+            When you&rsquo;re ready to trade, hit Run. You&rsquo;ll be able to track your bot&rsquo;s performance here.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-7 bg-bg-tertiary/60 px-4 sm:px-6 py-6 sm:py-7 mt-4">
+          <BottomStat label="Total stake" value={`${runStats.totalStake.toFixed(2)} ${currency}`} />
+          <BottomStat label="Total payout" value={`${runStats.totalPayout.toFixed(2)} ${currency}`} />
+          <BottomStat label="No. of runs" value={String(runStats.totalRuns)} />
+          <BottomStat label="Contracts lost" value={String(runStats.losses)} />
+          <BottomStat label="Contracts won" value={String(runStats.wins)} />
+          <BottomStat label="Profit/loss" value={`${runStats.totalProfit >= 0 ? '+' : ''}${runStats.totalProfit.toFixed(2)} ${currency}`} valueClass={runStats.totalProfit >= 0 ? 'text-[#4eb5b7]' : 'text-brand-red'} />
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-text-muted mt-4">
+          <span>Win rate: <strong className="text-text-secondary">{winRate.toFixed(1)}%</strong></span>
+          <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border-light hover:text-text-primary transition-colors"><RotateCcw className="w-3 h-3" /> Reset</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-3 sm:p-5 space-y-4">
-      <div className="rounded-xl border border-border-light bg-bg-primary/40 p-4 sm:p-8">
-        <div className="flex items-center gap-1 mb-7">
-          {[0, 1, 2, 3].map((step) => (
-            <span
-              key={step}
-              className={`h-2 flex-1 rounded-sm transition-all duration-500 ${
-                step < activeSteps
-                  ? phase === 'settled' && step === 3
-                    ? 'bg-brand-green progress-bar-done'
-                    : phase === 'open' && step === 2
-                      ? 'bg-[#7caeb0] progress-bar-active'
-                      : 'bg-[#7caeb0] progress-bar-filled'
-                  : 'bg-bg-hover'
-              }`}
-            />
-          ))}
-        </div>
-        <div className="inline-flex rounded-lg bg-[#82adaf] px-2 py-1 text-xs font-bold text-white mb-6">{currency}</div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-7">
-          <Quote label="Potential profit/loss" value={`${profit >= 0 ? '+' : ''}${profit.toFixed(2)}`} valueClass={profit >= 0 ? 'text-[#4eb5b7]' : 'text-brand-red'} />
-          <Quote label="Indicative price" value={latest ? payout.toFixed(2) : '—'} />
-          <Quote label="Buy price" value={buyPrice.toFixed(2)} />
-          <Quote label="Payout limit" value={latest ? payout.toFixed(2) : '—'} />
-        </div>
-        <div className="mt-8 pt-7 border-t border-border-default text-center text-base sm:text-lg text-text-secondary">
-          {phase === 'open' && latest ? 'Resale not offered' : phase === 'settled' ? 'Contract closed' : 'No active contract'}
-          {phase === 'settled' && latest && (
-            <div className="mt-2 text-sm text-text-muted">
-              {latest.display_name || latest.symbol}
+      <div className={`rounded-xl border p-4 sm:p-8 relative overflow-hidden transition-colors ${
+        isSettled
+          ? isWin
+            ? 'border-brand-green/30 bg-brand-green/[0.06]'
+            : isLoss
+              ? 'border-brand-red/30 bg-brand-red/[0.06]'
+              : 'border-border-light bg-bg-primary/40'
+          : 'border-border-light bg-bg-primary/40'
+      }`}>
+        {isSettled && latest && (
+          <div className={`absolute top-0 left-0 right-0 px-4 py-2 flex items-center justify-center gap-2 text-sm font-bold ${
+            isWin ? 'bg-brand-green/15 text-brand-green' : isLoss ? 'bg-brand-red/15 text-brand-red' : 'bg-bg-tertiary/60 text-text-secondary'
+          }`}>
+            {isWin ? <TrendingUp className="w-4 h-4" /> : isLoss ? <TrendingDown className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+            Closed — {profit >= 0 ? '+' : ''}{profit.toFixed(2)} {currency}
+          </div>
+        )}
+
+        <div className={isSettled ? 'pt-10' : ''}>
+          {latest && (
+            <div className="flex items-center flex-wrap gap-2 mb-5">
+              <span className="text-sm font-bold text-text-primary">{latest.display_name || latest.symbol}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-brand-red/15 text-brand-red">{contractTypeLabel(latest.contract_type)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-bg-tertiary text-text-secondary">{currency}</span>
             </div>
           )}
+
+          <div className="flex items-center gap-1 mb-7">
+            {[0, 1, 2, 3].map((step) => (
+              <span
+                key={step}
+                className={`h-2 flex-1 rounded-sm transition-all duration-500 ${
+                  step < activeSteps
+                    ? phase === 'settled' && step === 3
+                      ? 'bg-brand-green progress-bar-done'
+                      : phase === 'open' && step === 2
+                        ? 'bg-[#7caeb0] progress-bar-active'
+                        : 'bg-[#7caeb0] progress-bar-filled'
+                    : 'bg-bg-hover'
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="inline-flex rounded-lg bg-[#82adaf] px-2 py-1 text-xs font-bold text-white mb-6">{currency}</div>
+
+          <div className="grid grid-cols-2 gap-x-8 gap-y-7">
+            <Quote label="Total profit/loss" value={`${profit >= 0 ? '+' : ''}${profit.toFixed(2)}`} valueClass={profit >= 0 ? 'text-[#4eb5b7]' : 'text-brand-red'} />
+            <Quote label="Contract value" value={buyPrice.toFixed(2)} />
+            <Quote label="Stake" value={buyPrice.toFixed(2)} />
+            <Quote label="Potential payout" value={payout.toFixed(2)} />
+          </div>
+
+          <div className="mt-8 pt-7 border-t border-border-default text-center text-base sm:text-lg text-text-secondary">
+            {phase === 'open' && latest ? 'Resale not offered' : phase === 'settled' ? 'Contract closed' : 'No active contract'}
+            {phase === 'settled' && latest && (
+              <div className="mt-2 text-sm text-text-muted">
+                {latest.display_name || latest.symbol}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
