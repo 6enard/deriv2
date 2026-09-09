@@ -883,6 +883,8 @@ export default function BotBuilder() {
             currency={currency}
             onClearJournal={handleClearJournal}
             onResetStats={handleResetStats}
+            isRunning={isRunning}
+            onStop={handleStop}
           />
         </div>
       </aside>
@@ -971,6 +973,8 @@ export default function BotBuilder() {
               currency={currency}
               onClearJournal={handleClearJournal}
               onResetStats={handleResetStats}
+              isRunning={isRunning}
+              onStop={handleStop}
             />
           </div>
         )}
@@ -1472,6 +1476,9 @@ function EditBotModal({
     const workspace = workspaceRef.current
     if (!workspace) return
 
+    const normalizedStake = Math.max(0.35, Number(stake) || 0.35)
+    if (stake !== String(normalizedStake)) setStake(normalizedStake.toFixed(2))
+
     const blocks = workspace.getAllBlocks(false)
 
     const marketBlock = blocks.find((b) => b.type === 'trade_definition_market')
@@ -1510,7 +1517,7 @@ function EditBotModal({
     const optionsBlock = blocks.find((b) => b.type === 'trade_definition_tradeoptions')
     if (optionsBlock) {
       setOrCreateNumberInput(optionsBlock, 'DURATION', duration)
-      setOrCreateNumberInput(optionsBlock, 'AMOUNT', stake)
+      setOrCreateNumberInput(optionsBlock, 'AMOUNT', String(normalizedStake))
       setOrCreateNumberInput(optionsBlock, 'PREDICTION', prediction)
       setOrCreateNumberInput(optionsBlock, 'BARRIER', barrier)
       setOrCreateNumberInput(optionsBlock, 'SECOND_BARRIER', secondBarrier)
@@ -1731,7 +1738,10 @@ function EditBotModal({
                     <input
                       type="number"
                       value={stake}
-                      onChange={(e) => setStake(e.target.value)}
+                      onChange={(e) => {
+                        const value = Number(e.target.value)
+                        setStake(value > 0 && value < 0.35 ? '0.35' : e.target.value)
+                      }}
                       min="0.35"
                       step="0.01"
                       className="w-full h-11 pl-9 pr-3 rounded-lg bg-bg-secondary border border-border-light text-sm tabular focus:outline-none focus:border-brand-red transition-colors"
