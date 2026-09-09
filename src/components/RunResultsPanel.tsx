@@ -20,13 +20,6 @@ function derivePhase(hasPurchased: boolean, hasOpenContract: boolean, latest?: O
   return 'waiting'
 }
 
-const PHASE_STEPS: Record<Phase, number> = {
-  waiting: 1,
-  purchasing: 2,
-  open: 3,
-  settled: 4,
-}
-
 const PHASE_LABELS: Record<Phase, string> = {
   waiting: 'Waiting for a signal to buy a contract',
   purchasing: 'Requesting proposal…',
@@ -65,7 +58,6 @@ export function RunResultsPanel({
   const hasOpenContract = trades.some((t) => !t.is_sold)
   const latest = trades[0]
   const phase = derivePhase(hasPurchased, hasOpenContract, latest)
-  const activeSteps = PHASE_STEPS[phase]
   const statusLabel = isRunning ? PHASE_LABELS[phase] : 'Bot stopped'
   const winRate = runStats.wins + runStats.losses > 0 ? (runStats.wins / (runStats.wins + runStats.losses)) * 100 : 0
 
@@ -102,20 +94,7 @@ export function RunResultsPanel({
           <div className="flex-1 min-w-0 h-10 sm:h-14 rounded-r-xl border border-border-light border-l-0 bg-bg-primary px-3 sm:px-6 flex flex-col items-center justify-center">
             <span className="font-bold text-xs sm:text-base text-text-primary truncate max-w-full">{statusLabel}</span>
             <div className="flex items-center gap-1 w-full max-w-[280px] mt-1 sm:mt-2">
-              {[0, 1, 2, 3].map((step) => (
-                <span
-                  key={step}
-                  className={`h-1.5 sm:h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                    step < activeSteps
-                      ? phase === 'settled' && step === 3
-                        ? 'bg-brand-green progress-bar-done'
-                        : phase === 'open' && step === 2
-                          ? 'bg-[#56b4b7] progress-bar-active'
-                          : 'bg-[#56b4b7] progress-bar-filled'
-                      : 'bg-bg-hover'
-                  }`}
-                />
-              ))}
+              <TickProgress contract={latest} phase={phase} compact />
             </div>
           </div>
         </div>
@@ -159,11 +138,32 @@ function contractTypeLabel(type: string): string {
   return map[type?.toUpperCase()] || type || '—'
 }
 
+function TickProgress({ contract, phase, compact = false }: { contract?: OpenContract; phase: Phase; compact?: boolean }) {
+  const totalTicks = contract?.duration_unit === 't' ? Number(contract.duration || contract.tick_count || 0) : 0
+  const segmentCount = Math.min(Math.max(totalTicks, 1), 40)
+  const currentTicks = phase === 'settled' ? totalTicks : Math.min(Number(contract?.tick_count || 0), totalTicks)
+  const filledCount = totalTicks > 0 ? Math.round((currentTicks / totalTicks) * segmentCount) : 0
+  const label = totalTicks > 0 ? `Ticks ${Math.min(currentTicks, totalTicks)}/${totalTicks}` : 'Waiting for ticks'
+
+  return (
+    <div className={`w-full ${compact ? 'max-w-[280px] mt-1 sm:mt-2' : 'mb-7'}`} aria-label={label}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[9px] uppercase tracking-wider text-text-muted">Tick progress</span>
+        <span className="text-[9px] tabular text-text-muted">{label}</span>
+      </div>
+      <div className="flex items-center gap-0.5 w-full">
+        {Array.from({ length: segmentCount }, (_, index) => (
+          <span key={index} className={`h-1.5 flex-1 rounded-sm transition-colors duration-150 ${index < filledCount ? phase === 'settled' ? 'bg-brand-green' : 'bg-[#7caeb0]' : 'bg-bg-hover'}`} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SummaryView({ runStats, winRate, currency, latest, phase, isRunning, onReset }: { runStats: RunStats; winRate: number; currency: string; latest?: OpenContract; phase: Phase; isRunning: boolean; onReset: () => void }) {
   const profit = latest?.profit ?? runStats.totalProfit
   const buyPrice = latest?.buy_price ?? runStats.totalStake
   const payout = latest?.payout ?? runStats.totalPayout
-  const activeSteps = PHASE_STEPS[phase]
   const isSettled = phase === 'settled' && latest?.is_sold
   const isWin = isSettled && profit > 0
   const isLoss = isSettled && profit < 0
@@ -226,22 +226,7 @@ function SummaryView({ runStats, winRate, currency, latest, phase, isRunning, on
             </div>
           )}
 
-          <div className="flex items-center gap-1 mb-7">
-            {[0, 1, 2, 3].map((step) => (
-              <span
-                key={step}
-                className={`h-2 flex-1 rounded-sm transition-all duration-500 ${
-                  step < activeSteps
-                    ? phase === 'settled' && step === 3
-                      ? 'bg-brand-green progress-bar-done'
-                      : phase === 'open' && step === 2
-                        ? 'bg-[#7caeb0] progress-bar-active'
-                        : 'bg-[#7caeb0] progress-bar-filled'
-                    : 'bg-bg-hover'
-                }`}
-              />
-            ))}
-          </div>
+          <TickProgress contract={latest} phase={phase} />
 
           <div className="inline-flex rounded-lg bg-[#82adaf] px-2 py-1 text-xs font-bold text-white mb-6">{currency}</div>
 

@@ -45,6 +45,7 @@ interface BotRunnerContextValue {
   journal: JournalEntry[]
   trades: OpenContract[]
   hasRunOnce: boolean
+  currentParams: TradeParams | null
   handleRun: (workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>, marketsLoaded: boolean) => Promise<void>
   handleStop: () => void
   handleResetStats: () => void
@@ -141,6 +142,33 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   const stopRef = useRef(false)
   const settledContractIds = useRef<Set<number>>(new Set())
   const botApiRef = useRef<BotApi | null>(null)
+  const [currentParams, setCurrentParams] = useState<TradeParams | null>(null)
+  const currentParamsRef = useRef<TradeParams | null>(null)
+
+  function buildInitialTrade(contractId: number, params: TradeParams, buyPrice: number, payout: number): OpenContract {
+    return {
+      contract_id: contractId,
+      symbol: params.symbol,
+      display_name: params.symbol,
+      contract_type: params.contract_type,
+      status: 'open',
+      buy_price: buyPrice,
+      sell_price: null,
+      payout,
+      profit: 0,
+      purchase_time: Math.floor(Date.now() / 1000),
+      is_sold: false,
+      is_expired: false,
+      longcode: '',
+      current_spot: 0,
+      entry_spot: null,
+      exit_spot: null,
+      tick_count: params.duration_unit === 't' ? params.duration : 0,
+      barrier: params.barrier ?? null,
+      duration: params.duration,
+      duration_unit: params.duration_unit,
+    }
+  }
 
   const [wasRunningBeforeReload] = useState(() => {
     try {
@@ -234,6 +262,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       return
     }
     const params = paramsResult.params
+    currentParamsRef.current = params
+    setCurrentParams(params)
 
     if (paramsResult.repairedInputs.length > 0) {
       showToast('info', `Some trade values needed correcting (${paramsResult.repairedInputs.join(', ')}) — please verify before relying on this bot.`)
@@ -302,6 +332,13 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
         })
       },
       onTrade: (contractId: number) => {
+        const p = currentParamsRef.current
+        if (p) {
+          setTrades((prev) => {
+            if (prev.some((t) => t.contract_id === contractId)) return prev
+            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
+          })
+        }
         subscribeToContract(contractId)
         ws.subscribe(
           { proposal_open_contract: 1, contract_id: contractId },
@@ -373,6 +410,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     }
 
     stopRef.current = false
+    currentParamsRef.current = params
+    setCurrentParams(params)
 
     try {
       sessionStorage.setItem(PERSIST_CODE_KEY, code)
@@ -427,6 +466,13 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
         })
       },
       onTrade: (contractId: number) => {
+        const p = currentParamsRef.current
+        if (p) {
+          setTrades((prev) => {
+            if (prev.some((t) => t.contract_id === contractId)) return prev
+            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
+          })
+        }
         subscribeToContract(contractId)
         ws.subscribe(
           { proposal_open_contract: 1, contract_id: contractId },
@@ -482,6 +528,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       await botApi.cleanup().catch(() => {})
       botApiRef.current = null
       setIsRunning(false)
+      setCurrentParams(null)
+      currentParamsRef.current = null
       clearAllPersist()
     }
   }, [ws, account, subscribeToContract, showToast, refreshBalance])
@@ -532,6 +580,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       journal,
       trades,
       hasRunOnce,
+      currentParams,
       handleRun,
       resumeRun,
       handleStop,

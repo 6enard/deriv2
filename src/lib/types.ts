@@ -74,12 +74,16 @@ export interface OpenContract {
   current_spot: number;
   entry_spot: number | null;
   exit_spot: number | null;
+  tick_count: number;
+  barrier: string | null;
+  duration: number | null;
+  duration_unit: string | null;
 }
 export function mapOpenContract(raw: any): OpenContract {
   return {
     contract_id: raw.contract_id,
     symbol: raw.underlying_symbol ?? raw.symbol ?? '',
-    display_name: raw.underlying_symbol ?? raw.display_name ?? raw.symbol ?? '',
+    display_name: raw.display_name ?? raw.underlying_symbol ?? raw.symbol ?? '',
     contract_type: raw.contract_type ?? '',
     status: raw.status ?? '',
     buy_price: parseFloat(raw.buy_price ?? '0'),
@@ -94,6 +98,10 @@ export function mapOpenContract(raw: any): OpenContract {
     current_spot: parseFloat(raw.current_spot ?? '0'),
     entry_spot: raw.entry_spot != null ? parseFloat(raw.entry_spot) : null,
     exit_spot: raw.exit_spot != null ? parseFloat(raw.exit_spot) : null,
+    tick_count: raw.tick_count ?? 0,
+    barrier: raw.barrier ?? null,
+    duration: raw.duration ?? null,
+    duration_unit: raw.duration_unit ?? null,
   };
 }
 
