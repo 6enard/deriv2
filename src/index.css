@@ -572,3 +572,75 @@ h1, h2, h3, h4 {
     transform: translateX(100%) scale(0.95);
   }
 }
+
+/* ===== Progress bar phase animations ===== */
+@keyframes progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.progress-bar-filled {
+  animation: progress-fill 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left;
+}
+
+@keyframes progress-pulse {
+  0%, 100% { opacity: 0.7; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(1.03); }
+}
+.progress-bar-active {
+  animation: progress-pulse 1.4s ease-in-out infinite;
+  transform-origin: left;
+}
+
+@keyframes progress-done {
+  0% { transform: scaleX(0.8); opacity: 0.6; }
+  50% { transform: scaleX(1.05); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+.progress-bar-done {
+  animation: progress-done 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left;
+}
+
+/* ===== Settlement flash overlay ===== */
+@keyframes settlement-flash-win {
+  0% { opacity: 0; transform: scale(0.8); }
+  15% { opacity: 1; transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+@keyframes settlement-flash-loss {
+  0% { opacity: 0; transform: scale(0.8); }
+  15% { opacity: 1; transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+.settlement-flash-win {
+  animation: settlement-flash-win 3.5s ease-in-out forwards;
+}
+.settlement-flash-loss {
+  animation: settlement-flash-loss 3.5s ease-in-out forwards;
+}
+
+@keyframes settlement-card-win {
+  0% { transform: translateY(20px) scale(0.9); opacity: 0; }
+  20% { transform: translateY(0) scale(1) rotate(-1deg); opacity: 1; }
+  80% { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
+}
+@keyframes settlement-card-loss {
+  0% { transform: translateY(20px) scale(0.9); opacity: 0; }
+  20% { transform: translateY(0) scale(1) rotate(1deg); opacity: 1; }
+  80% { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
+}
+.settlement-flash-card-win {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.92), rgba(22, 163, 74, 0.88));
+  border-color: rgba(74, 222, 128, 0.6);
+  animation: settlement-card-win 3.5s ease-in-out forwards;
+}
+.settlement-flash-card-loss {
+  background: linear-gradient(135deg, rgba(229, 57, 53, 0.92), rgba(198, 40, 40, 0.88));
+  border-color: rgba(248, 113, 113, 0.6);
+  animation: settlement-card-loss 3.5s ease-in-out forwards;
+}

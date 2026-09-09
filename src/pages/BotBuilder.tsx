@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
-import { Play, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert, Lock, Clock as Unlock } from 'lucide-react'
+import { Play, Pause, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert, Lock, Clock as Unlock } from 'lucide-react'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -44,7 +44,7 @@ export default function BotBuilder() {
 
   const pendingXmlRef = useRef<string | null>(null)
 
-  const [resultsTab, setResultsTab] = useState<ResultsTab>('journal')
+  const [resultsTab, setResultsTab] = useState<ResultsTab>('transactions')
   const journalEndRef = useRef<HTMLDivElement | null>(null)
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [showEditBot, setShowEditBot] = useState(false)
@@ -923,6 +923,19 @@ export default function BotBuilder() {
                   {totalProfit.toFixed(2)} {currency}
                 </span>
               )}
+              {isRunning && !mobilePanelExpanded && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleStop()
+                  }}
+                  className="h-7 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors"
+                >
+                  <Pause className="w-3 h-3 fill-current" />
+                  Stop
+                </button>
+              )}
               {mobilePanelExpanded ? (
                 <ChevronDown className="w-4 h-4 text-text-muted" />
               ) : (
@@ -944,7 +957,7 @@ export default function BotBuilder() {
               currency={currency}
               onClearJournal={handleClearJournal}
               onResetStats={handleResetStats}
-              isRunning={false}
+              isRunning={isRunning}
               onStop={handleStop}
             />
           </div>

@@ -1,17 +1,5 @@
-import { useState, type ReactNode, type RefObject } from 'react'
-import {
-  ChartBar as BarChart3,
-  List,
-  ScrollText,
-  Trash2,
-  RotateCcw,
-  TrendingUp,
-  TrendingDown,
-  Download,
-  X,
-  Circle,
-  Pause,
-} from 'lucide-react'
+import { useState, useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause, CircleCheck as CheckCircle2, Circle as XCircle } from 'lucide-react'
 import type { OpenContract } from '../lib/types'
 import type { RunStats, JournalEntry } from '../context/BotRunnerContext'
 
@@ -22,6 +10,29 @@ const TAB_DEFS: Array<{ id: ResultsTab; label: string; icon: typeof BarChart3 }>
   { id: 'transactions', label: 'Transactions', icon: List },
   { id: 'journal', label: 'Journal', icon: ScrollText },
 ]
+
+type Phase = 'waiting' | 'purchasing' | 'open' | 'settled'
+
+function derivePhase(hasPurchased: boolean, hasOpenContract: boolean, latest?: OpenContract): Phase {
+  if (latest && latest.is_sold) return 'settled'
+  if (hasOpenContract) return 'open'
+  if (hasPurchased) return 'purchasing'
+  return 'waiting'
+}
+
+const PHASE_STEPS: Record<Phase, number> = {
+  waiting: 1,
+  purchasing: 2,
+  open: 3,
+  settled: 4,
+}
+
+const PHASE_LABELS: Record<Phase, string> = {
+  waiting: 'Waiting for a signal to buy a contract',
+  purchasing: 'Requesting proposal…',
+  open: 'Contract bought — waiting for result',
+  settled: 'Contract settled',
+}
 
 export function RunResultsPanel({
   tab,
@@ -49,10 +60,29 @@ export function RunResultsPanel({
   onStop: () => void
 }) {
   const [detailContract, setDetailContract] = useState<OpenContract | null>(null)
+  const [settlementFlash, setSettlementFlash] = useState<{ profit: number; market: string } | null>(null)
+
   const hasPurchased = trades.length > 0 || journal.some((entry) => entry.message.startsWith('Contract purchased:'))
-  const statusLabel = hasPurchased ? 'Contract bought' : 'Waiting for a signal to buy a contract'
-  const winRate = runStats.wins + runStats.losses > 0 ? (runStats.wins / (runStats.wins + runStats.losses)) * 100 : 0
+  const hasOpenContract = trades.some((t) => !t.is_sold)
   const latest = trades[0]
+  const phase = derivePhase(hasPurchased, hasOpenContract, latest)
+  const activeSteps = PHASE_STEPS[phase]
+  const statusLabel = isRunning ? PHASE_LABELS[phase] : 'Bot stopped'
+  const winRate = runStats.wins + runStats.losses > 0 ? (runStats.wins / (runStats.wins + runStats.losses)) * 100 : 0
+
+  // Detect when a contract settles to trigger the flash animation
+  const prevSettledCount = useRef(0)
+  const settledCount = trades.filter((t) => t.is_sold).length
+
+  useEffect(() => {
+    if (settledCount > prevSettledCount.current && latest && latest.is_sold) {
+      setSettlementFlash({ profit: latest.profit, market: latest.display_name || latest.symbol })
+      const timer = setTimeout(() => setSettlementFlash(null), 3500)
+      prevSettledCount.current = settledCount
+      return () => clearTimeout(timer)
+    }
+    prevSettledCount.current = settledCount
+  }, [settledCount, latest])
 
   const downloadTransactionsCsv = () => {
     const rows = trades.map((contract) => [
@@ -76,18 +106,35 @@ export function RunResultsPanel({
   }
 
   return (
-    <div className="bg-bg-secondary flex flex-col h-full min-h-0">
+    <div className="bg-bg-secondary flex flex-col h-full min-h-0 relative">
+      {/* Settlement flash overlay */}
+      {settlementFlash && (
+        <SettlementFlash profit={settlementFlash.profit} market={settlementFlash.market} currency={currency} />
+      )}
+
       {isRunning && (
-        <div className="flex items-center gap-0 px-3 sm:px-4 py-3 border-b border-border-default shrink-0">
-          <button type="button" onClick={onStop} className="h-12 sm:h-14 px-5 sm:px-7 rounded-l-xl bg-brand-red text-white flex items-center gap-3 font-bold text-base sm:text-lg hover:bg-brand-red-dim transition-colors">
-            <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-            Stop
+        <div className="flex items-center gap-0 px-2 sm:px-4 py-2 sm:py-3 border-b border-border-default shrink-0">
+          <button type="button" onClick={onStop} className="h-10 sm:h-14 px-4 sm:px-7 rounded-l-xl bg-brand-red text-white flex items-center gap-2 sm:gap-3 font-bold text-sm sm:text-lg hover:bg-brand-red-dim transition-colors">
+            <Pause className="w-4 h-4 sm:w-6 sm:h-6 fill-current" />
+            <span className="sm:hidden">Stop</span>
+            <span className="hidden sm:inline">Stop</span>
           </button>
-          <div className="flex-1 min-w-0 h-12 sm:h-14 rounded-r-xl border border-border-light border-l-0 bg-bg-primary px-4 sm:px-6 flex flex-col items-center justify-center">
-            <span className="font-bold text-sm sm:text-base text-text-primary truncate max-w-full">{statusLabel}</span>
-            <div className="flex items-center gap-1 w-full max-w-[280px] mt-2">
-              {[0, 1, 2, 3, 4].map((step) => (
-                <span key={step} className={`h-1.5 flex-1 rounded-full ${step < (hasPurchased ? 4 : 1) ? 'bg-[#56b4b7] tick-progress' : 'bg-bg-hover'}`} />
+          <div className="flex-1 min-w-0 h-10 sm:h-14 rounded-r-xl border border-border-light border-l-0 bg-bg-primary px-3 sm:px-6 flex flex-col items-center justify-center">
+            <span className="font-bold text-xs sm:text-base text-text-primary truncate max-w-full">{statusLabel}</span>
+            <div className="flex items-center gap-1 w-full max-w-[280px] mt-1 sm:mt-2">
+              {[0, 1, 2, 3].map((step) => (
+                <span
+                  key={step}
+                  className={`h-1.5 sm:h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                    step < activeSteps
+                      ? phase === 'settled' && step === 3
+                        ? 'bg-brand-green progress-bar-done'
+                        : phase === 'open' && step === 2
+                          ? 'bg-[#56b4b7] progress-bar-active'
+                          : 'bg-[#56b4b7] progress-bar-filled'
+                      : 'bg-bg-hover'
+                  }`}
+                />
               ))}
             </div>
           </div>
@@ -111,7 +158,7 @@ export function RunResultsPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
-        {tab === 'summary' && <SummaryView runStats={runStats} winRate={winRate} currency={currency} latest={latest} onReset={onResetStats} />}
+        {tab === 'summary' && <SummaryView runStats={runStats} winRate={winRate} currency={currency} latest={latest} phase={phase} onReset={onResetStats} />}
         {tab === 'transactions' && <TransactionsView trades={trades} currency={currency} onDetails={setDetailContract} onReset={onResetStats} onDownload={downloadTransactionsCsv} />}
         {tab === 'journal' && <JournalView journal={journal} journalEndRef={journalEndRef} onReset={onResetStats} onClear={onClearJournal} onDownload={downloadJournalTxt} />}
       </div>
@@ -121,16 +168,57 @@ export function RunResultsPanel({
   )
 }
 
-function SummaryView({ runStats, winRate, currency, latest, onReset }: { runStats: RunStats; winRate: number; currency: string; latest?: OpenContract; onReset: () => void }) {
+function SettlementFlash({ profit, market, currency }: { profit: number; market: string; currency: string }) {
+  const isWin = profit > 0
+  const isLoss = profit < 0
+  return (
+    <div
+      className={`absolute inset-0 z-50 flex items-center justify-center pointer-events-none settlement-flash-${isWin ? 'win' : 'loss'}`}
+    >
+      <div className={`flex flex-col items-center gap-3 px-8 py-6 rounded-2xl border-2 shadow-2xl backdrop-blur-md settlement-flash-card-${isWin ? 'win' : 'loss'}`}>
+        {isWin ? (
+          <CheckCircle2 className="w-12 h-12 text-white" />
+        ) : (
+          <XCircle className="w-12 h-12 text-white" />
+        )}
+        <div className="text-center">
+          <div className="text-lg font-bold text-white">
+            {isWin ? 'Contract Won' : isLoss ? 'Contract Lost' : 'Contract Sold'}
+          </div>
+          <div className="text-sm text-white/80 mt-1">{market}</div>
+          <div className={`text-2xl font-bold tabular mt-2 text-white`}>
+            {profit >= 0 ? '+' : ''}{profit.toFixed(2)} {currency}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SummaryView({ runStats, winRate, currency, latest, phase, onReset }: { runStats: RunStats; winRate: number; currency: string; latest?: OpenContract; phase: Phase; onReset: () => void }) {
   const profit = latest?.profit ?? runStats.totalProfit
   const buyPrice = latest?.buy_price ?? runStats.totalStake
   const payout = latest?.payout ?? runStats.totalPayout
+  const activeSteps = PHASE_STEPS[phase]
 
   return (
     <div className="p-3 sm:p-5 space-y-4">
       <div className="rounded-xl border border-border-light bg-bg-primary/40 p-4 sm:p-8">
         <div className="flex items-center gap-1 mb-7">
-          {[0, 1, 2, 3, 4].map((step) => <span key={step} className={`h-2 flex-1 rounded-sm ${step < 4 ? 'bg-[#7caeb0] tick-progress' : 'bg-bg-hover'}`} />)}
+          {[0, 1, 2, 3].map((step) => (
+            <span
+              key={step}
+              className={`h-2 flex-1 rounded-sm transition-all duration-500 ${
+                step < activeSteps
+                  ? phase === 'settled' && step === 3
+                    ? 'bg-brand-green progress-bar-done'
+                    : phase === 'open' && step === 2
+                      ? 'bg-[#7caeb0] progress-bar-active'
+                      : 'bg-[#7caeb0] progress-bar-filled'
+                  : 'bg-bg-hover'
+              }`}
+            />
+          ))}
         </div>
         <div className="inline-flex rounded-lg bg-[#82adaf] px-2 py-1 text-xs font-bold text-white mb-6">{currency}</div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-7">
@@ -139,7 +227,14 @@ function SummaryView({ runStats, winRate, currency, latest, onReset }: { runStat
           <Quote label="Buy price" value={buyPrice.toFixed(2)} />
           <Quote label="Payout limit" value={latest ? payout.toFixed(2) : '—'} />
         </div>
-        <div className="mt-8 pt-7 border-t border-border-default text-center text-base sm:text-lg text-text-secondary">{latest && !latest.is_sold ? 'Resale not offered' : 'No active contract'}</div>
+        <div className="mt-8 pt-7 border-t border-border-default text-center text-base sm:text-lg text-text-secondary">
+          {phase === 'open' && latest ? 'Resale not offered' : phase === 'settled' ? 'Contract closed' : 'No active contract'}
+          {phase === 'settled' && latest && (
+            <div className="mt-2 text-sm text-text-muted">
+              {latest.display_name || latest.symbol}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-7 bg-bg-tertiary/60 px-4 sm:px-6 py-6 sm:py-7">

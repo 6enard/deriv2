@@ -317,7 +317,7 @@ export default function Home() {
           max-w-7xl
           mx-auto
           px-4 sm:px-8 lg:px-10
-          py-12 sm:py-20 lg:py-24
+          py-10 sm:py-20 lg:py-24
           overflow-x-hidden
         "
       >
@@ -582,7 +582,7 @@ export default function Home() {
             TESTIMONIALS MARQUEE
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Testimonials"
             title="Loved by traders worldwide"
@@ -602,7 +602,7 @@ export default function Home() {
             PLATFORM STATS
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <div
             className="
               border-y
@@ -649,7 +649,7 @@ export default function Home() {
             HOW TO DEPOSIT
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Getting started"
             title="How to deposit funds."
@@ -742,7 +742,7 @@ export default function Home() {
             MARKET TABLE
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <div
             className="
               rounded-2xl
@@ -868,7 +868,7 @@ export default function Home() {
             PRODUCT SECTION
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Products"
             title="Built for every trading style"
@@ -940,8 +940,8 @@ export default function Home() {
               relative
               grid
               lg:grid-cols-[0.85fr_1.15fr]
-              gap-12
-              p-7
+              gap-8 lg:gap-12
+              p-5
               sm:p-10
               lg:p-14
             "
@@ -1100,12 +1100,12 @@ export default function Home() {
             SECURITY
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <div
             className="
               grid
               lg:grid-cols-[0.7fr_1.3fr]
-              gap-12
+              gap-8 lg:gap-12
               items-start
             "
           >
@@ -1172,14 +1172,14 @@ export default function Home() {
             HOW IT WORKS
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Getting started"
             title="Start trading in minutes."
             description="Connect your Deriv account and get straight to the markets."
           />
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mt-8 sm:mt-12">
             <Step
               number="01"
               title="Sign in"
@@ -1210,7 +1210,7 @@ export default function Home() {
             SOCIAL CONTACTS
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <SectionHeading
             eyebrow="Connect"
             title="Join the community"
@@ -1252,7 +1252,7 @@ export default function Home() {
             RISK DISCLAIMER
             =================================================== */}
 
-        <section className="mt-20 sm:mt-28 fade-in-up">
+        <section className="mt-16 sm:mt-28 fade-in-up">
           <RiskDisclaimer />
         </section>
 
@@ -1453,10 +1453,10 @@ function MarketTicker({
   return (
     <div
       className="
-        min-w-[190px]
+        min-w-[165px]
         sm:min-w-[210px]
-        px-5
-        py-5
+        px-4 sm:px-5
+        py-4 sm:py-5
       "
     >
       <div className="flex items-center justify-between gap-5">
@@ -1960,12 +1960,12 @@ function MarketBarItem({
   positive: boolean
 }) {
   return (
-    <div className="flex items-center gap-2.5 px-6 py-4 shrink-0">
+    <div className="flex items-center gap-2.5 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
       <span className="text-sm font-semibold text-slate-900 dark:text-text-primary">
         {symbol}
       </span>
       <span
-        className={`text-sm font-bold tabular ${positive ? 'text-emerald-500' : 'text-red-500'}`}
+        className={`text-xs sm:text-sm font-bold tabular ${positive ? 'text-emerald-500' : 'text-red-500'}`}
       >
         {change}
       </span>
@@ -1990,7 +1990,7 @@ function TestimonialCard({
   return (
     <div
       className="
-        shrink-0 w-[340px] sm:w-[380px]
+        shrink-0 w-[280px] sm:w-[340px] lg:w-[380px]
         rounded-2xl
         border
         border-slate-200
