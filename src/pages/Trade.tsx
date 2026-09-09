@@ -4,8 +4,7 @@ import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import { useMarketData } from '../hooks/useMarketData'
-import { DerivWS } from '../lib/deriv-ws'
-import { PUBLIC_WS_URL } from '../lib/config'
+import { acquirePublicWs, releasePublicWs } from '../lib/publicWs'
 import type { SymbolInfo, Tick, OpenContract } from '../lib/types'
 import { mapActiveSymbol } from '../lib/types'
 import { TrendingUp, TrendingDown, Loader as Loader2, ChevronDown, Wallet, Clock, Activity, DollarSign, Target, Crosshair, ArrowUp, ArrowDown, CircleCheck as CheckCircle, Circle as XCircle, Crosshair as CrosshairIcon, Hash, Layers, RotateCcw, Zap, Repeat, ArrowUpFromLine, ArrowDownToLine, CircleEqual, CircleSlash, ChevronsUp, ChevronsDown, Binary, Gauge, Rocket, ChartCandlestick as CandlestickChart } from 'lucide-react'
@@ -149,6 +148,8 @@ export default function Trade() {
   const [proposalLoading, setProposalLoading] = useState(false)
   const [proposalError, setProposalError] = useState<string | null>(null)
   const proposalReqIdRef = useRef<number | null>(null)
+  const livePropRef = useRef<{ id: string; askPrice: number } | null>(null)
+  const proposalSubIdRef = useRef<string | null>(null)
   const [isTrading, setIsTrading] = useState(false)
   const [loadingSymbols, setLoadingSymbols] = useState(true)
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
@@ -279,9 +280,8 @@ export default function Trade() {
     setAvailableContractTypes(null)
     setContractDurationLimits({})
 
-    const pubWs = new DerivWS(PUBLIC_WS_URL)
-    pubWs.connect()
-      .then(() => pubWs.send({ contracts_for: selectedSymbol }))
+    acquirePublicWs()
+      .then((pubWs) => pubWs.send({ contracts_for: selectedSymbol }))
       .then((res) => {
         if (cancelled) return
         const available = res.contracts_for?.available
@@ -306,12 +306,11 @@ export default function Trade() {
         setAvailableContractTypes(null)
       })
       .finally(() => {
-        if (!cancelled) pubWs.disconnect()
+        if (!cancelled) releasePublicWs()
       })
 
     return () => {
       cancelled = true
-      pubWs.disconnect()
     }
   }, [selectedSymbol])
 
@@ -397,6 +396,12 @@ export default function Trade() {
     const reqId = Date.now() + Math.random()
     proposalReqIdRef.current = reqId
 
+    if (proposalSubIdRef.current) {
+      ws.forget(proposalSubIdRef.current).catch(() => {})
+      proposalSubIdRef.current = null
+    }
+    livePropRef.current = null
+
     const request: Record<string, unknown> = {
       proposal: 1,
       amount: stakeNum,
@@ -426,20 +431,34 @@ export default function Trade() {
       if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
     }
 
-    ws.send(request)
-      .then((res) => {
-        if (cancelled || proposalReqIdRef.current !== reqId) return
-        if (res.proposal) {
-          setProposal({
-            askPrice: parseFloat(res.proposal.ask_price),
-            payout: parseFloat(res.proposal.payout),
-            spot: parseFloat(res.proposal.spot || '0'),
-          })
-          setProposalError(null)
-        } else if (res.error) {
-          setProposal(null)
-          setProposalError(res.error.message || 'No proposal for these parameters')
+    const applyProposal = (res: any) => {
+      if (cancelled || proposalReqIdRef.current !== reqId) return
+      if (res.proposal) {
+        livePropRef.current = {
+          id: String(res.proposal.id),
+          askPrice: parseFloat(res.proposal.ask_price),
         }
+        setProposal({
+          askPrice: parseFloat(res.proposal.ask_price),
+          payout: parseFloat(res.proposal.payout),
+          spot: parseFloat(res.proposal.spot || '0'),
+        })
+        setProposalError(null)
+      } else if (res.error) {
+        livePropRef.current = null
+        setProposal(null)
+        setProposalError(res.error.message || 'No proposal for these parameters')
+      }
+    }
+
+    ws.subscribe(request, applyProposal)
+      .then((res) => {
+        if (cancelled || proposalReqIdRef.current !== reqId) {
+          if (res.data?.subscription?.id) ws.forget(res.data.subscription.id).catch(() => {})
+          return
+        }
+        proposalSubIdRef.current = res.data?.subscription?.id || null
+        applyProposal(res.data)
       })
       .catch((err) => {
         if (cancelled || proposalReqIdRef.current !== reqId) return
@@ -456,49 +475,64 @@ export default function Trade() {
     }
   }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, digit, cancellation, growthRate, takeProfit, stopLoss])
 
+  useEffect(() => {
+    return () => {
+      if (proposalSubIdRef.current && ws?.isConnected) {
+        ws.forget(proposalSubIdRef.current).catch(() => {})
+        proposalSubIdRef.current = null
+      }
+    }
+  }, [ws])
+
   const executeTrade = async () => {
     if (!ws || !account || !selectedSymbol) return
 
     setIsTrading(true)
     try {
-      const bt = selectedTradeType.barrierType
-      const request: Record<string, unknown> = {
-        proposal: 1,
-        amount: parseFloat(stake),
-        basis: 'stake',
-        contract_type: selectedTradeType.contractType,
-        currency: account.currency,
-        duration: parseInt(duration),
-        duration_unit: durationUnit,
-        underlying_symbol: selectedSymbol,
+      let live = livePropRef.current
+
+      if (!live) {
+        const bt = selectedTradeType.barrierType
+        const request: Record<string, unknown> = {
+          proposal: 1,
+          amount: parseFloat(stake),
+          basis: 'stake',
+          contract_type: selectedTradeType.contractType,
+          currency: account.currency,
+          duration: parseInt(duration),
+          duration_unit: durationUnit,
+          underlying_symbol: selectedSymbol,
+        }
+
+        if (bt === 'single') {
+          request.barrier = barrier
+        } else if (bt === 'digit' && DIGIT_BARRIER_TYPES.has(selectedTradeType.contractType)) {
+          request.barrier = digit
+        } else if (bt === 'multiplier') {
+          request.cancellation = cancellation
+          const limitOrder: Record<string, number> = {}
+          if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+          if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+          if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
+        } else if (bt === 'accumulator') {
+          request.growth_rate = parseFloat(growthRate)
+          const limitOrder: Record<string, number> = {}
+          if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
+          if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
+          if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
+        }
+
+        const proposalRes = await ws.send(request)
+        if (proposalRes.error) throw new Error(proposalRes.error.message || 'No proposal for these parameters')
+        live = { id: String(proposalRes.proposal.id), askPrice: parseFloat(proposalRes.proposal.ask_price) }
       }
-
-      if (bt === 'single') {
-        request.barrier = barrier
-      } else if (bt === 'digit' && DIGIT_BARRIER_TYPES.has(selectedTradeType.contractType)) {
-        request.barrier = digit
-      } else if (bt === 'multiplier') {
-        request.cancellation = cancellation
-        const limitOrder: Record<string, number> = {}
-        if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
-        if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
-        if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
-      } else if (bt === 'accumulator') {
-        request.growth_rate = parseFloat(growthRate)
-        const limitOrder: Record<string, number> = {}
-        if (takeProfit) limitOrder.take_profit = parseFloat(takeProfit)
-        if (stopLoss) limitOrder.stop_loss = parseFloat(stopLoss)
-        if (Object.keys(limitOrder).length > 0) request.limit_order = limitOrder
-      }
-
-      const proposalRes = await ws.send(request)
-
-      const proposalData = proposalRes.proposal
 
       const buyRes = await ws.send({
-        buy: proposalData.id,
-        price: proposalData.ask_price,
+        buy: live.id,
+        price: live.askPrice,
       })
+
+      if (buyRes.error) throw new Error(buyRes.error.message || 'Buy request failed.')
 
       const buyData = buyRes.buy
       showToastCallback('info', `${selectedTradeType.displayName} contract purchased for ${buyData.buy_price} ${account.currency}`)

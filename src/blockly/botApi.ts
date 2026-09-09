@@ -389,6 +389,15 @@ export function createBotApi(
   let contractSubscriptionId:
     string | null = null
 
+  let liveProposalKey:
+    string | null = null
+
+  let liveProposalSubId:
+    string | null = null
+
+  let liveProposalData:
+    any = null
+
   let disposed = false
 
   const shouldStop =
@@ -412,6 +421,9 @@ export function createBotApi(
     if (status === 'disconnected' || status === 'reconnecting') {
       tickSubscriptionId = null
       contractSubscriptionId = null
+      liveProposalSubId = null
+      liveProposalKey = null
+      liveProposalData = null
     } else if (status === 'connected' && !disposed) {
       void startTickStream().catch(() => {})
       if (openContractId !== null) {
@@ -491,8 +503,14 @@ export function createBotApi(
     const contractId =
       contractSubscriptionId
 
+    const proposalId =
+      liveProposalSubId
+
     tickSubscriptionId = null
     contractSubscriptionId = null
+    liveProposalSubId = null
+    liveProposalKey = null
+    liveProposalData = null
 
     await Promise.all([
       forgetSubscription(
@@ -500,6 +518,9 @@ export function createBotApi(
       ),
       forgetSubscription(
         contractId,
+      ),
+      forgetSubscription(
+        proposalId,
       ),
     ])
 
@@ -514,6 +535,7 @@ export function createBotApi(
     try {
       await ws.forgetAll('ticks')
       await ws.forgetAll('proposal_open_contract')
+      await ws.forgetAll('proposal')
     } catch {
       // Best effort — the subscribe method also has its own
       // AlreadySubscribed recovery as a second line of defense.
@@ -1681,6 +1703,64 @@ export function createBotApi(
   }
 
   /* =======================================================
+  LIVE PROPOSAL
+  ======================================================= */
+
+  async function getLiveProposal(
+    request: Record<string, unknown>,
+  ): Promise<any> {
+    const key =
+      JSON.stringify(request)
+
+    if (
+      key === liveProposalKey &&
+      liveProposalData &&
+      !liveProposalData.error
+    ) {
+      return liveProposalData
+    }
+
+    if (
+      liveProposalSubId &&
+      key !== liveProposalKey
+    ) {
+      void forgetSubscription(
+        liveProposalSubId,
+      )
+      liveProposalSubId = null
+    }
+
+    liveProposalKey = key
+    liveProposalData = null
+
+    try {
+      const result =
+        await ws.subscribe(
+          { ...request, subscribe: 1 },
+          (data: any) => {
+            if (key !== liveProposalKey) {
+              return
+            }
+            if (data?.proposal) {
+              liveProposalData = data
+            }
+          },
+        )
+
+      liveProposalSubId =
+        result.data?.subscription?.id || null
+
+      liveProposalData = result.data
+
+      return result.data
+    } catch {
+      liveProposalKey = null
+      liveProposalSubId = null
+      return ws.send(request)
+    }
+  }
+
+  /* =======================================================
   PURCHASE
   ======================================================= */
 
@@ -1826,7 +1906,7 @@ export function createBotApi(
         )
 
         const proposalResponse =
-          await ws.send(
+          await getLiveProposal(
             proposalRequest,
           )
 
