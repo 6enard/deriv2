@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type ReactNode, type RefObject } from 'react'
-import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause, CircleCheck as CheckCircle2, Circle as XCircle } from 'lucide-react'
+import { useState, type ReactNode, type RefObject } from 'react'
+import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause } from 'lucide-react'
 import type { OpenContract } from '../lib/types'
 import type { RunStats, JournalEntry } from '../context/BotRunnerContext'
 
@@ -60,7 +60,6 @@ export function RunResultsPanel({
   onStop: () => void
 }) {
   const [detailContract, setDetailContract] = useState<OpenContract | null>(null)
-  const [settlementFlash, setSettlementFlash] = useState<{ profit: number; market: string } | null>(null)
 
   const hasPurchased = trades.length > 0 || journal.some((entry) => entry.message.startsWith('Contract purchased:'))
   const hasOpenContract = trades.some((t) => !t.is_sold)
@@ -69,20 +68,6 @@ export function RunResultsPanel({
   const activeSteps = PHASE_STEPS[phase]
   const statusLabel = isRunning ? PHASE_LABELS[phase] : 'Bot stopped'
   const winRate = runStats.wins + runStats.losses > 0 ? (runStats.wins / (runStats.wins + runStats.losses)) * 100 : 0
-
-  // Detect when a contract settles to trigger the flash animation
-  const prevSettledCount = useRef(0)
-  const settledCount = trades.filter((t) => t.is_sold).length
-
-  useEffect(() => {
-    if (settledCount > prevSettledCount.current && latest && latest.is_sold) {
-      setSettlementFlash({ profit: latest.profit, market: latest.display_name || latest.symbol })
-      const timer = setTimeout(() => setSettlementFlash(null), 3500)
-      prevSettledCount.current = settledCount
-      return () => clearTimeout(timer)
-    }
-    prevSettledCount.current = settledCount
-  }, [settledCount, latest])
 
   const downloadTransactionsCsv = () => {
     const rows = trades.map((contract) => [
@@ -107,11 +92,6 @@ export function RunResultsPanel({
 
   return (
     <div className="bg-bg-secondary flex flex-col h-full min-h-0 relative">
-      {/* Settlement flash overlay */}
-      {settlementFlash && (
-        <SettlementFlash profit={settlementFlash.profit} market={settlementFlash.market} currency={currency} />
-      )}
-
       {isRunning && (
         <div className="flex items-center gap-0 px-2 sm:px-4 py-2 sm:py-3 border-b border-border-default shrink-0">
           <button type="button" onClick={onStop} className="h-10 sm:h-14 px-4 sm:px-7 rounded-l-xl bg-brand-red text-white flex items-center gap-2 sm:gap-3 font-bold text-sm sm:text-lg hover:bg-brand-red-dim transition-colors">
@@ -164,33 +144,6 @@ export function RunResultsPanel({
       </div>
 
       {detailContract && <ContractDetails contract={detailContract} currency={currency} onClose={() => setDetailContract(null)} />}
-    </div>
-  )
-}
-
-function SettlementFlash({ profit, market, currency }: { profit: number; market: string; currency: string }) {
-  const isWin = profit > 0
-  const isLoss = profit < 0
-  return (
-    <div
-      className={`absolute inset-0 z-50 flex items-center justify-center pointer-events-none settlement-flash-${isWin ? 'win' : 'loss'}`}
-    >
-      <div className={`flex flex-col items-center gap-3 px-8 py-6 rounded-2xl border-2 shadow-2xl backdrop-blur-md settlement-flash-card-${isWin ? 'win' : 'loss'}`}>
-        {isWin ? (
-          <CheckCircle2 className="w-12 h-12 text-white" />
-        ) : (
-          <XCircle className="w-12 h-12 text-white" />
-        )}
-        <div className="text-center">
-          <div className="text-lg font-bold text-white">
-            {isWin ? 'Contract Won' : isLoss ? 'Contract Lost' : 'Contract Sold'}
-          </div>
-          <div className="text-sm text-white/80 mt-1">{market}</div>
-          <div className={`text-2xl font-bold tabular mt-2 text-white`}>
-            {profit >= 0 ? '+' : ''}{profit.toFixed(2)} {currency}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -923,7 +923,7 @@ export default function BotBuilder() {
                   {totalProfit.toFixed(2)} {currency}
                 </span>
               )}
-              {isRunning && !mobilePanelExpanded && (
+              {isRunning ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -934,6 +934,19 @@ export default function BotBuilder() {
                 >
                   <Pause className="w-3 h-3 fill-current" />
                   Stop
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRun()
+                  }}
+                  disabled={marketsLoading || !marketsLoaded}
+                  className="h-7 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {marketsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3 fill-current" />}
+                  Run
                 </button>
               )}
               {mobilePanelExpanded ? (
