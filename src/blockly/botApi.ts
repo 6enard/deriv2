@@ -2053,6 +2053,15 @@ export function createBotApi(
           contractId,
         )
 
+        if (liveProposalSubId) {
+          void forgetSubscription(
+            liveProposalSubId,
+          )
+          liveProposalSubId = null
+        }
+        liveProposalKey = null
+        liveProposalData = null
+
         return contractId
       } catch (
         error
