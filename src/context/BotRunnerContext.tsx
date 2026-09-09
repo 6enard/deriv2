@@ -13,7 +13,7 @@ import { useAuth } from './AuthContext'
 import { useToast } from '../components/Toast'
 import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
-import { mapOpenContract, type OpenContract } from '../lib/types'
+import { mapOpenContract, resolveDisplayName, type OpenContract } from '../lib/types'
 import { playSound } from '../lib/sounds'
 
 export interface RunStats {
@@ -149,7 +149,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     return {
       contract_id: contractId,
       symbol: params.symbol,
-      display_name: params.symbol,
+      display_name: resolveDisplayName(undefined, params.symbol),
       contract_type: params.contract_type,
       status: 'open',
       buy_price: buyPrice,

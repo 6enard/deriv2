@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMarketData } from '../hooks/useMarketData'
 import { useBotRunnerContext } from '../context/BotRunnerContext'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
+import { unlockAudio } from '../lib/sounds'
 import { Play, Pause, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert, Lock, Clock as Unlock } from 'lucide-react'
 
 export default function BotBuilder() {
@@ -69,6 +70,7 @@ export default function BotBuilder() {
   const isRunning = globalIsRunning
 
   const handleRun = useCallback(() => {
+    unlockAudio()
     return contextHandleRun(workspaceRef, marketsLoaded)
   }, [contextHandleRun, workspaceRef, marketsLoaded])
 

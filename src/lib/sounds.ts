@@ -15,6 +15,31 @@ function getCtx(): AudioContext | null {
   return audioCtx
 }
 
+// Browsers require a user gesture before audio can play. The AudioContext
+// starts in "suspended" state and must be resumed. We resume eagerly on the
+// first user interaction so that later programmatic sounds (bot events) play
+// even though they weren't directly triggered by a click.
+let resumeAttempted = false
+function tryResumeOnGesture() {
+  if (resumeAttempted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  resumeAttempted = true
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+  // Remove listeners once we've attempted a resume
+  window.removeEventListener('pointerdown', tryResumeOnGesture)
+  window.removeEventListener('keydown', tryResumeOnGesture)
+  window.removeEventListener('touchstart', tryResumeOnGesture)
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', tryResumeOnGesture, { once: false, passive: true })
+  window.addEventListener('keydown', tryResumeOnGesture, { once: false, passive: true })
+  window.addEventListener('touchstart', tryResumeOnGesture, { once: false, passive: true })
+}
+
 interface ToneOptions {
   frequency: number
   duration: number
@@ -26,6 +51,17 @@ interface ToneOptions {
 function playTone({ frequency, duration, type = 'sine', volume = 0.15, delay = 0 }: ToneOptions) {
   const ctx = getCtx()
   if (!ctx) return
+
+  // If the context is suspended, try to resume it first — but still
+  // schedule the tone. On most browsers, once resume() is called the
+  // context transitions to "running" and scheduled tones will play.
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+
+  // If the context is still suspended after resume attempt, bail out
+  // — scheduling on a suspended context produces no sound.
+  if (ctx.state === 'suspended') return
 
   const start = ctx.currentTime + delay
 
@@ -92,4 +128,17 @@ export function playSound(event: SoundEvent) {
       playTone({ frequency: 180, duration: 0.3, type: 'sawtooth', volume: 0.1, delay: 0.18 })
       break
   }
+}
+
+// Call this from a user-gesture handler (e.g. button click) to unlock audio
+// before the first programmatic sound needs to play.
+export function unlockAudio() {
+  const ctx = getCtx()
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+  resumeAttempted = true
+  window.removeEventListener('pointerdown', tryResumeOnGesture)
+  window.removeEventListener('keydown', tryResumeOnGesture)
+  window.removeEventListener('touchstart', tryResumeOnGesture)
 }

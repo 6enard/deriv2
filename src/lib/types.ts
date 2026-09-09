@@ -79,11 +79,62 @@ export interface OpenContract {
   duration: number | null;
   duration_unit: string | null;
 }
+const SYMBOL_DISPLAY_NAMES: Record<string, string> = {
+  '1HZ10V': 'Volatility 10 (1s) Index',
+  '1HZ15V': 'Volatility 15 (1s) Index',
+  '1HZ20V': 'Volatility 20 (1s) Index',
+  '1HZ25V': 'Volatility 25 (1s) Index',
+  '1HZ50V': 'Volatility 50 (1s) Index',
+  '1HZ75V': 'Volatility 75 (1s) Index',
+  '1HZ100V': 'Volatility 100 (1s) Index',
+  R_10: 'Volatility 10 Index',
+  R_15: 'Volatility 15 Index',
+  R_25: 'Volatility 25 Index',
+  R_50: 'Volatility 50 Index',
+  R_75: 'Volatility 75 Index',
+  R_100: 'Volatility 100 Index',
+  BOOM500: 'Boom 500 Index',
+  BOOM1000: 'Boom 1000 Index',
+  CRASH500: 'Crash 500 Index',
+  CRASH1000: 'Crash 1000 Index',
+  JUMP10: 'Jump 10 Index',
+  JUMP25: 'Jump 25 Index',
+  JUMP50: 'Jump 50 Index',
+  JUMP75: 'Jump 75 Index',
+  JUMP100: 'Jump 100 Index',
+  STEP: 'Step Index',
+  stpRNG: 'Step Index',
+  '10D': 'Drift Volatility 10 Index',
+  '25D': 'Drift Volatility 25 Index',
+  '50D': 'Drift Volatility 50 Index',
+  '75D': 'Drift Volatility 75 Index',
+  '100D': 'Drift Volatility 100 Index',
+  BOOM300N: 'Boom 300 Index',
+  CRASH300N: 'Crash 300 Index',
+}
+
+function isRawSymbolId(value: string): boolean {
+  return /^[0-9A-Z_]{3,20}$/.test(value) && /[A-Z]/.test(value) && /\d/.test(value)
+}
+
+export function resolveDisplayName(name: string | undefined, symbol: string | undefined): string {
+  if (name && name.trim() && !isRawSymbolId(name)) return name
+  if (symbol) {
+    const mapped = SYMBOL_DISPLAY_NAMES[symbol]
+    if (mapped) return mapped
+    if (!isRawSymbolId(symbol)) return symbol
+  }
+  if (name && name.trim()) return name
+  return symbol || '—'
+}
+
 export function mapOpenContract(raw: any): OpenContract {
+  const symbol = raw.underlying_symbol ?? raw.symbol ?? ''
+  const rawDisplay = raw.display_name ?? ''
   return {
     contract_id: raw.contract_id,
-    symbol: raw.underlying_symbol ?? raw.symbol ?? '',
-    display_name: raw.display_name ?? raw.underlying_symbol ?? raw.symbol ?? '',
+    symbol,
+    display_name: resolveDisplayName(rawDisplay, symbol),
     contract_type: raw.contract_type ?? '',
     status: raw.status ?? '',
     buy_price: parseFloat(raw.buy_price ?? '0'),
