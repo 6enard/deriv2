@@ -203,6 +203,15 @@ h1, h2, h3, h4 {
   animation: pulse-ring 2.5s ease-out infinite;
 }
 
+@keyframes tick-progress {
+  0%, 100% { opacity: 0.5; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(1.02); }
+}
+.tick-progress {
+  animation: tick-progress 1.2s ease-in-out infinite;
+  transform-origin: left;
+}
+
 /* ===== Blockly dark theme overrides ===== */
 .blocklySvg {
   background-color: #1a1a1a !important;

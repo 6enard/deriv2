@@ -87,7 +87,7 @@ export function RunResultsPanel({
             <span className="font-bold text-sm sm:text-base text-text-primary truncate max-w-full">{statusLabel}</span>
             <div className="flex items-center gap-1 w-full max-w-[280px] mt-2">
               {[0, 1, 2, 3, 4].map((step) => (
-                <span key={step} className={`h-1.5 flex-1 rounded-full ${step < (hasPurchased ? 4 : 1) ? 'bg-[#56b4b7]' : 'bg-bg-hover'}`} />
+                <span key={step} className={`h-1.5 flex-1 rounded-full ${step < (hasPurchased ? 4 : 1) ? 'bg-[#56b4b7] tick-progress' : 'bg-bg-hover'}`} />
               ))}
             </div>
           </div>
@@ -130,7 +130,7 @@ function SummaryView({ runStats, winRate, currency, latest, onReset }: { runStat
     <div className="p-3 sm:p-5 space-y-4">
       <div className="rounded-xl border border-border-light bg-bg-primary/40 p-4 sm:p-8">
         <div className="flex items-center gap-1 mb-7">
-          {[0, 1, 2, 3, 4].map((step) => <span key={step} className={`h-2 flex-1 rounded-sm ${step < 4 ? 'bg-[#7caeb0]' : 'bg-bg-hover'}`} />)}
+          {[0, 1, 2, 3, 4].map((step) => <span key={step} className={`h-2 flex-1 rounded-sm ${step < 4 ? 'bg-[#7caeb0] tick-progress' : 'bg-bg-hover'}`} />)}
         </div>
         <div className="inline-flex rounded-lg bg-[#82adaf] px-2 py-1 text-xs font-bold text-white mb-6">{currency}</div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-7">
