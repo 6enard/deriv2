@@ -309,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     try {
       const refreshed = await ensureValidToken(nextAccount)
-      const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
+      const otpUrl = await fetchOtpUrl(refreshed.access_token, originalAccountId(refreshed.account_id))
       const nextWs = await connectViaOtp(otpUrl)
       refreshed.ws_url = otpUrl
       ws?.disconnect()
@@ -407,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refresh_token: validated.refresh_token,
       }
       const newSession = accountList
-        .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
+        .filter((a) => !accounts.some((existing) => existing.account_id === renameAccountId(a.account_id)))
         .map((a) => toSessionAccount(a, tokens))
       setAccounts((prev) => {
         const next = [...prev, ...newSession]
@@ -462,7 +462,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureValidToken(account)
       .then((validated) => {
         if (cancelled) return
-        return fetchOtpUrl(validated.access_token, validated.account_id)
+        return fetchOtpUrl(validated.access_token, originalAccountId(validated.account_id))
           .then(async (otpUrl) => {
             if (cancelled) return
             const nextWs = await connectViaOtp(otpUrl)
