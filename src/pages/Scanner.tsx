@@ -58,7 +58,11 @@ export default function Scanner() {
     navigate('/bot-builder')
   }
 
-  const topResult = results[0] || null
+  // Only ever highlight a market that actually cleared the scanner's
+  // statistical significance bar — results is sorted by score, but a
+  // market with no real signal now scores 0 rather than being
+  // dressed up as a "best" pick.
+  const topResult = results.find((r) => r.bestSignal !== null) || null
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden">
@@ -167,6 +171,21 @@ export default function Scanner() {
         </div>
       )}
 
+      {/* No statistically significant edge found in this scan */}
+      {!scanning && hasScanned && results.length > 0 && !topResult && (
+        <div className="rounded-2xl border border-border-light bg-bg-tertiary p-5 mb-6 fade-in flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-text-muted shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-text-primary">No statistically significant edge right now</p>
+            <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+              All {results.length} scanned markets are trading close to their expected random distribution.
+              Rather than force a pick, the scanner only recommends a market once its digit pattern is
+              genuinely — not just randomly — skewed. Try again shortly or scan with more ticks for a larger sample.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Best market highlight */}
       {!scanning && topResult && (
         <div className="rounded-2xl border border-brand-red/20 bg-brand-red/[0.04] p-5 mb-6 fade-in">
@@ -229,7 +248,7 @@ export default function Scanner() {
             <span className="w-1 h-1 rounded-full bg-border-light" />
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              Ranked by win probability
+              Ranked by statistical significance
             </span>
           </div>
 

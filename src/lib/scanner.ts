@@ -12,6 +12,15 @@ export interface DigitSignal {
   rationale: string
   edge: number
   winProbability: number
+  /**
+   * Statistical significance of the deviation from the expected
+   * (fair/uniform) distribution, expressed as a z-score. Higher
+   * = less likely to be random noise. This — not raw win
+   * probability — is what signals are ranked by, since raw win
+   * probability trivially favors extreme thresholds (e.g. "Over 1"
+   * wins ~80% of the time on ANY random data, significant or not).
+   */
+  zScore: number
 }
 
 export interface ScanResult {
@@ -85,6 +94,51 @@ function oddProb(freq: number[]): number {
   return freq[1] + freq[3] + freq[5] + freq[7] + freq[9]
 }
 
+/**
+ * Standard error of a sample proportion under the null hypothesis
+ * that the true probability is `expected` (binomial std. error).
+ */
+function stdErr(expected: number, n: number): number {
+  if (n <= 0) return Infinity
+  return Math.sqrt((expected * (1 - expected)) / n)
+}
+
+/**
+ * z-score of an observed proportion vs. the expected proportion
+ * under a fair/uniform digit distribution. This is the key fix:
+ * raw "edge" (observed - expected) is NOT comparable across
+ * thresholds, because the natural sampling noise of a proportion
+ * scales with sqrt(p·(1-p)). A threshold like "Over 1" has an
+ * expected probability of 0.8 — noise there is ~33% wider than at
+ * "Over 8" (expected 0.1) — so raw edge will spuriously favor
+ * extreme thresholds on ANY random data, not just markets with a
+ * genuine anomaly. Dividing by the standard error puts every
+ * threshold, and every signal type, on the same statistical
+ * footing so the scanner surfaces real deviations instead of an
+ * artifact of the metric.
+ */
+function zScoreOf(observed: number, expected: number, n: number): number {
+  const se = stdErr(expected, n)
+  if (!Number.isFinite(se) || se === 0) return 0
+  return (observed - expected) / se
+}
+
+// A signal needs at least this many ticks and this much statistical
+// significance (~90% one-tailed confidence at z=1.28, ~87% at 1.15)
+// before the scanner will surface it as a real edge. Below this it's
+// treated as noise, not a trading opportunity.
+const MIN_SAMPLE_SIZE = 100
+const Z_SIGNIFICANCE_THRESHOLD = 1.28
+
+// Over/Under barriers are restricted to this mid-range. Barriers at
+// the extremes (0, 1, 8, 9) have a structurally high "win rate" by
+// definition — e.g. Over 1 wins whenever the last digit isn't 0 or 1,
+// ~80% of the time on perfectly random data — but pay out very
+// little and reflect no real edge. Real trading tools avoid
+// recommending these as "signals" since they're just a property of
+// the contract, not of the market.
+const OVER_UNDER_BARRIER_RANGE = [2, 3, 4, 5, 6, 7]
+
 export interface ScanWs {
   send: (req: Record<string, unknown>) => Promise<any>
 }
@@ -114,112 +168,136 @@ export function analyzeTicks(
   const lastDigit = tickQuotes.length > 0 ? lastDigitOf(lastPrice) : 0
   const signals: DigitSignal[] = []
 
+  const hasEnoughSamples = total >= MIN_SAMPLE_SIZE
+
   let mostFreqDigit = 0
   for (let i = 1; i < 10; i++) {
     if (counts[i] > counts[mostFreqDigit]) mostFreqDigit = i
   }
 
-  // Differs: always include — covers 90% of outcomes by definition
-  const differsWinProb = 1 - freq[mostFreqDigit]
-  signals.push({
-    contractType: 'DIGITDIFF',
-    displayName: `Differs ${mostFreqDigit}`,
-    digit: mostFreqDigit,
-    edge: Math.max(freq[mostFreqDigit] - 0.1, 0),
-    winProbability: differsWinProb,
-    rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs wins ${(differsWinProb * 100).toFixed(1)}% of the time historically.`,
-  })
-
-  // Over / Under — best thresholds
-  let bestOverDigit = 4
-  let bestOverEdge = -Infinity
-  let bestUnderDigit = 5
-  let bestUnderEdge = -Infinity
-
-  for (let d = 1; d <= 8; d++) {
-    const op = overProb(freq, d)
-    const oe = op - (9 - d) / 10
-    if (oe > bestOverEdge) { bestOverEdge = oe; bestOverDigit = d }
-    const up = underProb(freq, d)
-    const ue = up - d / 10
-    if (ue > bestUnderEdge) { bestUnderEdge = ue; bestUnderDigit = d }
+  // Differs: only a real "signal" if the digit is genuinely
+  // over-represented (statistically hot), not just because Differs
+  // has a high win rate by construction (~90% for ANY digit).
+  if (hasEnoughSamples) {
+    const hotFreq = freq[mostFreqDigit]
+    const differsZ = zScoreOf(hotFreq, 0.1, total)
+    if (differsZ >= Z_SIGNIFICANCE_THRESHOLD) {
+      const differsWinProb = 1 - hotFreq
+      signals.push({
+        contractType: 'DIGITDIFF',
+        displayName: `Differs ${mostFreqDigit}`,
+        digit: mostFreqDigit,
+        edge: hotFreq - 0.1,
+        winProbability: differsWinProb,
+        zScore: differsZ,
+        rationale: `Digit ${mostFreqDigit} appeared ${(hotFreq * 100).toFixed(1)}% of the time — statistically hot vs. the 10% baseline (z=${differsZ.toFixed(2)}). Differs wins ${(differsWinProb * 100).toFixed(1)}% of the time historically.`,
+      })
+    }
   }
 
-  if (bestOverEdge > 0) {
-    const op = overProb(freq, bestOverDigit)
-    signals.push({
-      contractType: 'DIGITOVER',
-      displayName: `Over ${bestOverDigit}`,
-      digit: bestOverDigit,
-      edge: bestOverEdge,
-      winProbability: op,
-      rationale: `Digits above ${bestOverDigit} occurred ${(op * 100).toFixed(1)}% of the time — ${(bestOverEdge * 100).toFixed(1)}% above expected ${((9 - bestOverDigit) / 10 * 100).toFixed(0)}%.`,
-    })
-  }
+  // Over / Under — evaluate mid-range barriers only (see
+  // OVER_UNDER_BARRIER_RANGE) and rank by statistical significance
+  // (z-score), not raw win probability or raw edge.
+  if (hasEnoughSamples) {
+    let bestOverDigit: number | null = null
+    let bestOverZ = -Infinity
+    let bestUnderDigit: number | null = null
+    let bestUnderZ = -Infinity
 
-  if (bestUnderEdge > 0) {
-    const up = underProb(freq, bestUnderDigit)
-    signals.push({
-      contractType: 'DIGITUNDER',
-      displayName: `Under ${bestUnderDigit}`,
-      digit: bestUnderDigit,
-      edge: bestUnderEdge,
-      winProbability: up,
-      rationale: `Digits below ${bestUnderDigit} occurred ${(up * 100).toFixed(1)}% of the time — ${(bestUnderEdge * 100).toFixed(1)}% above expected ${(bestUnderDigit / 10 * 100).toFixed(0)}%.`,
-    })
+    for (const d of OVER_UNDER_BARRIER_RANGE) {
+      const op = overProb(freq, d)
+      const oExpected = (9 - d) / 10
+      const oz = zScoreOf(op, oExpected, total)
+      if (oz > bestOverZ) { bestOverZ = oz; bestOverDigit = d }
+
+      const up = underProb(freq, d)
+      const uExpected = d / 10
+      const uz = zScoreOf(up, uExpected, total)
+      if (uz > bestUnderZ) { bestUnderZ = uz; bestUnderDigit = d }
+    }
+
+    if (bestOverDigit !== null && bestOverZ >= Z_SIGNIFICANCE_THRESHOLD) {
+      const op = overProb(freq, bestOverDigit)
+      const expected = (9 - bestOverDigit) / 10
+      signals.push({
+        contractType: 'DIGITOVER',
+        displayName: `Over ${bestOverDigit}`,
+        digit: bestOverDigit,
+        edge: op - expected,
+        winProbability: op,
+        zScore: bestOverZ,
+        rationale: `Digits above ${bestOverDigit} occurred ${(op * 100).toFixed(1)}% of the time vs. an expected ${(expected * 100).toFixed(0)}% — a statistically significant deviation (z=${bestOverZ.toFixed(2)}).`,
+      })
+    }
+
+    if (bestUnderDigit !== null && bestUnderZ >= Z_SIGNIFICANCE_THRESHOLD) {
+      const up = underProb(freq, bestUnderDigit)
+      const expected = bestUnderDigit / 10
+      signals.push({
+        contractType: 'DIGITUNDER',
+        displayName: `Under ${bestUnderDigit}`,
+        digit: bestUnderDigit,
+        edge: up - expected,
+        winProbability: up,
+        zScore: bestUnderZ,
+        rationale: `Digits below ${bestUnderDigit} occurred ${(up * 100).toFixed(1)}% of the time vs. an expected ${(expected * 100).toFixed(0)}% — a statistically significant deviation (z=${bestUnderZ.toFixed(2)}).`,
+      })
+    }
   }
 
   // Even / Odd
-  const eProb = evenProb(freq)
-  const oProb = oddProb(freq)
-  const evenEdge = eProb - 0.5
-  const oddEdge = oProb - 0.5
+  if (hasEnoughSamples) {
+    const eProb = evenProb(freq)
+    const oProb = oddProb(freq)
+    const evenZ = zScoreOf(eProb, 0.5, total)
+    const oddZ = zScoreOf(oProb, 0.5, total)
 
-  if (evenEdge > 0) {
-    signals.push({
-      contractType: 'DIGITEVEN',
-      displayName: 'Even',
-      edge: evenEdge,
-      winProbability: eProb,
-      rationale: `Even digits appeared ${(eProb * 100).toFixed(1)}% of the time — ${(evenEdge * 100).toFixed(1)}% above the 50% baseline.`,
-    })
-  }
-  if (oddEdge > 0) {
-    signals.push({
-      contractType: 'DIGITODD',
-      displayName: 'Odd',
-      edge: oddEdge,
-      winProbability: oProb,
-      rationale: `Odd digits appeared ${(oProb * 100).toFixed(1)}% of the time — ${(oddEdge * 100).toFixed(1)}% above the 50% baseline.`,
-    })
-  }
-
-  signals.sort((a, b) => b.edge - a.edge)
-
-  // Always ensure at least one signal — if none met threshold, add a
-  // Differs fallback on the most frequent digit (90% coverage by definition)
-  if (signals.length === 0) {
-    signals.push({
-      contractType: 'DIGITDIFF',
-      displayName: `Differs ${mostFreqDigit}`,
-      digit: mostFreqDigit,
-      edge: 0,
-      winProbability: 1 - freq[mostFreqDigit],
-      rationale: `Digit ${mostFreqDigit} appeared ${(freq[mostFreqDigit] * 100).toFixed(1)}% of the time. Differs covers the remaining ${(100 - freq[mostFreqDigit] * 100).toFixed(1)}% of outcomes.`,
-    })
+    if (evenZ >= Z_SIGNIFICANCE_THRESHOLD) {
+      signals.push({
+        contractType: 'DIGITEVEN',
+        displayName: 'Even',
+        edge: eProb - 0.5,
+        winProbability: eProb,
+        zScore: evenZ,
+        rationale: `Even digits appeared ${(eProb * 100).toFixed(1)}% of the time — a statistically significant deviation from the 50% baseline (z=${evenZ.toFixed(2)}).`,
+      })
+    }
+    if (oddZ >= Z_SIGNIFICANCE_THRESHOLD) {
+      signals.push({
+        contractType: 'DIGITODD',
+        displayName: 'Odd',
+        edge: oProb - 0.5,
+        winProbability: oProb,
+        zScore: oddZ,
+        rationale: `Odd digits appeared ${(oProb * 100).toFixed(1)}% of the time — a statistically significant deviation from the 50% baseline (z=${oddZ.toFixed(2)}).`,
+      })
+    }
   }
 
+  // Rank by statistical significance, not raw win probability — this
+  // is what stops a structurally-high-win-rate-but-meaningless
+  // threshold (e.g. Over 1) from permanently sitting at #1 across
+  // every market.
+  signals.sort((a, b) => b.zScore - a.zScore)
+
+  // No fallback signal is injected anymore. If nothing in this
+  // market clears the significance bar, it genuinely has no
+  // detectable edge right now — showing a fabricated "best" signal
+  // for every single market is exactly what was misleading users.
   const bestSignal = signals.length > 0 ? signals[0] : null
 
-  // Win Probability Score: the overall score now represents how likely
-  // the best signal would have won based on historical tick data.
-  // 100 = highest chance of winning, 0 = lowest.
-  // We blend the raw historical win rate with a small statistical
-  // confidence boost from sample size, capped at 99% since no strategy
-  // is truly guaranteed.
-  const baseWinProb = bestSignal ? bestSignal.winProbability : 0
-  const sampleConfidence = Math.min(total / 500, 1) * 0.05
-  const overallScore = Math.min(99, Math.round((baseWinProb + sampleConfidence) * 100))
+  // Overall score reflects statistical confidence first (how unlikely
+  // this deviation is to be random noise), blended with the resulting
+  // win probability for context. A market with no significant signal
+  // scores low instead of being dressed up as a top pick.
+  let overallScore = 0
+  if (bestSignal) {
+    const confidence = Math.min(1, bestSignal.zScore / 3)
+    overallScore = Math.min(
+      99,
+      Math.round(confidence * 70 + bestSignal.winProbability * 100 * 0.3),
+    )
+  }
 
   return {
     symbol,
