@@ -327,6 +327,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
             is_sold: true,
             is_expired: true,
             status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
+            entry_spot: data.entrySpot != null ? data.entrySpot : next[idx].entry_spot,
+            exit_spot: data.exitSpot != null ? data.exitSpot : next[idx].exit_spot,
           }
           return next
         })
@@ -461,6 +463,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
             is_sold: true,
             is_expired: true,
             status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
+            entry_spot: data.entrySpot != null ? data.entrySpot : next[idx].entry_spot,
+            exit_spot: data.exitSpot != null ? data.exitSpot : next[idx].exit_spot,
           }
           return next
         })

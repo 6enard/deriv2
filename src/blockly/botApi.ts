@@ -23,6 +23,8 @@ export interface NotifyData {
   stake?: number
   payout?: number
   contractType?: string
+  entrySpot?: number
+  exitSpot?: number
 }
 
 export interface BotApi {
@@ -1520,6 +1522,24 @@ export function createBotApi(
             contract.contract_type ||
               currentContractType,
           ),
+        entrySpot:
+          contract.entry_spot != null &&
+          Number.isFinite(
+            Number(contract.entry_spot),
+          )
+            ? Number(
+                contract.entry_spot,
+              )
+            : undefined,
+        exitSpot:
+          contract.exit_spot != null &&
+          Number.isFinite(
+            Number(contract.exit_spot),
+          )
+            ? Number(
+                contract.exit_spot,
+              )
+            : undefined,
       },
     )
   }

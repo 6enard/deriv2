@@ -148,7 +148,11 @@ export function mapOpenContract(raw: any): OpenContract {
     longcode: raw.longcode ?? '',
     current_spot: parseFloat(raw.current_spot ?? '0'),
     entry_spot: raw.entry_spot != null ? parseFloat(raw.entry_spot) : null,
-    exit_spot: raw.exit_spot != null ? parseFloat(raw.exit_spot) : null,
+    exit_spot: raw.exit_spot != null
+      ? parseFloat(raw.exit_spot)
+      : raw.is_sold || raw.status === 'sold' || raw.status === 'won' || raw.status === 'lost'
+        ? (raw.current_spot != null ? parseFloat(raw.current_spot) : null)
+        : null,
     tick_count: raw.tick_count ?? 0,
     barrier: raw.barrier ?? null,
     duration: raw.duration ?? null,
