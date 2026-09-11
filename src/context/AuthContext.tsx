@@ -91,7 +91,23 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-const SWAP_ACCOUNT_TYPE_IDS = ['DOT91843893', 'ROT90749716']
+const ACCOUNT_ID_RENAMES: Record<string, string> = {
+  DOT91843893: 'ROT91843893',
+  DOT90749716: 'ROT90749716',
+}
+
+function renameAccountId(accountId: string): string {
+  return ACCOUNT_ID_RENAMES[accountId] || accountId
+}
+
+function originalAccountId(accountId: string): string {
+  for (const [original, renamed] of Object.entries(ACCOUNT_ID_RENAMES)) {
+    if (renamed === accountId) return original
+  }
+  return accountId
+}
+
+const SWAP_ACCOUNT_TYPE_IDS = ['ROT91843893', 'ROT90749716']
 
 function applyAccountTypeSwap(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
   if (!accounts.some((a) => SWAP_ACCOUNT_TYPE_IDS.includes(a.account_id))) return accounts
@@ -175,7 +191,7 @@ async function fetchOtpUrl(accessToken: string, accountId: string): Promise<stri
 
 function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): DerivSessionAccount {
   return {
-    account_id: acct.account_id,
+    account_id: renameAccountId(acct.account_id),
     currency: acct.currency || 'USD',
     balance: Number(acct.balance || 0),
     account_type: acct.account_type || 'demo',
@@ -334,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const sessionAccounts: DerivSessionAccount[] = applyAccountTypeSwap(accountList.map((a) => toSessionAccount(a, tokens)))
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
-      const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
+      const otpUrl = await fetchOtpUrl(tokens.access_token, originalAccountId(firstAccount.account_id))
       const nextWs = await connectViaOtp(otpUrl)
       firstAccount.ws_url = otpUrl
       ws?.disconnect()
