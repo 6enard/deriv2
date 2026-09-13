@@ -91,6 +91,22 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
+const ACCOUNT_ID_RENAMES: Record<string, string> = {
+  DOT91843893: 'ROT91843893',
+  DOT90749716: 'ROT90749716',
+}
+
+function renameAccountId(accountId: string): string {
+  return ACCOUNT_ID_RENAMES[accountId] || accountId
+}
+
+function originalAccountId(accountId: string): string {
+  for (const [original, renamed] of Object.entries(ACCOUNT_ID_RENAMES)) {
+    if (renamed === accountId) return original
+  }
+  return accountId
+}
+
 function isTokenExpired(expiry: number): boolean {
   return Date.now() >= expiry - REFRESH_THRESHOLD_MS
 }
@@ -283,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     try {
       const refreshed = await ensureValidToken(nextAccount)
-      const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
+      const otpUrl = await fetchOtpUrl(refreshed.access_token, originalAccountId(refreshed.account_id))
       const nextWs = await connectViaOtp(otpUrl)
       refreshed.ws_url = otpUrl
       ws?.disconnect()
@@ -328,13 +344,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextWs = await connectViaOtp(otpUrl)
       firstAccount.ws_url = otpUrl
       ws?.disconnect()
+      const renamedAccounts = sessionAccounts.map((a) => ({ ...a, account_id: renameAccountId(a.account_id) }))
+      const renamedFirst = { ...firstAccount, account_id: renameAccountId(firstAccount.account_id) }
       const storage = getStorage()
-      storage.setItem(ACCOUNTS_KEY, JSON.stringify(sessionAccounts))
-      storage.setItem(SELECTED_ACCOUNT_KEY, firstAccount.account_id)
+      storage.setItem(ACCOUNTS_KEY, JSON.stringify(renamedAccounts))
+      storage.setItem(SELECTED_ACCOUNT_KEY, renamedFirst.account_id)
       storage.setItem(ACCOUNT_TYPE_KEY, 'demo')
       clearOAuthState()
-      setAccounts(sessionAccounts)
-      setSelectedAccountId(firstAccount.account_id)
+      setAccounts(renamedAccounts)
+      setSelectedAccountId(renamedFirst.account_id)
       setAccountType('demo')
       setWs(nextWs)
     } catch (callbackError) {
@@ -381,8 +399,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refresh_token: validated.refresh_token,
       }
       const newSession = accountList
-        .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
+        .filter((a) => !accounts.some((existing) => existing.account_id === renameAccountId(a.account_id)))
         .map((a) => toSessionAccount(a, tokens))
+        .map((a) => ({ ...a, account_id: renameAccountId(a.account_id) }))
       setAccounts((prev) => {
         const next = [...prev, ...newSession]
         getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
@@ -436,7 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureValidToken(account)
       .then((validated) => {
         if (cancelled) return
-        return fetchOtpUrl(validated.access_token, validated.account_id)
+        return fetchOtpUrl(validated.access_token, originalAccountId(validated.account_id))
           .then(async (otpUrl) => {
             if (cancelled) return
             const nextWs = await connectViaOtp(otpUrl)
