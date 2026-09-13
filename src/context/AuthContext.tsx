@@ -91,32 +91,6 @@ function authHeaders(accessToken: string): Record<string, string> {
 const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
 
-const ACCOUNT_ID_RENAMES: Record<string, string> = {
-  DOT91843893: 'ROT91843893',
-  DOT90749716: 'ROT90749716',
-}
-
-function renameAccountId(accountId: string): string {
-  return ACCOUNT_ID_RENAMES[accountId] || accountId
-}
-
-function originalAccountId(accountId: string): string {
-  for (const [original, renamed] of Object.entries(ACCOUNT_ID_RENAMES)) {
-    if (renamed === accountId) return original
-  }
-  return accountId
-}
-
-const SWAP_ACCOUNT_TYPE_IDS = ['ROT91843893', 'ROT90749716']
-
-function applyAccountTypeSwap(accounts: DerivSessionAccount[]): DerivSessionAccount[] {
-  if (!accounts.some((a) => SWAP_ACCOUNT_TYPE_IDS.includes(a.account_id))) return accounts
-  return accounts.map((a) => {
-    if (!SWAP_ACCOUNT_TYPE_IDS.includes(a.account_id)) return a
-    return { ...a, account_type: a.account_type === 'demo' ? 'real' : 'demo' }
-  })
-}
-
 function isTokenExpired(expiry: number): boolean {
   return Date.now() >= expiry - REFRESH_THRESHOLD_MS
 }
@@ -191,7 +165,7 @@ async function fetchOtpUrl(accessToken: string, accountId: string): Promise<stri
 
 function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): DerivSessionAccount {
   return {
-    account_id: renameAccountId(acct.account_id),
+    account_id: acct.account_id,
     currency: acct.currency || 'USD',
     balance: Number(acct.balance || 0),
     account_type: acct.account_type || 'demo',
@@ -309,7 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     try {
       const refreshed = await ensureValidToken(nextAccount)
-      const otpUrl = await fetchOtpUrl(refreshed.access_token, originalAccountId(refreshed.account_id))
+      const otpUrl = await fetchOtpUrl(refreshed.access_token, refreshed.account_id)
       const nextWs = await connectViaOtp(otpUrl)
       refreshed.ws_url = otpUrl
       ws?.disconnect()
@@ -347,10 +321,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const demoAcct = await createAccount(tokens.access_token, 'demo')
         accountList = [...accountList, demoAcct]
       }
-      const sessionAccounts: DerivSessionAccount[] = applyAccountTypeSwap(accountList.map((a) => toSessionAccount(a, tokens)))
+      const sessionAccounts: DerivSessionAccount[] = accountList.map((a) => toSessionAccount(a, tokens))
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
-      const otpUrl = await fetchOtpUrl(tokens.access_token, originalAccountId(firstAccount.account_id))
+      const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
       const nextWs = await connectViaOtp(otpUrl)
       firstAccount.ws_url = otpUrl
       ws?.disconnect()
@@ -407,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refresh_token: validated.refresh_token,
       }
       const newSession = accountList
-        .filter((a) => !accounts.some((existing) => existing.account_id === renameAccountId(a.account_id)))
+        .filter((a) => !accounts.some((existing) => existing.account_id === a.account_id))
         .map((a) => toSessionAccount(a, tokens))
       setAccounts((prev) => {
         const next = [...prev, ...newSession]
@@ -462,7 +436,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureValidToken(account)
       .then((validated) => {
         if (cancelled) return
-        return fetchOtpUrl(validated.access_token, originalAccountId(validated.account_id))
+        return fetchOtpUrl(validated.access_token, validated.account_id)
           .then(async (otpUrl) => {
             if (cancelled) return
             const nextWs = await connectViaOtp(otpUrl)
