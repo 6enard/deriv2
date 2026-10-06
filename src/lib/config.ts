@@ -90,12 +90,9 @@ export const ADMIN_ACCOUNT_IDS: string[] =
  *
  * Never put a Supabase service-role key here.
  */
-export const SUPABASE_URL =
-  configuredSupabaseUrl ||
-  'https://czmclfzubeugpuomnwnr.supabase.co'
+export const SUPABASE_URL = configuredSupabaseUrl
 
-export const SUPABASE_ANON_KEY =
-  configuredSupabaseAnonKey
+export const SUPABASE_ANON_KEY = configuredSupabaseAnonKey
 
 export function validateDerivConfig(): void {
   const missing: string[] = []
