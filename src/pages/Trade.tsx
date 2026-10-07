@@ -166,25 +166,38 @@ export default function Trade() {
     return price.toFixed(pipSize)
   }, [pipSize])
 
-  // Load symbols on mount via the public (no-auth) WebSocket
+  // Load symbols on mount via the public (no-auth) WebSocket, with retry
   useEffect(() => {
     let cancelled = false
-    setLoadingSymbols(true)
-    fetchSymbols()
-      .then((rawSymbols) => {
+    let retryTimer: ReturnType<typeof setTimeout>
+
+    const attemptLoad = async (attempt: number): Promise<void> => {
+      if (cancelled) return
+      setLoadingSymbols(true)
+      try {
+        const rawSymbols = await fetchSymbols()
         if (cancelled || !rawSymbols) return
         const syms: SymbolInfo[] = rawSymbols.map((s: any) => mapActiveSymbol(s))
         setSymbols(syms)
         const firstVol = syms.find((s) => s.market === 'synthetic_index')
         setSelectedSymbol(firstVol?.symbol || syms[0]?.symbol || '')
         setLoadingSymbols(false)
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return
-        showToastCallback('error', 'Failed to load markets')
-        setLoadingSymbols(false)
-      })
-    return () => { cancelled = true }
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => attemptLoad(attempt + 1), 1500 * (attempt + 1))
+        } else {
+          showToastCallback('error', 'Failed to load markets. Please refresh the page.')
+          setLoadingSymbols(false)
+        }
+      }
+    }
+
+    attemptLoad(0)
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [fetchSymbols, showToastCallback])
 
   // Apply scan recommendation if present (from AI Scanner page)
@@ -225,38 +238,46 @@ export default function Trade() {
       }
     }
 
-    stopPrevious().then(() => {
+    const subscribeTicks = async (attempt: number): Promise<void> => {
       if (cancelled || !ws.isConnected) return
       setTicks([])
       prevPriceRef.current = null
 
-      ws.subscribe({ ticks: selectedSymbol }, (data) => {
-        const tick = data.tick
-        const quote = parseFloat(tick.quote)
-        const ps = tick.pip_size || 2
-        setPipSize(ps)
+      try {
+        const res = await ws.subscribe({ ticks: selectedSymbol }, (data) => {
+          const tick = data.tick
+          const quote = parseFloat(tick.quote)
+          const ps = tick.pip_size || 2
+          setPipSize(ps)
 
-        setTicks((prev) => [...prev.slice(-49), { symbol: tick.symbol, quote, epoch: tick.epoch, pip_size: ps }])
+          setTicks((prev) => [...prev.slice(-49), { symbol: tick.symbol, quote, epoch: tick.epoch, pip_size: ps }])
 
-        if (prevPriceRef.current !== null) {
-          if (quote > prevPriceRef.current) {
-            setFlashClass('flash-green')
-          } else if (quote < prevPriceRef.current) {
-            setFlashClass('flash-red')
+          if (prevPriceRef.current !== null) {
+            if (quote > prevPriceRef.current) {
+              setFlashClass('flash-green')
+            } else if (quote < prevPriceRef.current) {
+              setFlashClass('flash-red')
+            }
+            setTimeout(() => setFlashClass(''), 600)
           }
-          setTimeout(() => setFlashClass(''), 600)
-        }
-        prevPriceRef.current = quote
-      }).then((res: any) => {
+          prevPriceRef.current = quote
+        })
         if (cancelled) {
           if (res.data?.subscription?.id) ws.forget(res.data.subscription.id).catch(() => {})
           return
         }
         tickSubIdRef.current = res.data?.subscription?.id || null
-      }).catch(() => {
-        showToastCallback('error', 'Failed to subscribe to price feed')
-      })
-    })
+      } catch {
+        if (cancelled) return
+        if (attempt < 3) {
+          setTimeout(() => subscribeTicks(attempt + 1), 1500 * (attempt + 1))
+        } else {
+          showToastCallback('error', 'Failed to subscribe to price feed. Try selecting the market again.')
+        }
+      }
+    }
+
+    stopPrevious().then(() => subscribeTicks(0))
 
     return () => {
       cancelled = true
@@ -280,10 +301,13 @@ export default function Trade() {
     setAvailableContractTypes(null)
     setContractDurationLimits({})
 
-    acquirePublicWs()
-      .then((pubWs) => pubWs.send({ contracts_for: selectedSymbol }))
-      .then((res) => {
-        if (cancelled) return
+    const fetchContracts = async (attempt: number): Promise<void> => {
+      if (cancelled) return
+      try {
+        const pubWs = await acquirePublicWs()
+        if (cancelled) { releasePublicWs(); return }
+        const res = await pubWs.send({ contracts_for: selectedSymbol })
+        if (cancelled) { releasePublicWs(); return }
         const available = res.contracts_for?.available
         if (available && Array.isArray(available)) {
           const types = new Set<string>()
@@ -300,14 +324,19 @@ export default function Trade() {
           setAvailableContractTypes(types)
           setContractDurationLimits(limits)
         }
-      })
-      .catch(() => {
+        releasePublicWs()
+      } catch {
         if (cancelled) return
-        setAvailableContractTypes(null)
-      })
-      .finally(() => {
-        if (!cancelled) releasePublicWs()
-      })
+        releasePublicWs()
+        if (attempt < 2) {
+          setTimeout(() => fetchContracts(attempt + 1), 1500 * (attempt + 1))
+        } else {
+          setAvailableContractTypes(null)
+        }
+      }
+    }
+
+    fetchContracts(0)
 
     return () => {
       cancelled = true
@@ -900,7 +929,7 @@ export default function Trade() {
 
             <button
               onClick={executeTrade}
-              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0 || !proposal || proposalLoading}
+              disabled={isTrading || !selectedSymbol || loadingSymbols || currentSymbol?.exchange_is_open === 0}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-bg-primary font-bold text-sm sm:text-base hover:bg-brand-green-dim transition-all active:scale-[0.98] shadow-lg shadow-brand-green/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {isTrading ? <Loader2 className="w-5 h-5 animate-spin" /> : <TradeTypeIcon option={selectedTradeType} />}
