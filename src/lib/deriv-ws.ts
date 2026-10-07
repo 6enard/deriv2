@@ -156,6 +156,14 @@ export class DerivWS {
     ) {
       return `poc:${String(request.contract_id)}`
     }
+    if (request.proposal) {
+      const ct = String(request.contract_type || '')
+      const sym = String(request.underlying_symbol || '')
+      const dur = String(request.duration || '')
+      const du = String(request.duration_unit || '')
+      const amt = String(request.amount || '')
+      return `proposal:${ct}:${sym}:${dur}:${du}:${amt}`
+    }
     return null
   }
 
@@ -386,6 +394,7 @@ export class DerivWS {
           let forgetType = ''
           if (typeof request.ticks === 'string') forgetType = 'ticks'
           else if (request.proposal_open_contract) forgetType = 'proposal_open_contract'
+          else if (request.proposal) forgetType = 'proposal'
 
           if (forgetType) {
             try { await this.send({ forget_all: forgetType }) } catch { /* retry anyway */ }

@@ -1792,7 +1792,15 @@ export function createBotApi(
     } catch {
       liveProposalKey = null
       liveProposalSubId = null
-      return ws.send(request)
+      // Fallback: one-shot proposal request (no subscription).
+      // This may return an expired proposal, but the purchase()
+      // retry loop will catch that and re-request.
+      const fallback = await ws.send(request)
+      if (fallback?.error) {
+        return fallback
+      }
+      liveProposalData = fallback
+      return fallback
     }
   }
 
@@ -2108,12 +2116,17 @@ export function createBotApi(
 
         /*
          * Invalidate the cached proposal — the proposal ID was
-         * consumed by the buy and can't be reused. The live
-         * subscription stays active so the next getLiveProposal()
-         * gets a fresh proposal from the still-open subscription
-         * without a full round-trip.
+         * consumed by the buy and can't be reused. Forget the
+         * subscription so the next getLiveProposal() opens a fresh
+         * one instead of waiting for an update that will never
+         * arrive on a consumed proposal subscription.
          */
         liveProposalData = null
+        liveProposalKey = null
+        if (liveProposalSubId) {
+          void forgetSubscription(liveProposalSubId)
+          liveProposalSubId = null
+        }
 
         return contractId
       } catch (
@@ -2140,15 +2153,18 @@ export function createBotApi(
             ? error.message
             : String(error)
 
-        // Proposal expired / stale cache — invalidate and retry
-        // immediately with a fresh proposal instead of dying.
-        if (/expired|Invalid proposal|proposal.*not.*valid|No proposal/i.test(errMsg)) {
+        // Proposal expired / stale cache / AlreadySubscribed —
+        // invalidate the subscription and retry immediately with a
+        // fresh proposal instead of dying.
+        if (/expired|Invalid proposal|proposal.*not.*valid|No proposal|AlreadySubscribed/i.test(errMsg)) {
           liveProposalKey = null
           liveProposalData = null
           if (liveProposalSubId) {
             void forgetSubscription(liveProposalSubId)
             liveProposalSubId = null
           }
+          // Also clear any orphaned server-side proposal subscriptions
+          try { await ws.forgetAll('proposal') } catch { /* best effort */ }
           notify('warn', 'Proposal expired — requesting a fresh one.', { event: 'info' })
           continue
         }
@@ -2171,9 +2187,11 @@ export function createBotApi(
           )
         }
 
-        // Retryable (connection drop, timeout, etc.) — wait
-        // briefly and try again. The bot should never die on its own.
-        const delay = Math.min(attempt, 3)
+        // Retryable (connection drop, timeout, AlreadySubscribed,
+        // etc.) — wait briefly and try again. The bot should never
+        // die on its own. Cap the delay at 5s to avoid hammering
+        // the API while still being responsive.
+        const delay = Math.min(Math.max(attempt, 1), 5)
         notify(
           'warn',
           'Purchase attempt ' +
