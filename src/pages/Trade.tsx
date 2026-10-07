@@ -211,13 +211,8 @@ export default function Trade() {
       const tradeType = ALL_TRADE_TYPES.find((t) => t.contractType === rec.contractType)
       if (tradeType) setSelectedTradeType(tradeType)
       if (rec.digit !== undefined) setDigit(String(rec.digit))
-      if (rec.contractType === 'DIGITEVEN' || rec.contractType === 'DIGITODD') {
-        setDurationUnit('t')
-        setDuration('1')
-      } else {
-        setDurationUnit('t')
-        setDuration('5')
-      }
+      setDurationUnit('t')
+      setDuration('1')
       showToastCallback('info', `Scanner recommendation loaded: ${rec.contractType.replace('DIGIT', '')}${rec.digit !== undefined ? ' ' + rec.digit : ''} on ${rec.symbol}`)
     } catch {
       // ignore malformed recommendation
@@ -431,6 +426,20 @@ export default function Trade() {
     }
     livePropRef.current = null
 
+    /*
+     * Debounce the proposal request: when multiple trade params
+     * change in quick succession (e.g. scanner recommendation
+     * sets symbol, trade type, digit, and duration all at once),
+     * each change retriggers this effect. Without a delay, every
+     * retrigger tears down the old subscription and starts a new
+     * one before the previous one gets a response, causing the
+     * payout display to flicker between loading/error/value.
+     * The 400ms delay lets rapid state changes settle into a
+     * single request.
+     */
+    const debounceTimer = setTimeout(() => {
+      if (cancelled || proposalReqIdRef.current !== reqId) return
+
     const request: Record<string, unknown> = {
       proposal: 1,
       amount: stakeNum,
@@ -498,9 +507,11 @@ export default function Trade() {
       .finally(() => {
         if (!cancelled && proposalReqIdRef.current === reqId) setProposalLoading(false)
       })
+    }, 400)
 
     return () => {
       cancelled = true
+      clearTimeout(debounceTimer)
     }
   }, [ws, selectedSymbol, account, stake, duration, durationUnit, selectedTradeType, barrier, digit, cancellation, growthRate, takeProfit, stopLoss])
 
