@@ -1674,7 +1674,7 @@ export function createBotApi(
         return
       }
 
-      await sleep(250)
+      await sleep(150)
 
       if (
         openContractId ===
@@ -1685,9 +1685,9 @@ export function createBotApi(
 
       pollInterval += 1
 
-      // Every ~5 seconds (20 * 250ms), poll the contract status
+      // Every ~1.5 seconds (10 * 150ms), poll the contract status
       // and re-subscribe if the subscription was lost.
-      if (pollInterval % 20 === 0) {
+      if (pollInterval % 10 === 0) {
         if (
           !contractSubscriptionId &&
           !disposed
@@ -2073,15 +2073,14 @@ export function createBotApi(
           contractId,
         )
 
-        if (liveProposalSubId) {
-          void forgetSubscription(
-            liveProposalSubId,
-          )
-          liveProposalSubId = null
-        }
-        liveProposalKey = null
-        liveProposalData = null
-
+        /*
+         * Keep the live proposal subscription alive between trades
+         * so the next purchase doesn't need a fresh proposal
+         * round-trip — the cached proposal data is still valid as
+         * long as the stake, contract type, and symbol haven't
+         * changed. getLiveProposal() will request a new one only
+         * if the key differs.
+         */
         return contractId
       } catch (
         error

@@ -132,8 +132,8 @@ export default function Trade() {
   const [ticks, setTicks] = useState<Tick[]>([])
   const [pipSize, setPipSize] = useState(2)
   const [stake, setStake] = useState('1')
-  const [duration, setDuration] = useState('5')
-  const [durationUnit, setDurationUnit] = useState('m')
+  const [duration, setDuration] = useState('1')
+  const [durationUnit, setDurationUnit] = useState('t')
   const [selectedTradeType, setSelectedTradeType] = useState<TradeTypeOption>(ALL_TRADE_TYPES[0])
   const [tradeTypeDropdownOpen, setTradeTypeDropdownOpen] = useState(false)
   const [barrier, setBarrier] = useState('')
@@ -357,7 +357,7 @@ export default function Trade() {
   useEffect(() => {
     if (selectedTradeType.barrierType === 'digit' && durationUnit !== 't') {
       setDurationUnit('t')
-      setDuration('5')
+      setDuration('1')
     }
   }, [selectedTradeType, durationUnit])
 
