@@ -1740,6 +1740,22 @@ export function createBotApi(
       return liveProposalData
     }
 
+    /*
+     * Same key but data was invalidated (e.g. after a trade
+     * consumed the previous proposal ID). The subscription is
+     * still live and will deliver a fresh proposal update —
+     * wait for it rather than creating a duplicate subscription.
+     */
+    if (
+      key === liveProposalKey &&
+      liveProposalSubId &&
+      !liveProposalData
+    ) {
+      const waited = await waitForProposalUpdate(key, 5000)
+      if (waited) return waited
+      // Timed out waiting — fall through to re-subscribe
+    }
+
     if (
       liveProposalSubId &&
       key !== liveProposalKey
@@ -1778,6 +1794,38 @@ export function createBotApi(
       liveProposalSubId = null
       return ws.send(request)
     }
+  }
+
+  /*
+   * Waits up to `timeoutMs` for the active proposal subscription
+   * to deliver a fresh proposal update. Returns the data if
+   * received, or null if it timed out.
+   */
+  function waitForProposalUpdate(
+    key: string,
+    timeoutMs: number,
+  ): Promise<any> {
+    return new Promise((resolve) => {
+      const deadline = Date.now() + timeoutMs
+
+      const check = () => {
+        if (key !== liveProposalKey) {
+          resolve(null)
+          return
+        }
+        if (liveProposalData && !liveProposalData.error) {
+          resolve(liveProposalData)
+          return
+        }
+        if (Date.now() >= deadline) {
+          resolve(null)
+          return
+        }
+        setTimeout(check, 50)
+      }
+
+      check()
+    })
   }
 
   /* =======================================================
@@ -1909,21 +1957,6 @@ export function createBotApi(
             'Bot stop requested.',
           )
         }
-
-        notify(
-          'info',
-          'Requesting proposal for ' +
-            ct +
-            ' with stake ' +
-            stake,
-          {
-            event:
-              'proposal',
-            stake,
-            contractType:
-              ct,
-          },
-        )
 
         const proposalResponse =
           await getLiveProposal(
@@ -2074,13 +2107,14 @@ export function createBotApi(
         )
 
         /*
-         * Keep the live proposal subscription alive between trades
-         * so the next purchase doesn't need a fresh proposal
-         * round-trip — the cached proposal data is still valid as
-         * long as the stake, contract type, and symbol haven't
-         * changed. getLiveProposal() will request a new one only
-         * if the key differs.
+         * Invalidate the cached proposal — the proposal ID was
+         * consumed by the buy and can't be reused. The live
+         * subscription stays active so the next getLiveProposal()
+         * gets a fresh proposal from the still-open subscription
+         * without a full round-trip.
          */
+        liveProposalData = null
+
         return contractId
       } catch (
         error
@@ -2106,15 +2140,23 @@ export function createBotApi(
             ? error.message
             : String(error)
 
-        writeConsole(
-          'error',
-          error,
-        )
+        // Proposal expired / stale cache — invalidate and retry
+        // immediately with a fresh proposal instead of dying.
+        if (/expired|Invalid proposal|proposal.*not.*valid|No proposal/i.test(errMsg)) {
+          liveProposalKey = null
+          liveProposalData = null
+          if (liveProposalSubId) {
+            void forgetSubscription(liveProposalSubId)
+            liveProposalSubId = null
+          }
+          notify('warn', 'Proposal expired — requesting a fresh one.', { event: 'info' })
+          continue
+        }
 
         // Non-retryable: invalid contract parameters, invalid
         // stake, etc. These will never succeed on retry.
         const nonRetryable =
-          /Invalid|not available|No contract type|Invalid stake/i.test(
+          /not available|No contract type|Invalid stake|Invalid contract type/i.test(
             errMsg,
           )
 
@@ -2130,8 +2172,8 @@ export function createBotApi(
         }
 
         // Retryable (connection drop, timeout, etc.) — wait
-        // and try again. The bot should never die on its own.
-        const delay = Math.min(attempt, 5)
+        // briefly and try again. The bot should never die on its own.
+        const delay = Math.min(attempt, 3)
         notify(
           'warn',
           'Purchase attempt ' +
