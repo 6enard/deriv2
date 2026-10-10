@@ -130,14 +130,13 @@ function zScoreOf(observed: number, expected: number, n: number): number {
 const MIN_SAMPLE_SIZE = 100
 const Z_SIGNIFICANCE_THRESHOLD = 1.28
 
-// Over/Under barriers are restricted to this mid-range. Barriers at
-// the extremes (0, 1, 8, 9) have a structurally high "win rate" by
-// definition — e.g. Over 1 wins whenever the last digit isn't 0 or 1,
-// ~80% of the time on perfectly random data — but pay out very
-// little and reflect no real edge. Real trading tools avoid
-// recommending these as "signals" since they're just a property of
-// the contract, not of the market.
-const OVER_UNDER_BARRIER_RANGE = [2, 3, 4, 5, 6, 7]
+// All Over/Under barriers from 1 to 8 are evaluated. The z-score
+// ranking ensures extreme barriers (e.g. Over 1) only surface as the
+// best signal when their deviation from the expected distribution is
+// genuinely statistically significant — not just because they have a
+// high base win rate. This lets users capitalise on the best entries
+// across the full range while filtering out noise.
+const OVER_UNDER_BARRIER_RANGE = [1, 2, 3, 4, 5, 6, 7, 8]
 
 export interface ScanWs {
   send: (req: Record<string, unknown>) => Promise<any>
@@ -195,9 +194,12 @@ export function analyzeTicks(
     }
   }
 
-  // Over / Under — evaluate mid-range barriers only (see
+  // Over / Under — evaluate all barriers (see
   // OVER_UNDER_BARRIER_RANGE) and rank by statistical significance
-  // (z-score), not raw win probability or raw edge.
+  // (z-score), not raw win probability or raw edge. Extreme barriers
+  // like Over 1 or Under 8 only surface as the best signal when their
+  // deviation is genuinely significant, so users always see the
+  // strongest real entry available.
   if (hasEnoughSamples) {
     let bestOverDigit: number | null = null
     let bestOverZ = -Infinity
@@ -274,10 +276,10 @@ export function analyzeTicks(
     }
   }
 
-  // Rank by statistical significance, not raw win probability — this
-  // is what stops a structurally-high-win-rate-but-meaningless
-  // threshold (e.g. Over 1) from permanently sitting at #1 across
-  // every market.
+  // Rank by statistical significance. The z-score normalises across
+  // all barrier levels so a structurally-high-win-rate threshold
+  // (e.g. Over 1) only tops the list when its deviation is genuinely
+  // significant — letting users maximise on the best real entry.
   signals.sort((a, b) => b.zScore - a.zScore)
 
   // No fallback signal is injected anymore. If nothing in this
