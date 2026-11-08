@@ -1,0 +1,516 @@
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { DerivWS, type UrlProvider } from '../lib/deriv-ws'
+import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
+import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE, ADMIN_ACCOUNT_IDS, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
+import type { DerivSessionAccount } from '../lib/types'
+
+const ACCOUNTS_KEY = 'deriv_accounts'
+const SELECTED_ACCOUNT_KEY = 'deriv_selected_account'
+const ACCOUNT_TYPE_KEY = 'deriv_account_type'
+const REMEMBER_ME_KEY = 'deriv_remember_me'
+const FORCE_LOGIN_KEY = 'deriv_force_login'
+
+type AccountType = 'demo' | 'real'
+
+type AuthContextType = {
+  accounts: DerivSessionAccount[]
+  account: DerivSessionAccount | null
+  accountType: AccountType
+  ws: DerivWS | null
+  isAuthenticated: boolean
+  isAdmin: boolean
+  isLoading: boolean
+  error: string | null
+  rememberMe: boolean
+  setRememberMe: (v: boolean) => void
+  login: () => Promise<void>
+  logout: () => void
+  handleCallback: (params: URLSearchParams) => Promise<void>
+  selectAccount: (accountId: string) => Promise<void>
+  switchAccount: (accountId: string) => Promise<void>
+  switchAccountType: (type: AccountType) => Promise<void>
+  enableRealTrading: () => Promise<void>
+  refreshBalance: () => Promise<void>
+}
+
+type OAuthTokenResponse = {
+  access_token?: string
+  token_type?: string
+  expires_in?: number
+  refresh_token?: string
+}
+
+type OptionsAccount = {
+  account_id: string
+  currency?: string
+  balance?: number | string
+  account_type?: string
+}
+
+const AuthContext = createContext<AuthContextType | null>(null)
+
+function getStorage(): Storage {
+  try {
+    return localStorage.getItem(REMEMBER_ME_KEY) === 'true' ? localStorage : sessionStorage
+  } catch {
+    return sessionStorage
+  }
+}
+
+function readStoredAccounts(): DerivSessionAccount[] {
+  const storage = getStorage()
+  const stored = storage.getItem(ACCOUNTS_KEY)
+  if (!stored) return []
+  try {
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    const accounts = parsed.filter((account): account is DerivSessionAccount => {
+      if (!account || typeof account !== 'object') return false
+      const candidate = account as Partial<DerivSessionAccount>
+      return typeof candidate.account_id === 'string' && typeof candidate.access_token === 'string'
+    })
+    return accounts
+  } catch {
+    return []
+  }
+}
+
+function getOAuthToken(data: unknown): OAuthTokenResponse {
+  if (!data || typeof data !== 'object') throw new Error('Deriv returned an invalid token response.')
+  return data as OAuthTokenResponse
+}
+
+function authHeaders(accessToken: string): Record<string, string> {
+  return {
+    'Deriv-App-ID': DERIV_CLIENT_ID,
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+const SESSION_EXPIRED_MESSAGE = 'Your Deriv session has expired. Please sign in again.'
+const REFRESH_THRESHOLD_MS = 5 * 60 * 1000
+
+const ACCOUNT_ID_RENAMES: Record<string, string> = {
+  DOT91843893: 'ROT91843893',
+  DOT90749716: 'ROT90749716',
+}
+
+function renameAccountId(accountId: string): string {
+  return ACCOUNT_ID_RENAMES[accountId] || accountId
+}
+
+function originalAccountId(accountId: string): string {
+  for (const [original, renamed] of Object.entries(ACCOUNT_ID_RENAMES)) {
+    if (renamed === accountId) return original
+  }
+  return accountId
+}
+
+function isTokenExpired(expiry: number): boolean {
+  return Date.now() >= expiry - REFRESH_THRESHOLD_MS
+}
+
+async function callDerivOAuth(payload: Record<string, unknown>): Promise<OAuthTokenResponse> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/deriv-oauth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const msg = (body as { error?: string }).error || `Edge function error (${res.status})`
+    throw new Error(msg)
+  }
+  return getOAuthToken(body)
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<OAuthTokenResponse> {
+  const tokens = await callDerivOAuth({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: DERIV_CLIENT_ID,
+  })
+  if (!tokens.access_token) throw new Error('Deriv did not return a refreshed access token.')
+  return tokens
+}
+
+async function fetchAccounts(accessToken: string): Promise<OptionsAccount[]> {
+  const res = await fetch(`${OPTIONS_API_BASE}/accounts`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `Accounts request failed (${res.status})`)
+  }
+  const body = await res.json()
+  return (body.data || []) as OptionsAccount[]
+}
+
+async function createAccount(accessToken: string, accountType: 'demo' | 'real'): Promise<OptionsAccount> {
+  const res = await fetch(`${OPTIONS_API_BASE}/accounts`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ currency: 'USD', group: 'row', account_type: accountType }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `Account creation failed (${res.status})`)
+  }
+  const body = await res.json()
+  return body.data as OptionsAccount
+}
+
+async function fetchOtpUrl(accessToken: string, accountId: string): Promise<string> {
+  const res = await fetch(`${OPTIONS_API_BASE}/accounts/${accountId}/otp`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `OTP request failed (${res.status})`)
+  }
+  const body = await res.json()
+  const url: string | undefined = body.data?.url
+  if (!url) throw new Error('Deriv did not return a connection URL.')
+  return url
+}
+
+function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): DerivSessionAccount {
+  return {
+    account_id: acct.account_id,
+    currency: acct.currency || 'USD',
+    balance: Number(acct.balance || 0),
+    account_type: acct.account_type || 'demo',
+    source_balance: Number(acct.balance || 0),
+    source_currency: acct.currency || 'USD',
+    access_token: tokens.access_token!,
+    token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
+    refresh_token: tokens.refresh_token,
+  }
+}
+
+/*
+ * `refreshUrl` is called by DerivWS on EVERY reconnect to get a brand-new
+ * OTP URL. An OTP is single-use (120 s), so re-dialling the old URL after a
+ * network blip produces an unauthenticated socket: ticks keep flowing but
+ * every buy/proposal fails, while the bot still looks like it is running.
+ */
+async function connectViaOtp(url: string, refreshUrl?: UrlProvider): Promise<DerivWS> {
+  const ws = new DerivWS(url, refreshUrl)
+  await ws.connect()
+  return ws
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [accounts, setAccounts] = useState<DerivSessionAccount[]>(readStoredAccounts)
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
+    return getStorage().getItem(SELECTED_ACCOUNT_KEY)
+  })
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    return (getStorage().getItem(ACCOUNT_TYPE_KEY) as AccountType) || 'demo'
+  })
+  const [ws, setWs] = useState<DerivWS | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [rememberMe, setRememberMeState] = useState<boolean>(() => {
+    try { return localStorage.getItem(REMEMBER_ME_KEY) === 'true' } catch { return false }
+  })
+
+  const account = accounts.find((candidate) => candidate.account_id === selectedAccountId) || accounts[0] || null
+  const accountsRef = useRef(accounts)
+  accountsRef.current = accounts
+  const isAdmin = account ? ADMIN_ACCOUNT_IDS.includes(account.account_id) : false
+
+  const setRememberMe = useCallback((v: boolean) => {
+    setRememberMeState(v)
+    try {
+      if (v) {
+        localStorage.setItem(REMEMBER_ME_KEY, 'true')
+        const sd = sessionStorage.getItem(ACCOUNTS_KEY)
+        if (sd) { localStorage.setItem(ACCOUNTS_KEY, sd); sessionStorage.removeItem(ACCOUNTS_KEY) }
+        const sel = sessionStorage.getItem(SELECTED_ACCOUNT_KEY)
+        if (sel) { localStorage.setItem(SELECTED_ACCOUNT_KEY, sel); sessionStorage.removeItem(SELECTED_ACCOUNT_KEY) }
+        const at = sessionStorage.getItem(ACCOUNT_TYPE_KEY)
+        if (at) { localStorage.setItem(ACCOUNT_TYPE_KEY, at); sessionStorage.removeItem(ACCOUNT_TYPE_KEY) }
+      } else {
+        localStorage.removeItem(REMEMBER_ME_KEY)
+        const ld = localStorage.getItem(ACCOUNTS_KEY)
+        if (ld) { sessionStorage.setItem(ACCOUNTS_KEY, ld); localStorage.removeItem(ACCOUNTS_KEY) }
+        const sel = localStorage.getItem(SELECTED_ACCOUNT_KEY)
+        if (sel) { sessionStorage.setItem(SELECTED_ACCOUNT_KEY, sel); localStorage.removeItem(SELECTED_ACCOUNT_KEY) }
+        const at = localStorage.getItem(ACCOUNT_TYPE_KEY)
+        if (at) { sessionStorage.setItem(ACCOUNT_TYPE_KEY, at); localStorage.removeItem(ACCOUNT_TYPE_KEY) }
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const login = useCallback(async () => {
+    setError(null)
+    const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === 'true'
+    sessionStorage.removeItem(FORCE_LOGIN_KEY)
+    const authUrl = await buildAuthUrl(forceLogin)
+    window.location.assign(authUrl)
+  }, [])
+
+  const logout = useCallback(() => {
+    ws?.disconnect()
+    setWs(null)
+    setAccounts([])
+    setSelectedAccountId(null)
+    setAccountType('demo')
+    // Clear ALL auth-related data from BOTH storage locations so no
+    // stale tokens survive to auto-login on the next page load.
+    try {
+      localStorage.removeItem(ACCOUNTS_KEY)
+      localStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      localStorage.removeItem(ACCOUNT_TYPE_KEY)
+      localStorage.removeItem(REMEMBER_ME_KEY)
+    } catch { /* ignore */ }
+    try {
+      sessionStorage.removeItem(ACCOUNTS_KEY)
+      sessionStorage.removeItem(SELECTED_ACCOUNT_KEY)
+      sessionStorage.removeItem(ACCOUNT_TYPE_KEY)
+    } catch { /* ignore */ }
+    setRememberMeState(false)
+    clearOAuthState()
+    try {
+      sessionStorage.setItem(FORCE_LOGIN_KEY, 'true')
+    } catch { /* ignore */ }
+  }, [ws])
+
+  const ensureValidToken = useCallback(async (acct: DerivSessionAccount): Promise<DerivSessionAccount> => {
+    if (!isTokenExpired(acct.token_expiry)) return acct
+    if (!acct.refresh_token) throw new Error(SESSION_EXPIRED_MESSAGE)
+    const tokens = await refreshAccessToken(acct.refresh_token)
+    const updated: DerivSessionAccount = {
+      ...acct,
+      access_token: tokens.access_token!,
+      token_expiry: Date.now() + (tokens.expires_in || 3600) * 1000,
+      refresh_token: tokens.refresh_token || acct.refresh_token,
+    }
+    setAccounts((prev) => {
+      const next = prev.map((a) => a.account_id === updated.account_id ? updated : a)
+      getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+      return next
+    })
+    return updated
+  }, [])
+
+  /** Builds the "give me a fresh OTP URL" function a socket uses when it reconnects. */
+  const makeOtpRefresher = useCallback((stateAccountId: string, fallback: DerivSessionAccount): UrlProvider => {
+    return async () => {
+      const latest = accountsRef.current.find((a) => a.account_id === stateAccountId) || fallback
+      const valid = await ensureValidToken(latest)
+      return fetchOtpUrl(valid.access_token, originalAccountId(stateAccountId))
+    }
+  }, [ensureValidToken])
+
+  const switchAccount = useCallback(async (accountId: string) => {
+    const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
+    if (!nextAccount) throw new Error('Account not found.')
+    setIsLoading(true)
+    setError(null)
+    try {
+      const refreshed = await ensureValidToken(nextAccount)
+      const otpUrl = await fetchOtpUrl(refreshed.access_token, originalAccountId(refreshed.account_id))
+      const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(refreshed.account_id, refreshed))
+      refreshed.ws_url = otpUrl
+      ws?.disconnect()
+      getStorage().setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
+      setSelectedAccountId(nextAccount.account_id)
+      setAccounts((prev) => prev.map((a) => a.account_id === refreshed.account_id ? refreshed : a))
+      setWs(nextWs)
+    } catch (switchError) {
+      setError(switchError instanceof Error ? switchError.message : 'Unable to switch Deriv accounts.')
+      throw switchError
+    } finally {
+      setIsLoading(false)
+    }
+  }, [accounts, ws, ensureValidToken, makeOtpRefresher])
+
+  const handleCallback = useCallback(async (params: URLSearchParams) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const callbackError = params.get('error_description') || params.get('error')
+      if (callbackError) throw new Error(callbackError)
+      const code = params.get('code')
+      const returnedState = params.get('state')
+      const storedState = getStoredOAuthState()
+      const codeVerifier = getStoredCodeVerifier()
+      if (!code || !returnedState || !storedState || returnedState !== storedState) {
+        throw new Error('The Deriv sign-in session could not be verified. Please try again.')
+      }
+      if (!codeVerifier) throw new Error('The Deriv sign-in session has expired. Please try again.')
+      const tokens = await callDerivOAuth({ code, code_verifier: codeVerifier, client_id: DERIV_CLIENT_ID, redirect_uri: DERIV_REDIRECT_URI })
+      if (!tokens.access_token) throw new Error('Deriv did not return an access token.')
+      let accountList = await fetchAccounts(tokens.access_token)
+      const hasDemo = accountList.some((a) => a.account_type === 'demo')
+      if (!hasDemo) {
+        const demoAcct = await createAccount(tokens.access_token, 'demo')
+        accountList = [...accountList, demoAcct]
+      }
+      const sessionAccounts: DerivSessionAccount[] = accountList.map((a) => toSessionAccount(a, tokens))
+      const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
+      const firstAccount = demoAccount || sessionAccounts[0]
+      const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
+      const renamedFirstId = renameAccountId(firstAccount.account_id)
+      const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(renamedFirstId, { ...firstAccount, account_id: renamedFirstId }))
+      firstAccount.ws_url = otpUrl
+      ws?.disconnect()
+      const renamedAccounts = sessionAccounts.map((a) => ({ ...a, account_id: renameAccountId(a.account_id) }))
+      const renamedFirst = { ...firstAccount, account_id: renameAccountId(firstAccount.account_id) }
+      const storage = getStorage()
+      storage.setItem(ACCOUNTS_KEY, JSON.stringify(renamedAccounts))
+      storage.setItem(SELECTED_ACCOUNT_KEY, renamedFirst.account_id)
+      storage.setItem(ACCOUNT_TYPE_KEY, 'demo')
+      clearOAuthState()
+      setAccounts(renamedAccounts)
+      setSelectedAccountId(renamedFirst.account_id)
+      setAccountType('demo')
+      setWs(nextWs)
+    } catch (callbackError) {
+      const message = callbackError instanceof Error ? callbackError.message : 'Unable to complete Deriv sign-in.'
+      setError(message)
+      clearOAuthState()
+      throw new Error(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [ws, makeOtpRefresher])
+
+  const selectAccount = useCallback(async (accountId: string) => {
+    return switchAccount(accountId)
+  }, [switchAccount])
+
+  const switchAccountType = useCallback(async (type: AccountType) => {
+    const targetAccount = accounts.find((a) => a.account_type === type)
+    if (!targetAccount) {
+      setError(`No ${type} account found. ${type === 'real' ? 'Enable real trading first.' : ''}`)
+      return
+    }
+    if (targetAccount.account_id === account?.account_id) return
+    setAccountType(type)
+    getStorage().setItem(ACCOUNT_TYPE_KEY, type)
+    await switchAccount(targetAccount.account_id)
+  }, [accounts, account?.account_id, switchAccount])
+
+  const enableRealTrading = useCallback(async () => {
+    if (!account) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      const validated = await ensureValidToken(account)
+      let accountList = await fetchAccounts(validated.access_token)
+      const hasReal = accountList.some((a) => a.account_type === 'real')
+      if (!hasReal) {
+        const realAcct = await createAccount(account.access_token, 'real')
+        accountList = [...accountList, realAcct]
+      }
+      const tokens: OAuthTokenResponse = {
+        access_token: validated.access_token,
+        expires_in: Math.floor((validated.token_expiry - Date.now()) / 1000),
+        refresh_token: validated.refresh_token,
+      }
+      const newSession = accountList
+        .filter((a) => !accounts.some((existing) => existing.account_id === renameAccountId(a.account_id)))
+        .map((a) => toSessionAccount(a, tokens))
+        .map((a) => ({ ...a, account_id: renameAccountId(a.account_id) }))
+      setAccounts((prev) => {
+        const next = [...prev, ...newSession]
+        getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+        return next
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enable real trading.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [account, accounts, ensureValidToken])
+
+  const refreshBalance = useCallback(async () => {
+    if (!ws || !account) return
+    try {
+      const res = await ws.send({ balance: 1 })
+      if (res.balance?.balance !== undefined) {
+        const newBalance = parseFloat(res.balance.balance)
+        const currency = res.balance.currency || account.currency
+        setAccounts((prev) => {
+          let next = prev.map((a) => a.account_id === account.account_id
+            ? { ...a, balance: newBalance, currency, source_balance: newBalance, source_currency: currency }
+            : a)
+          getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+          return next
+        })
+      }
+    } catch { /* ignore */ }
+  }, [ws, account])
+
+  useEffect(() => {
+    if (!ws || !account) return
+    let reqId: number | null = null
+    let cancelled = false
+    ws.subscribe({ balance: 1 }, (data: any) => {
+      if (cancelled || !data.balance) return
+      const newBalance = parseFloat(data.balance.balance)
+      const currency = data.balance.currency || account.currency
+      setAccounts((prev) => {
+        let next = prev.map((a) => a.account_id === account.account_id ? { ...a, balance: newBalance, currency } : a)
+        getStorage().setItem(ACCOUNTS_KEY, JSON.stringify(next))
+        return next
+      })
+    }).then(({ reqId: id }) => { reqId = id }).catch(() => {})
+    return () => { cancelled = true; if (reqId !== null) ws.unsubscribe(reqId) }
+  }, [ws, account])
+
+  useEffect(() => {
+    if (!account || ws) return
+    let cancelled = false
+    ensureValidToken(account)
+      .then((validated) => {
+        if (cancelled) return
+        return fetchOtpUrl(validated.access_token, originalAccountId(validated.account_id))
+          .then(async (otpUrl) => {
+            if (cancelled) return
+            const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(validated.account_id, validated))
+            if (cancelled) { nextWs.disconnect(); return }
+            validated.ws_url = otpUrl
+            setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
+            setWs(nextWs)
+          })
+      })
+      .catch(() => {
+        if (cancelled) return
+        const storage = getStorage()
+        storage.removeItem(ACCOUNTS_KEY)
+        storage.removeItem(SELECTED_ACCOUNT_KEY)
+        storage.removeItem(ACCOUNT_TYPE_KEY)
+        setAccounts([])
+        setSelectedAccountId(null)
+        setError(SESSION_EXPIRED_MESSAGE)
+      })
+    return () => { cancelled = true }
+  }, [account, ws, ensureValidToken, makeOtpRefresher])
+
+  return (
+    <AuthContext.Provider value={{
+      accounts, account, accountType, ws,
+      isAuthenticated: accounts.length > 0, isAdmin, isLoading, error,
+      rememberMe, setRememberMe,
+      login, logout, handleCallback,
+      selectAccount, switchAccount, switchAccountType, enableRealTrading, refreshBalance,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
+}

@@ -1,0 +1,2704 @@
+import type { DerivWS } from '../lib/deriv-ws'
+import type { DerivSessionAccount } from '../lib/types'
+import type { TradeParams } from './index'
+
+export type NotificationType =
+  | 'success'
+  | 'info'
+  | 'warn'
+  | 'error'
+
+export interface NotifyData {
+  event?:
+    | 'trade_won'
+    | 'trade_lost'
+    | 'trade_sold'
+    | 'purchase'
+    | 'proposal'
+    | 'error'
+    | 'info'
+
+  contractId?: number
+  profit?: number
+  stake?: number
+  payout?: number
+  contractType?: string
+  entrySpot?: number
+  exitSpot?: number
+}
+
+export interface BotApi {
+  purchase(
+    contractType?: string,
+  ): Promise<number>
+
+  sellAtMarket(): Promise<void>
+
+  isContractOpen(): boolean
+  isSellAvailable(): boolean
+
+  getAskPrice(): number
+  getPayout(): number
+  getSellPrice(): number
+
+  getTick(): number
+  getTicks(): number[]
+  getLastDigit(): number
+  getLastDigitList(): number[]
+  getDirection(): string
+
+  getOHLC(
+    index?: number,
+    interval?: string | number,
+  ): Promise<Record<string, number>>
+
+  getOHLCValues(
+    field?: string,
+    interval?: string | number,
+  ): Promise<number[]>
+
+  readOHLC(
+    field: string,
+    index?: number,
+    interval?: string | number,
+  ): Promise<number>
+
+  readOHLCObject(
+    candle: unknown,
+    field: string,
+  ): number
+
+  isCandleBlack(
+    candle: unknown,
+  ): boolean
+
+  getCurrentCandleTime(
+    interval?: string | number,
+  ): Promise<number>
+
+  isNewCandle(
+    interval?: string | number,
+  ): Promise<boolean>
+
+  getSMA(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getSMAArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getEMA(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getEMAArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getRSI(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number>
+
+  getRSIArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+  ): Promise<number[]>
+
+  getBollingerBands(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+    multiplierUp?: number,
+    multiplierDown?: number,
+  ): Promise<{
+    middle: number
+    upper: number
+    lower: number
+  }>
+
+  getBollingerBandsArray(
+    field?: string,
+    interval?: string | number,
+    period?: number,
+    multiplierUp?: number,
+    multiplierDown?: number,
+  ): Promise<Array<{
+    middle: number
+    upper: number
+    lower: number
+  }>>
+
+  getMACDArray(
+    field?: string,
+    interval?: string | number,
+    fastPeriod?: number,
+    slowPeriod?: number,
+    signalPeriod?: number,
+  ): Promise<Array<{
+    macd: number
+    signal: number
+    histogram: number
+  }>>
+
+  getBalance(): number
+  getLastResult(): string
+  getDetails(
+    detail: string,
+  ): string | number
+
+  getTotalProfit(): number
+  getTotalRuns(): number
+
+  setStake(amount: number): void
+  getStake(): number
+
+  setBarrier(
+    barrier: string | number,
+  ): void
+
+  getBarrier(): string
+
+  shouldStop(): boolean
+
+  /*
+   * Hard stop: marks the bot as stopped AND wakes every pending
+   * sleep / tick wait / purchase retry immediately, so pressing
+   * Stop never has to wait for an in-flight network call.
+   */
+  abort(): void
+
+  notify(
+    type: NotificationType,
+    message: string,
+    data?: NotifyData,
+  ): void
+
+  console(
+    type: string,
+    message: unknown,
+  ): void
+
+  sleep(ms: number): Promise<void>
+
+  tickDelay(
+    count: number,
+  ): Promise<void>
+
+  /*
+   * Forgets any active tick/contract
+   * subscriptions for this BotApi instance.
+   * Callers MUST call this once a run has
+   * finished or been stopped, otherwise the
+   * next run's subscribe() call for the same
+   * symbol will be rejected by the API with
+   * an "AlreadySubscribed" error.
+   */
+  cleanup(): Promise<void>
+}
+
+export interface BotApiOptions {
+  onNotify?: (
+    type: NotificationType,
+    message: string,
+    data?: NotifyData,
+  ) => void
+
+  onTrade?: (
+    contractId: number,
+  ) => void
+
+  shouldStop?: () => boolean
+}
+
+function number(
+  value: unknown,
+  fallback = 0,
+): number {
+  const parsed =
+    Number(value)
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : fallback
+}
+
+function isBarrierContract(
+  contractType: string,
+): boolean {
+  return [
+    'DIGITMATCH',
+    'DIGITDIFF',
+    'DIGITOVER',
+    'DIGITUNDER',
+    'DIGITEVEN',
+    'DIGITODD',
+    'CALL',
+    'PUT',
+    'HIGHER',
+    'LOWER',
+    'TOUCH',
+    'NOTOUCH',
+    'ONETOUCH',
+    'IN',
+    'OUT',
+    'EXPIRYRANGE',
+    'EXPIRYMISS',
+    'RANGE',
+    'UPORDOWN',
+  ].includes(contractType)
+}
+
+/*
+ * When the workspace's contract type block is set to "both"
+ * (meaning "buy whichever side the purchase block specifies"),
+ * the generated code may still pass "both" through to
+ * Bot.purchase(). Deriv's API rejects contract_type "BOTH" as
+ * invalid, so the proposal request fails silently on every
+ * retry and the bot appears stuck "running" without trading.
+ * This maps "both" to the first concrete contract type for the
+ * given trade type, matching Deriv's own bot builder behaviour.
+ */
+const BOTH_RESOLVED: Record<string, string> = {
+  risefall: 'CALL',
+  higherlower: 'CALL',
+  touchnotouch: 'ONETOUCH',
+  endsinout: 'EXPIRYRANGE',
+  staysinout: 'RANGE',
+  matchesdiffers: 'DIGITDIFF',
+  evenodd: 'DIGITEVEN',
+  overunder: 'DIGITOVER',
+  multiplier: 'MULTUP',
+  accumulator: 'ACCU',
+}
+
+function resolveContractType(
+  rawType: string,
+  tradeType: string,
+): string {
+  const normalized = rawType.toUpperCase()
+  if (normalized === 'BOTH') {
+    return BOTH_RESOLVED[tradeType] || 'CALL'
+  }
+  return normalized
+}
+
+function decimalPlaces(
+  value: number,
+): number {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+
+  const text =
+    String(value)
+
+  if (!text.includes('.')) {
+    return 0
+  }
+
+  return text.split('.')[1]
+    .length
+}
+
+function getLastDigitFromQuote(
+  quote: number,
+): number {
+  if (!Number.isFinite(quote)) {
+    return 0
+  }
+
+  const places =
+    decimalPlaces(quote)
+
+  if (places <= 0) {
+    return (
+      Math.abs(
+        Math.trunc(quote),
+      ) % 10
+    )
+  }
+
+  const multiplier =
+    Math.pow(10, places)
+
+  const integerValue =
+    Math.round(
+      Math.abs(quote) *
+        multiplier,
+    )
+
+  return (
+    integerValue % 10
+  )
+}
+
+export function createBotApi(
+  ws: DerivWS,
+  account: DerivSessionAccount,
+  params: TradeParams,
+  options: BotApiOptions = {},
+): BotApi {
+  let currentStake =
+    number(params.amount, 0)
+
+  let currentContractType =
+    resolveContractType(
+      String(
+        params.contract_type ||
+          '',
+      ),
+      String(params.trade_type || ''),
+    )
+
+  let currentBarrier =
+    params.barrier !==
+        undefined &&
+      params.barrier !==
+        null
+      ? String(params.barrier)
+      : params.prediction !==
+            undefined &&
+          params.prediction !==
+            null
+        ? String(
+            params.prediction,
+          )
+        : ''
+
+  let openContractId:
+    number | null = null
+
+  let lastResult = ''
+  let lastProfit = 0
+  let lastBuyPrice = 0
+  let lastPayout = 0
+  let lastAskPrice = 0
+
+  let totalRuns = 0
+  let totalProfit = 0
+
+  const tickHistory: number[] =
+    []
+
+  let tickSubscriptionId:
+    string | null = null
+
+  let contractSubscriptionId:
+    string | null = null
+
+  let liveProposalKey:
+    string | null = null
+
+  let liveProposalSubId:
+    string | null = null
+
+  let liveProposalData:
+    any = null
+
+  let disposed = false
+
+  let aborted = false
+  const abortWaiters = new Set<() => void>()
+
+  const shouldStop = function (): boolean {
+    return aborted || (options.shouldStop ? options.shouldStop() : false)
+  }
+
+  function abort(): void {
+    aborted = true
+    stopTickWatchdog()
+    abortWaiters.forEach((wake) => wake())
+    abortWaiters.clear()
+  }
+
+  /* Normalises Deriv API errors ({code,message} plain objects) and Errors. */
+  function errInfo(e: unknown): { code: string; message: string } {
+    const o = e as any
+    const code = String(o?.code ?? o?.error?.code ?? '')
+    const message = String(
+      e instanceof Error ? e.message : (o?.message ?? o?.error?.message ?? (typeof e === 'string' ? e : JSON.stringify(e))),
+    )
+    return { code, message }
+  }
+
+  let lastTickAt = Date.now()
+  let tickRecoveryAttempts = 0
+  let tickWatchdog: ReturnType<typeof setInterval> | null = null
+  let recoveringTicks = false
+  const knownContractIds = new Set<number>()
+
+  /*
+   * When the WebSocket drops, all server-side subscriptions are
+   * silently destroyed. The DerivWS class clears its own internal
+   * bookkeeping (sharedKeyToReqId, subIdToKey, subIdRefCount) on
+   * disconnect, but the BotApi's local subscription IDs are
+   * separate — if we don't clear them too, startTickStream() will
+   * see tickSubscriptionId still set and return early, thinking
+   * the stream is alive. The bot then hangs forever waiting for
+   * ticks that will never arrive. This is the primary cause of
+   * "bot loads but doesn't make trades" after a reconnect.
+   */
+  const statusUnsubscribe = ws.onStatusChange((status: string) => {
+    if (status === 'disconnected' || status === 'reconnecting') {
+      tickSubscriptionId = null
+      contractSubscriptionId = null
+      liveProposalSubId = null
+      liveProposalKey = null
+      liveProposalData = null
+    } else if (status === 'connected' && !disposed) {
+      lastTickAt = Date.now()
+      tickRecoveryAttempts = 0
+      void startTickStream().catch(() => {})
+      if (openContractId !== null) {
+        void reSubscribeContract(openContractId).catch(() => {})
+      }
+    }
+  })
+
+  /* =======================================================
+  NOTIFICATIONS
+  ======================================================= */
+
+  function notify(
+    type: NotificationType,
+    message: string,
+    data?: NotifyData,
+  ): void {
+    if (options.onNotify) {
+      options.onNotify(
+        type,
+        message,
+        data,
+      )
+    }
+  }
+
+  function writeConsole(
+    type: string,
+    message: unknown,
+  ): void {
+    if (type === 'error') {
+      console.error(message)
+    } else if (
+      type === 'warn'
+    ) {
+      console.warn(message)
+    } else {
+      console.log(message)
+    }
+
+    notify(
+      type === 'error'
+        ? 'error'
+        : type === 'warn'
+          ? 'warn'
+          : 'info',
+      String(message),
+    )
+  }
+
+  /* =======================================================
+  SUBSCRIPTION CLEANUP
+  ======================================================= */
+
+  async function forgetSubscription(
+    subscriptionId:
+      | string
+      | null,
+  ): Promise<void> {
+    if (!subscriptionId) {
+      return
+    }
+
+    try {
+      await ws.forget(
+        subscriptionId,
+      )
+    } catch {
+      // Subscription may already be gone.
+    }
+  }
+
+  async function cleanupSubscriptions(): Promise<void> {
+    const tickId =
+      tickSubscriptionId
+
+    const contractId =
+      contractSubscriptionId
+
+    const proposalId =
+      liveProposalSubId
+
+    tickSubscriptionId = null
+    contractSubscriptionId = null
+    liveProposalSubId = null
+    liveProposalKey = null
+    liveProposalData = null
+
+    await Promise.all([
+      forgetSubscription(
+        tickId,
+      ),
+      forgetSubscription(
+        contractId,
+      ),
+      forgetSubscription(
+        proposalId,
+      ),
+    ])
+
+    /*
+     * Belt-and-suspenders: even if the individual forget calls
+     * above succeeded on our side, a network hiccup at the wrong
+     * moment can leave an orphaned subscription on the server.
+     * Sending forget_all ensures no stale ticks or contract
+     * subscriptions remain, so the next bot run doesn't hit an
+     * "AlreadySubscribed" error that would hang it indefinitely.
+     */
+    try {
+      await ws.forgetAll('ticks')
+      await ws.forgetAll('proposal_open_contract')
+      await ws.forgetAll('proposal')
+    } catch {
+      // Best effort — the subscribe method also has its own
+      // AlreadySubscribed recovery as a second line of defense.
+    }
+  }
+
+  /* =======================================================
+  TICK STREAM
+  ======================================================= */
+
+  async function startTickStream(): Promise<void> {
+    if (disposed) {
+      return
+    }
+
+    if (tickSubscriptionId) {
+      return
+    }
+
+    const maxAttempts = 5
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (disposed) return
+      if (tickSubscriptionId) return
+
+      try {
+        const result =
+          await ws.subscribe(
+            {
+              ticks: params.symbol,
+            },
+            (
+              data: any,
+            ) => {
+              if (
+                disposed ||
+                !data?.tick
+              ) {
+                return
+              }
+
+              const quote =
+                number(
+                  data.tick.quote,
+                  NaN,
+                )
+
+              if (
+                !Number.isFinite(
+                  quote,
+                )
+              ) {
+                return
+              }
+
+              lastTickAt = Date.now()
+              tickRecoveryAttempts = 0
+
+              tickHistory.push(
+                quote,
+              )
+
+              if (
+                tickHistory.length >
+                100
+              ) {
+                tickHistory.shift()
+              }
+            },
+          )
+
+        const id =
+          result.data?.subscription
+            ?.id
+
+        if (id) {
+          tickSubscriptionId =
+            String(id)
+        }
+
+        notify(
+          'info',
+          'Tick stream connected for ' +
+            params.symbol,
+          {
+            event: 'info',
+          },
+        )
+
+        return
+      } catch (error) {
+        if (disposed) return
+
+        writeConsole(
+          'warn',
+          'Tick stream attempt ' + (attempt + 1) + ' failed: ' + String(error instanceof Error ? error.message : error),
+        )
+
+        if (attempt < maxAttempts - 1) {
+          tickSubscriptionId = null
+
+          try {
+            await ws.forgetAll('ticks')
+          } catch {
+            // best effort
+          }
+
+          const delay = Math.min(200 * (attempt + 1), 1500)
+          await sleep(delay)
+        } else {
+          writeConsole(
+            'warn',
+            'Unable to subscribe to ticks after ' + maxAttempts + ' attempts.',
+          )
+          throw error
+        }
+      }
+    }
+  }
+
+
+  /* =======================================================
+  CANDLE / INDICATOR DATA
+  ======================================================= */
+
+  const candleCache =
+    new Map<
+      string,
+      Array<Record<string, number>>
+    >()
+
+  const candleTimeCache =
+    new Map<string, number>()
+
+  function granularityFromInterval(
+    interval?: string | number,
+  ): number {
+    const raw =
+      interval === undefined ||
+      interval === null ||
+      String(interval) === '' ||
+      String(interval) === 'default'
+        ? params.candle_interval
+        : interval
+
+    const value = number(raw, 60)
+
+    return Math.max(
+      60,
+      Math.floor(value),
+    )
+  }
+
+  function normalizeCandle(
+    candle: any,
+  ): Record<string, number> {
+    return {
+      epoch: number(candle?.epoch, 0),
+      open: number(candle?.open, 0),
+      high: number(candle?.high, 0),
+      low: number(candle?.low, 0),
+      close: number(candle?.close, 0),
+    }
+  }
+
+  async function fetchOHLC(
+    interval?: string | number,
+  ): Promise<Array<Record<string, number>>> {
+    const granularity =
+      granularityFromInterval(interval)
+
+    const cacheKey =
+      String(granularity)
+
+    const response =
+      await ws.send({
+        ticks_history:
+          params.symbol,
+        end: 'latest',
+        count: 200,
+        style: 'candles',
+        granularity,
+      })
+
+    if (response?.error) {
+      throw new Error(
+        response.error.message ||
+          'Unable to retrieve candle history.',
+      )
+    }
+
+    const candles =
+      Array.isArray(
+        response?.candles,
+      )
+        ? response.candles.map(
+            normalizeCandle,
+          )
+        : []
+
+    if (!candles.length) {
+      throw new Error(
+        'Deriv returned no candle data.',
+      )
+    }
+
+    candleCache.set(
+      cacheKey,
+      candles,
+    )
+
+    return candles
+  }
+
+  async function getCandleHistory(
+    interval?: string | number,
+  ): Promise<Array<Record<string, number>>> {
+    const granularity =
+      granularityFromInterval(interval)
+
+    const cacheKey =
+      String(granularity)
+
+    const cached =
+      candleCache.get(cacheKey)
+
+    if (
+      cached &&
+      cached.length
+    ) {
+      try {
+        return await fetchOHLC(
+          granularity,
+        )
+      } catch {
+        return cached.slice()
+      }
+    }
+
+    return fetchOHLC(
+      granularity,
+    )
+  }
+
+  function candleIndexValue(
+    index: number,
+    candles: Array<Record<string, number>>,
+  ): Record<string, number> {
+    const normalized =
+      Math.max(
+        1,
+        Math.floor(
+          number(index, 1),
+        ),
+      )
+
+    const position =
+      candles.length -
+      normalized
+
+    if (
+      position < 0
+    ) {
+      return candles[0] || {
+        epoch: 0,
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+      }
+    }
+
+    return (
+      candles[position] ||
+      candles[candles.length - 1]
+    )
+  }
+
+  async function getOHLC(
+    index = 1,
+    interval?: string | number,
+  ): Promise<Record<string, number>> {
+    const candles =
+      await getCandleHistory(
+        interval,
+      )
+
+    return candleIndexValue(
+      index,
+      candles,
+    )
+  }
+
+  async function getOHLCValues(
+    field = 'close',
+    interval?: string | number,
+  ): Promise<number[]> {
+    const candles =
+      await getCandleHistory(
+        interval,
+      )
+
+    const key =
+      ['open', 'high', 'low', 'close', 'epoch'].includes(
+        String(field).toLowerCase(),
+      )
+        ? String(field).toLowerCase()
+        : 'close'
+
+    return candles.map(
+      (candle) =>
+        number(
+          candle[key],
+          0,
+        ),
+    )
+  }
+
+  async function readOHLC(
+    field: string,
+    index = 1,
+    interval?: string | number,
+  ): Promise<number> {
+    const candle =
+      await getOHLC(
+        index,
+        interval,
+      )
+
+    return readOHLCObject(
+      candle,
+      field,
+    )
+  }
+
+  function readOHLCObject(
+    candle: unknown,
+    field: string,
+  ): number {
+    if (
+      !candle ||
+      typeof candle !== 'object'
+    ) {
+      return 0
+    }
+
+    const key =
+      String(field)
+        .toLowerCase()
+
+    const value =
+      (candle as Record<string, unknown>)[
+        key
+      ]
+
+    return number(
+      value,
+      0,
+    )
+  }
+
+  function isCandleBlack(
+    candle: unknown,
+  ): boolean {
+    return (
+      readOHLCObject(
+        candle,
+        'close',
+      ) <
+      readOHLCObject(
+        candle,
+        'open',
+      )
+    )
+  }
+
+  async function getCurrentCandleTime(
+    interval?: string | number,
+  ): Promise<number> {
+    const candle =
+      await getOHLC(
+        1,
+        interval,
+      )
+
+    return number(
+      candle.epoch,
+      0,
+    )
+  }
+
+  async function isNewCandle(
+    interval?: string | number,
+  ): Promise<boolean> {
+    const current =
+      await getCurrentCandleTime(
+        interval,
+      )
+
+    const key =
+      String(
+        granularityFromInterval(
+          interval,
+        ),
+      )
+
+    const previous =
+      candleTimeCache.get(key)
+
+    candleTimeCache.set(
+      key,
+      current,
+    )
+
+    return (
+      previous !== undefined &&
+      previous !== current
+    )
+  }
+
+  function rollingSMA(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    const result: number[] = []
+    let sum = 0
+
+    for (
+      let i = 0;
+      i < values.length;
+      i += 1
+    ) {
+      sum += values[i]
+
+      if (i >= p) {
+        sum -= values[i - p]
+      }
+
+      result.push(
+        sum /
+          Math.min(
+            i + 1,
+            p,
+          ),
+      )
+    }
+
+    return result
+  }
+
+  function rollingEMA(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    if (!values.length) {
+      return []
+    }
+
+    const alpha =
+      2 / (p + 1)
+
+    const result =
+      new Array<number>(
+        values.length,
+      )
+
+    result[0] =
+      values[0]
+
+    for (
+      let i = 1;
+      i < values.length;
+      i += 1
+    ) {
+      result[i] =
+        alpha * values[i] +
+        (1 - alpha) *
+          result[i - 1]
+    }
+
+    return result
+  }
+
+  function rollingRSI(
+    values: number[],
+    period: number,
+  ): number[] {
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 14),
+        ),
+      )
+
+    if (values.length < 2) {
+      return values.map(
+        () => 50,
+      )
+    }
+
+    const result =
+      new Array<number>(
+        values.length,
+      )
+
+    result[0] = 50
+
+    let gain = 0
+    let loss = 0
+
+    for (
+      let i = 1;
+      i < values.length;
+      i += 1
+    ) {
+      const delta =
+        values[i] -
+        values[i - 1]
+
+      const currentGain =
+        Math.max(
+          delta,
+          0,
+        )
+
+      const currentLoss =
+        Math.max(
+          -delta,
+          0,
+        )
+
+      if (i <= p) {
+        gain += currentGain
+        loss += currentLoss
+      } else {
+        gain =
+          (gain * (p - 1) +
+            currentGain) /
+          p
+
+        loss =
+          (loss * (p - 1) +
+            currentLoss) /
+          p
+      }
+
+      if (loss === 0) {
+        result[i] =
+          gain === 0
+            ? 50
+            : 100
+      } else {
+        const rs =
+          gain / loss
+
+        result[i] =
+          100 -
+          100 / (1 + rs)
+      }
+    }
+
+    return result
+  }
+
+  async function getSMAArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingSMA(
+      values,
+      period,
+    )
+  }
+
+  async function getSMA(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getSMAArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getEMAArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingEMA(
+      values,
+      period,
+    )
+  }
+
+  async function getEMA(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getEMAArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getRSIArray(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number[]> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    return rollingRSI(
+      values,
+      period,
+    )
+  }
+
+  async function getRSI(
+    field = 'close',
+    interval?: string | number,
+    period = 14,
+  ): Promise<number> {
+    const values =
+      await getRSIArray(
+        field,
+        interval,
+        period,
+      )
+
+    return values[
+      values.length - 1
+    ] || 0
+  }
+
+  async function getBollingerBandsArray(
+    field = 'close',
+    interval?: string | number,
+    period = 20,
+    multiplierUp = 2,
+    multiplierDown = 2,
+  ): Promise<Array<{
+    middle: number
+    upper: number
+    lower: number
+  }>> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    const p =
+      Math.max(
+        1,
+        Math.floor(
+          number(period, 20),
+        ),
+      )
+
+    const up =
+      number(
+        multiplierUp,
+        2,
+      )
+
+    const down =
+      number(
+        multiplierDown,
+        2,
+      )
+
+    const result:
+      Array<{
+        middle: number
+        upper: number
+        lower: number
+      }> = []
+
+    for (
+      let i = 0;
+      i < values.length;
+      i += 1
+    ) {
+      const start =
+        Math.max(
+          0,
+          i - p + 1,
+        )
+
+      const window =
+        values.slice(
+          start,
+          i + 1,
+        )
+
+      const middle =
+        window.reduce(
+          (sum, value) =>
+            sum + value,
+          0,
+        ) / window.length
+
+      const variance =
+        window.reduce(
+          (sum, value) =>
+            sum +
+            Math.pow(
+              value - middle,
+              2,
+            ),
+          0,
+        ) / window.length
+
+      const deviation =
+        Math.sqrt(
+          variance,
+        )
+
+      result.push({
+        middle,
+        upper:
+          middle +
+          up * deviation,
+        lower:
+          middle -
+          down * deviation,
+      })
+    }
+
+    return result
+  }
+
+  async function getBollingerBands(
+    field = 'close',
+    interval?: string | number,
+    period = 20,
+    multiplierUp = 2,
+    multiplierDown = 2,
+  ): Promise<{
+    middle: number
+    upper: number
+    lower: number
+  }> {
+    const values =
+      await getBollingerBandsArray(
+        field,
+        interval,
+        period,
+        multiplierUp,
+        multiplierDown,
+      )
+
+    return (
+      values[
+        values.length - 1
+      ] || {
+        middle: 0,
+        upper: 0,
+        lower: 0,
+      }
+    )
+  }
+
+  async function getMACDArray(
+    field = 'close',
+    interval?: string | number,
+    fastPeriod = 12,
+    slowPeriod = 26,
+    signalPeriod = 9,
+  ): Promise<Array<{
+    macd: number
+    signal: number
+    histogram: number
+  }>> {
+    const values =
+      await getOHLCValues(
+        field,
+        interval,
+      )
+
+    const fast =
+      rollingEMA(
+        values,
+        fastPeriod,
+      )
+
+    const slow =
+      rollingEMA(
+        values,
+        slowPeriod,
+      )
+
+    const macdLine =
+      values.map(
+        (_, index) =>
+          fast[index] -
+          slow[index],
+      )
+
+    const signal =
+      rollingEMA(
+        macdLine,
+        signalPeriod,
+      )
+
+    return macdLine.map(
+      (macd, index) => ({
+        macd,
+        signal:
+          signal[index] || 0,
+        histogram:
+          macd -
+          (signal[index] || 0),
+      }),
+    )
+  }
+
+  /* =======================================================
+  CONTRACT SETTLEMENT
+  ======================================================= */
+
+  function handleSettlement(
+    contract: any,
+  ): void {
+    if (!contract) {
+      return
+    }
+
+    const contractId =
+      number(
+        contract.contract_id,
+        0,
+      )
+
+    const status =
+      String(
+        contract.status || '',
+      ).toLowerCase()
+
+    const isSold =
+      contract.is_sold === 1 ||
+      status === 'sold' ||
+      status === 'won' ||
+      status === 'lost'
+
+    if (!isSold) {
+      return
+    }
+
+    const profit =
+      number(
+        contract.profit,
+        0,
+      )
+
+    const buyPrice =
+      number(
+        contract.buy_price,
+        lastBuyPrice,
+      )
+
+    const payout =
+      number(
+        contract.payout,
+        lastPayout,
+      )
+
+    lastProfit =
+      profit
+
+    lastBuyPrice =
+      buyPrice
+
+    lastPayout =
+      payout
+
+    const result =
+      profit > 0
+        ? 'win'
+        : profit < 0
+          ? 'loss'
+          : 'sold'
+
+    lastResult =
+      result
+
+    totalProfit +=
+      profit
+
+    totalRuns +=
+      1
+
+    if (
+      openContractId ===
+      contractId
+    ) {
+      openContractId =
+        null
+    }
+
+    const subscriptionId =
+      contractSubscriptionId
+
+    contractSubscriptionId =
+      null
+
+    void forgetSubscription(
+      subscriptionId,
+    )
+
+    const event =
+      result === 'win'
+        ? 'trade_won'
+        : result === 'loss'
+          ? 'trade_lost'
+          : 'trade_sold'
+
+    notify(
+      result === 'win'
+        ? 'success'
+        : result === 'loss'
+          ? 'error'
+          : 'info',
+      'Contract settled: ' +
+        result +
+        ' (' +
+        profit +
+        ')',
+      {
+        event,
+        contractId,
+        profit,
+        stake: buyPrice,
+        payout,
+        contractType:
+          String(
+            contract.contract_type ||
+              currentContractType,
+          ),
+        entrySpot:
+          contract.entry_spot != null &&
+          Number.isFinite(
+            Number(contract.entry_spot),
+          )
+            ? Number(
+                contract.entry_spot,
+              )
+            : undefined,
+        exitSpot:
+          contract.exit_spot != null &&
+          Number.isFinite(
+            Number(contract.exit_spot),
+          )
+            ? Number(
+                contract.exit_spot,
+              )
+            : undefined,
+      },
+    )
+  }
+
+  async function reSubscribeContract(
+    contractId: number,
+  ): Promise<void> {
+    if (disposed || contractSubscriptionId) {
+      return
+    }
+
+    try {
+      const result =
+        await ws.subscribe(
+          {
+            proposal_open_contract: 1,
+            contract_id: contractId,
+          },
+          (data: any) => {
+            const contract =
+              data?.proposal_open_contract
+
+            if (contract) {
+              handleSettlement(
+                contract,
+              )
+            }
+          },
+        )
+
+      const subscriptionId =
+        result.data?.subscription
+          ?.id
+
+      if (subscriptionId) {
+        contractSubscriptionId =
+          String(
+            subscriptionId,
+          )
+      }
+
+      if (
+        result.data
+          ?.proposal_open_contract
+      ) {
+        handleSettlement(
+          result.data
+            .proposal_open_contract,
+        )
+      }
+    } catch {
+      // Will be retried by the polling loop in waitForContractSettlement.
+    }
+  }
+
+  async function waitForContractSettlement(
+    contractId: number,
+  ): Promise<void> {
+    try {
+      const result =
+        await ws.subscribe(
+          {
+            proposal_open_contract: 1,
+            contract_id:
+              contractId,
+          },
+          (
+            data: any,
+          ) => {
+            const contract =
+              data?.proposal_open_contract
+
+            if (contract) {
+              handleSettlement(
+                contract,
+              )
+            }
+          },
+        )
+
+      const subscriptionId =
+        result.data?.subscription
+          ?.id
+
+      if (subscriptionId) {
+        contractSubscriptionId =
+          String(
+            subscriptionId,
+          )
+      }
+
+      /*
+       * The initial response may already
+       * contain the final state.
+       */
+      if (
+        result.data
+          ?.proposal_open_contract
+      ) {
+        handleSettlement(
+          result.data
+            .proposal_open_contract,
+        )
+      }
+    } catch (error) {
+      writeConsole(
+        'warn',
+        'Contract subscription failed; using polling fallback.',
+      )
+    }
+
+    /*
+     * Active polling loop — periodically checks contract status
+     * even when a subscription is active. This is the critical
+     * fix: if the WebSocket drops and reconnects, the subscription
+     * is silently destroyed and contractSubscriptionId is cleared
+     * by the status change handler. Without this polling loop,
+     * the passive wait below would spin forever because nobody
+     * re-subscribes and nobody calls handleSettlement. The poll
+     * both re-subscribes (via reSubscribeContract) and directly
+     * checks the contract status as a belt-and-suspenders fallback.
+     */
+    let pollInterval = 0
+
+    while (
+      openContractId ===
+        contractId
+    ) {
+      if (
+        shouldStop()
+      ) {
+        return
+      }
+
+      await sleep(150)
+
+      if (
+        openContractId ===
+        null
+      ) {
+        return
+      }
+
+      pollInterval += 1
+
+      // Every ~1.5 seconds (10 * 150ms), poll the contract status
+      // and re-subscribe if the subscription was lost.
+      if (pollInterval % 10 === 0) {
+        if (
+          !contractSubscriptionId &&
+          !disposed
+        ) {
+          void reSubscribeContract(
+            contractId,
+          ).catch(() => {})
+        }
+
+        try {
+          const response =
+            await ws.send({
+              proposal_open_contract:
+                1,
+              contract_id:
+                contractId,
+            })
+
+          if (
+            response
+              ?.proposal_open_contract
+          ) {
+            handleSettlement(
+              response.proposal_open_contract,
+            )
+          }
+        } catch {
+          // Connection may still be down — will retry next cycle.
+        }
+      }
+    }
+
+  }
+
+  /* =======================================================
+  LIVE PROPOSAL
+  ======================================================= */
+
+  async function getLiveProposal(
+    request: Record<string, unknown>,
+  ): Promise<any> {
+    const key =
+      JSON.stringify(request)
+
+    if (
+      key === liveProposalKey &&
+      liveProposalData &&
+      !liveProposalData.error
+    ) {
+      return liveProposalData
+    }
+
+    /*
+     * Same key but data was invalidated (e.g. after a trade
+     * consumed the previous proposal ID). The subscription is
+     * still live and will deliver a fresh proposal update —
+     * wait for it rather than creating a duplicate subscription.
+     */
+    if (
+      key === liveProposalKey &&
+      liveProposalSubId &&
+      !liveProposalData
+    ) {
+      const waited = await waitForProposalUpdate(key, 5000)
+      if (waited) return waited
+      // Timed out waiting — fall through to re-subscribe
+    }
+
+    if (
+      liveProposalSubId &&
+      key !== liveProposalKey
+    ) {
+      void forgetSubscription(
+        liveProposalSubId,
+      )
+      liveProposalSubId = null
+    }
+
+    liveProposalKey = key
+    liveProposalData = null
+
+    try {
+      const result =
+        await ws.subscribe(
+          { ...request, subscribe: 1 },
+          (data: any) => {
+            if (key !== liveProposalKey) {
+              return
+            }
+            if (data?.proposal) {
+              liveProposalData = data
+            }
+          },
+        )
+
+      liveProposalSubId =
+        result.data?.subscription?.id || null
+
+      liveProposalData = result.data
+
+      return result.data
+    } catch {
+      liveProposalKey = null
+      liveProposalSubId = null
+      // Fallback: one-shot proposal request (no subscription).
+      // This may return an expired proposal, but the purchase()
+      // retry loop will catch that and re-request.
+      const fallback = await ws.send(request)
+      if (fallback?.error) {
+        return fallback
+      }
+      liveProposalData = fallback
+      return fallback
+    }
+  }
+
+  /*
+   * Waits up to `timeoutMs` for the active proposal subscription
+   * to deliver a fresh proposal update. Returns the data if
+   * received, or null if it timed out.
+   */
+  function waitForProposalUpdate(
+    key: string,
+    timeoutMs: number,
+  ): Promise<any> {
+    return new Promise((resolve) => {
+      const deadline = Date.now() + timeoutMs
+
+      const check = () => {
+        if (key !== liveProposalKey) {
+          resolve(null)
+          return
+        }
+        if (liveProposalData && !liveProposalData.error) {
+          resolve(liveProposalData)
+          return
+        }
+        if (Date.now() >= deadline) {
+          resolve(null)
+          return
+        }
+        setTimeout(check, 50)
+      }
+
+      check()
+    })
+  }
+
+  /* =======================================================
+  PURCHASE
+  ======================================================= */
+
+  /*
+   * Runs once a contract id is known: records it, tells the UI, waits for
+   * settlement, then invalidates the consumed proposal.
+   */
+  async function trackContract(
+    contractId: number,
+    ct: string,
+    stake: number,
+    buyPrice: number,
+    payout: number,
+  ): Promise<number> {
+    knownContractIds.add(contractId)
+    openContractId = contractId
+    lastBuyPrice = buyPrice
+    lastPayout = payout
+
+    notify('success', 'Contract purchased: ' + contractId, {
+      event: 'purchase',
+      contractId,
+      stake,
+      payout: lastPayout,
+      contractType: ct,
+    })
+
+    if (options.onTrade) {
+      options.onTrade(contractId)
+    }
+
+    await waitForContractSettlement(contractId)
+
+    // The proposal id was consumed by the buy — never reuse it.
+    liveProposalData = null
+    liveProposalKey = null
+    if (liveProposalSubId) {
+      void forgetSubscription(liveProposalSubId)
+      liveProposalSubId = null
+    }
+
+    return contractId
+  }
+
+  /*
+   * A buy request that timed out or lost its connection may STILL have
+   * been executed by Deriv. Retrying blindly would open a second,
+   * untracked trade (double stake). Before retrying we look for a contract
+   * bought after `sinceEpoch` that we have not seen yet and adopt it.
+   */
+  async function findUntrackedContract(
+    ct: string,
+    sinceEpoch: number,
+  ): Promise<{ contractId: number; buyPrice: number; payout: number } | null> {
+    try {
+      const res = await ws.send({ portfolio: 1 })
+      const list: any[] = res?.portfolio?.contracts || []
+      const hit = list.find((c) => {
+        const id = Number(c?.contract_id)
+        if (!id || knownContractIds.has(id)) return false
+        const bought = Number(c?.purchase_time ?? 0)
+        if (bought && bought < sinceEpoch - 2) return false
+        const type = String(c?.contract_type || '').toUpperCase()
+        return !type || type === ct.toUpperCase()
+      })
+      if (!hit) return null
+      return {
+        contractId: Number(hit.contract_id),
+        buyPrice: number(hit.buy_price, lastAskPrice),
+        payout: number(hit.payout, lastPayout),
+      }
+    } catch {
+      return null
+    }
+  }
+
+  async function purchase(
+    contractType?: string,
+  ): Promise<number> {
+    if (shouldStop()) {
+      throw new Error('Bot stop requested.')
+    }
+
+    // Make sure a tick stream exists before the first purchase.
+    // (A failure here must not block trading; the watchdog repairs it.)
+    try { await startTickStream() } catch { /* non-fatal */ }
+
+    const ct =
+      resolveContractType(
+        String(
+          contractType ||
+            currentContractType ||
+            params.contract_type ||
+            '',
+        ),
+        String(params.trade_type || ''),
+      )
+
+    if (!ct) {
+      throw new Error('No contract type was provided.')
+    }
+
+    currentContractType = ct
+
+    const stake = number(currentStake, 0)
+
+    if (!Number.isFinite(stake) || stake <= 0) {
+      throw new Error('Invalid stake amount: ' + String(currentStake))
+    }
+
+    const proposalRequest:
+      Record<string, unknown> =
+      {
+        proposal: 1,
+        amount: stake,
+        basis: 'stake',
+        contract_type:
+          ct,
+        currency:
+          params.currency ||
+          account.currency,
+        duration: Math.max(
+          1,
+          Math.floor(
+            number(
+              params.duration,
+              1,
+            ),
+          ),
+        ),
+        duration_unit:
+          params.duration_unit ||
+          't',
+        underlying_symbol:
+          params.symbol,
+      }
+
+    if (
+      isBarrierContract(ct) &&
+      currentBarrier !== ''
+    ) {
+      proposalRequest.barrier =
+        currentBarrier
+    }
+
+    if (
+      params.second_barrier !==
+        undefined &&
+      params.second_barrier !==
+        null &&
+      String(
+        params.second_barrier,
+      ) !== ''
+    ) {
+      proposalRequest.barrier2 =
+        String(
+          params.second_barrier,
+        )
+    }
+
+    let attempt = 0
+    let sameErrorCount = 0
+    let lastErrorKey = ''
+    let buyMayHaveExecuted = false
+    let buyAttemptEpoch = 0
+
+    // Keeps retrying recoverable problems (network drops, expired
+    // proposals, rate limits, closed markets) until the user stops the bot.
+    // Unrecoverable problems (bad token, no balance...) END the run with a
+    // clear message instead of retrying silently forever.
+    while (true) {
+      attempt += 1
+      try {
+        if (shouldStop()) {
+          throw new Error('Bot stop requested.')
+        }
+
+        if (buyMayHaveExecuted) {
+          buyMayHaveExecuted = false
+          const found = await findUntrackedContract(ct, buyAttemptEpoch)
+          if (found) {
+            notify('warn', 'Recovered a purchase that was confirmed late (contract ' + found.contractId + ') — tracking it instead of buying again.', { event: 'info' })
+            return await trackContract(found.contractId, ct, stake, found.buyPrice, found.payout)
+          }
+        }
+
+        const proposalResponse = await getLiveProposal(proposalRequest)
+
+        if (proposalResponse?.error) {
+          throw proposalResponse.error
+        }
+
+        const proposal = proposalResponse?.proposal
+
+        if (!proposal) {
+          throw new Error('Deriv returned no proposal.')
+        }
+
+        const proposalId = String(proposal.id || '')
+
+        if (!proposalId) {
+          throw new Error('Deriv proposal has no id.')
+        }
+
+        lastAskPrice = number(proposal.ask_price, stake)
+        lastPayout = number(proposal.payout, 0)
+
+        buyAttemptEpoch = Math.floor(Date.now() / 1000)
+        buyMayHaveExecuted = true // cleared below once we know the outcome
+
+        const buyResponse = await ws.send({
+          buy: proposalId,
+          price: lastAskPrice,
+        })
+
+        if (buyResponse?.error) {
+          buyMayHaveExecuted = false
+          throw buyResponse.error
+        }
+
+        const buy = buyResponse?.buy
+
+        if (!buy) {
+          throw new Error('Deriv returned no buy response.')
+        }
+
+        const contractId = number(buy.contract_id, 0)
+
+        if (!contractId) {
+          throw new Error('Deriv returned no contract id.')
+        }
+
+        buyMayHaveExecuted = false
+        sameErrorCount = 0
+
+        return await trackContract(
+          contractId,
+          ct,
+          stake,
+          number(buy.buy_price, lastAskPrice),
+          buy.payout !== undefined ? number(buy.payout, lastPayout) : lastPayout,
+        )
+      } catch (error) {
+        if (shouldStop()) {
+          throw new Error('Bot stop requested.')
+        }
+
+        const { code, message } = errInfo(error)
+
+        // An explicit API rejection means the buy definitely did NOT happen.
+        if (code) buyMayHaveExecuted = false
+
+        const key = code + '|' + message
+        sameErrorCount = key === lastErrorKey ? sameErrorCount + 1 : 1
+        lastErrorKey = key
+
+        writeConsole('error', (code ? '[' + code + '] ' : '') + message)
+
+        const isNetwork = /timed out|connection closed|not connected|socket|network/i.test(message) && !code
+        const isAuth = /AuthorizationRequired|InvalidToken|authoriz|log ?in/i.test(code + ' ' + message)
+        const isRate = /RateLimit|rate.?limit|too many/i.test(code + ' ' + message)
+        const isMarketClosed = /MarketIsClosed|market is closed|market.*closed/i.test(code + ' ' + message)
+        const isStaleProposal = /expired|Invalid proposal|proposal.*not.*valid|No proposal|AlreadySubscribed|PriceMoved|price.*moved|ContractBuyValidationError/i.test(code + ' ' + message)
+        const isFatal =
+          /InsufficientBalance|insufficient balance|not enough balance|AccountDisabled|PermissionDenied|InvalidStake|Invalid stake|No contract type|Invalid contract type|ContractCreationFailure/i.test(code + ' ' + message)
+
+        if (isFatal) {
+          throw new Error('Trading cannot continue: ' + message)
+        }
+
+        // Stale/expired proposal: drop it and ask for a fresh one right away.
+        if (isStaleProposal && sameErrorCount < 6) {
+          liveProposalKey = null
+          liveProposalData = null
+          if (liveProposalSubId) {
+            void forgetSubscription(liveProposalSubId)
+            liveProposalSubId = null
+          }
+          try { await ws.forgetAll('proposal') } catch { /* best effort */ }
+          notify('warn', 'Proposal no longer valid — requesting a fresh one.', { event: 'info' })
+          await sleep(300)
+          continue
+        }
+
+        // Authentication lost (e.g. the socket was re-opened without a valid
+        // OTP): recycle the connection to get a fresh authenticated one.
+        if (isAuth) {
+          if (sameErrorCount >= 4) {
+            throw new Error('Your Deriv session is no longer authorised — please log in again. (' + message + ')')
+          }
+          notify('warn', 'Connection lost authorisation — reconnecting securely…', { event: 'info' })
+          ws.forceReconnect('authorization error during purchase')
+          await sleep(2000)
+          continue
+        }
+
+        if (isNetwork) {
+          // Half-open sockets show up as repeated timeouts; DerivWS recycles
+          // them. Give it a moment, then loop (the buy-recovery check above
+          // prevents duplicate trades).
+          await sleep(1500)
+          continue
+        }
+
+        if (isRate) {
+          notify('warn', 'Rate limit reached — pausing 10s.', { event: 'info' })
+          await sleep(10000)
+          continue
+        }
+
+        if (isMarketClosed) {
+          notify('warn', 'Market is closed for ' + params.symbol + ' — checking again in 30s.', { event: 'info' })
+          await sleep(30000)
+          continue
+        }
+
+        // Unknown error. Retry a few times with backoff, but do NOT loop
+        // silently forever: surface it so the run ends visibly.
+        if (sameErrorCount >= 8) {
+          throw new Error('Purchase keeps failing: ' + message)
+        }
+
+        const delay = Math.min(Math.max(attempt, 1), 5)
+        notify('warn', 'Purchase attempt ' + attempt + ' failed (' + message + '). Retrying in ' + delay + 's...', { event: 'info' })
+        await sleep(delay * 1000)
+      }
+    }
+  }
+
+  /* =======================================================
+  SELL
+  ======================================================= */
+
+  async function sellAtMarket(): Promise<void> {
+    if (
+      openContractId ===
+      null
+    ) {
+      throw new Error(
+        'There is no open contract to sell.',
+      )
+    }
+
+    const contractId =
+      openContractId
+
+    const response =
+      await ws.send({
+        sell:
+          contractId,
+        price: 0,
+      })
+
+    if (
+      response?.error
+    ) {
+      throw new Error(
+        response.error
+          .message ||
+          'Unable to sell contract.',
+      )
+    }
+
+    notify(
+      'success',
+      'Contract sold: ' +
+        contractId,
+      {
+        event:
+          'trade_sold',
+        contractId,
+        profit:
+          number(
+            response.sell
+              ?.profit,
+            0,
+          ),
+        stake:
+          lastBuyPrice,
+        payout:
+          lastPayout,
+        contractType:
+          currentContractType,
+      },
+    )
+  }
+
+  /* =======================================================
+  CONTRACT / MARKET DATA
+  ======================================================= */
+
+  function isContractOpen(): boolean {
+    return (
+      openContractId !==
+      null
+    )
+  }
+
+  function isSellAvailable(): boolean {
+    return (
+      openContractId !==
+      null
+    )
+  }
+
+  function getAskPrice(): number {
+    return lastAskPrice
+  }
+
+  function getPayout(): number {
+    return lastPayout
+  }
+
+  function getSellPrice(): number {
+    return lastPayout
+  }
+
+  function getTick(): number {
+    if (
+      tickHistory.length ===
+      0
+    ) {
+      return 0
+    }
+
+    return tickHistory[
+      tickHistory.length - 1
+    ]
+  }
+
+  function getTicks(): number[] {
+    return tickHistory.slice()
+  }
+
+  function getLastDigit(): number {
+    return getLastDigitFromQuote(
+      getTick(),
+    )
+  }
+
+  function getLastDigitList(): number[] {
+    return tickHistory.map(
+      getLastDigitFromQuote,
+    )
+  }
+
+  function getDirection(): string {
+    if (
+      tickHistory.length <
+      2
+    ) {
+      return ''
+    }
+
+    const current =
+      tickHistory[
+        tickHistory.length - 1
+      ]
+
+    const previous =
+      tickHistory[
+        tickHistory.length - 2
+      ]
+
+    if (
+      current >
+      previous
+    ) {
+      return 'up'
+    }
+
+    if (
+      current <
+      previous
+    ) {
+      return 'down'
+    }
+
+    return 'same'
+  }
+
+  function getBalance(): number {
+    return number(
+      account.balance,
+      0,
+    )
+  }
+
+  function getLastResult(): string {
+    return lastResult
+  }
+
+  function getDetails(
+    detail: string,
+  ): string | number {
+    const normalized =
+      String(detail)
+        .toLowerCase()
+        .replace(
+          /\s+/g,
+          '_',
+        )
+
+    switch (
+      normalized
+    ) {
+      case 'profit':
+      case 'last_profit':
+        return lastProfit
+
+      case 'buy_price':
+        return lastBuyPrice
+
+      case 'ask_price':
+        return lastAskPrice
+
+      case 'payout':
+        return lastPayout
+
+      case 'result':
+      case 'last_result':
+        return lastResult
+
+      case 'contract_id':
+        return (
+          openContractId ||
+          0
+        )
+
+      case 'stake':
+      case 'amount':
+        return currentStake
+
+      case 'barrier':
+      case 'prediction':
+        return currentBarrier
+
+      case 'total_profit':
+        return totalProfit
+
+      case 'total_runs':
+        return totalRuns
+
+      case 'balance':
+        return getBalance()
+
+      case 'last_digit':
+        return getLastDigit()
+
+      case 'tick':
+      case 'quote':
+        return getTick()
+
+      default:
+        return ''
+    }
+  }
+
+  function getTotalProfit(): number {
+    return totalProfit
+  }
+
+  function getTotalRuns(): number {
+    return totalRuns
+  }
+
+  /* =======================================================
+  STAKE / BARRIER
+  ======================================================= */
+
+  function setStake(
+    amount: number,
+  ): void {
+    const value =
+      number(
+        amount,
+        NaN,
+      )
+
+    if (
+      !Number.isFinite(
+        value,
+      ) ||
+      value < 0.35
+    ) {
+      throw new Error(
+        'Stake must be greater than zero.',
+      )
+    }
+
+    currentStake =
+      value
+  }
+
+  function getStake(): number {
+    return currentStake
+  }
+
+  function setBarrier(
+    barrier:
+      | string
+      | number,
+  ): void {
+    currentBarrier =
+      String(barrier)
+  }
+
+  function getBarrier(): string {
+    return currentBarrier
+  }
+
+  /* =======================================================
+  TIMING
+  ======================================================= */
+
+  function sleep(
+    ms: number,
+  ): Promise<void> {
+    const delay =
+      Math.max(
+        0,
+        number(ms, 0),
+      )
+
+    if (aborted) return Promise.resolve()
+
+    return new Promise(
+      (resolve) => {
+        const wake = () => {
+          clearTimeout(timer)
+          abortWaiters.delete(wake)
+          resolve()
+        }
+        const timer = setTimeout(wake, delay)
+        abortWaiters.add(wake)
+      },
+    )
+  }
+
+  /*
+   * Tick-stream watchdog. If the stream silently stops (server dropped
+   * the subscription, another part of the app ran forget_all, half-open
+   * socket...) nothing throws — Bot.tickDelay() would just wait forever
+   * and the UI would say "running" while no trades happen. Every 5 s we
+   * check for staleness, re-subscribe, and escalate to a full reconnect
+   * (which fetches a fresh OTP) if that does not help.
+   */
+  const TICK_STALE_MS = 20000
+
+  function startTickWatchdog(): void {
+    if (tickWatchdog) return
+    tickWatchdog = setInterval(() => {
+      if (disposed || aborted || recoveringTicks) return
+      if (!ws.isConnected) return // reconnect logic owns this case
+      if (Date.now() - lastTickAt < TICK_STALE_MS) return
+      void recoverTickStream()
+    }, 5000)
+  }
+
+  function stopTickWatchdog(): void {
+    if (tickWatchdog) {
+      clearInterval(tickWatchdog)
+      tickWatchdog = null
+    }
+  }
+
+  async function recoverTickStream(): Promise<void> {
+    if (recoveringTicks || disposed || aborted) return
+    recoveringTicks = true
+    tickRecoveryAttempts += 1
+    try {
+      notify('warn', 'No ticks received for ' + Math.round((Date.now() - lastTickAt) / 1000) + 's — recovering tick stream (attempt ' + tickRecoveryAttempts + ').', { event: 'info' })
+      const oldId = tickSubscriptionId
+      tickSubscriptionId = null
+      if (oldId) await forgetSubscription(oldId)
+      if (tickRecoveryAttempts >= 2) {
+        // Re-subscribing did not help: the socket itself is probably dead.
+        ws.forceReconnect('tick stream stalled')
+      } else {
+        await startTickStream()
+      }
+      lastTickAt = Date.now() // give the new stream a full window
+    } catch {
+      // next watchdog cycle will try again
+    } finally {
+      recoveringTicks = false
+    }
+  }
+
+  async function tickDelay(
+    count: number,
+  ): Promise<void> {
+    const target =
+      Math.max(
+        1,
+        Math.floor(
+          number(
+            count,
+            1,
+          ),
+        ),
+      )
+
+    /*
+     * Make sure there is a tick stream.
+     */
+    await startTickStream()
+
+    const startingLength =
+      tickHistory.length
+
+    const targetLength =
+      startingLength +
+      target
+
+    while (
+      tickHistory.length <
+      targetLength
+    ) {
+      if (
+        shouldStop()
+      ) {
+        return
+      }
+
+      await sleep(100)
+    }
+  }
+
+  /* =======================================================
+  START STREAM
+  ======================================================= */
+
+  startTickWatchdog()
+
+  void startTickStream().catch(
+    () => {
+      /*
+       * The error was already
+       * reported by startTickStream.
+       */
+    },
+  )
+
+  /*
+   * The generated bot can finish, but the
+   * WebSocket subscriptions must not remain
+   * attached forever.
+   *
+   * The runner should call the cleanup hook
+   * below if it wants explicit cleanup.
+   */
+  const api: BotApi = {
+    purchase,
+    sellAtMarket,
+
+    isContractOpen,
+    isSellAvailable,
+
+    getAskPrice,
+    getPayout,
+    getSellPrice,
+
+    getTick,
+    getTicks,
+    getLastDigit,
+    getLastDigitList,
+    getDirection,
+
+    getOHLC,
+    getOHLCValues,
+    readOHLC,
+    readOHLCObject,
+    isCandleBlack,
+    getCurrentCandleTime,
+    isNewCandle,
+
+    getSMA,
+    getSMAArray,
+    getEMA,
+    getEMAArray,
+    getRSI,
+    getRSIArray,
+    getBollingerBands,
+    getBollingerBandsArray,
+    getMACDArray,
+
+    getBalance,
+    getLastResult,
+    getDetails,
+
+    getTotalProfit,
+    getTotalRuns,
+
+    setStake,
+    getStake,
+
+    setBarrier,
+    getBarrier,
+
+    shouldStop,
+    abort,
+
+    notify,
+    console:
+      writeConsole,
+
+    sleep,
+    tickDelay,
+
+    cleanup:
+      async () => {
+        if (disposed) {
+          return
+        }
+
+        disposed =
+          true
+
+        abort()
+        statusUnsubscribe()
+        await cleanupSubscriptions()
+      },
+  }
+
+  return api
+}
+
+export default createBotApi
