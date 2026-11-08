@@ -16,6 +16,17 @@ const REQUEST_TIMEOUT_MS = 15000
 const SUBSCRIPTION_TIMEOUT_MS = 10000
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_DELAY_MS = 30000
+// Heartbeat: we ping every HEARTBEAT_INTERVAL_MS. Deriv answers every ping
+// (and streams ticks), so total silence for DEAD_CONNECTION_MS means the
+// socket is half-open (very common on mobile / Wi-Fi switches) and must be
+// recycled — the browser will NOT tell us about it for minutes otherwise.
+const HEARTBEAT_INTERVAL_MS = 10000
+const DEAD_CONNECTION_MS = 25000
+const MAX_CONSECUTIVE_TIMEOUTS = 3
+
+/** Returns a fresh WebSocket URL. Authenticated (OTP) sockets MUST use this
+ *  on every reconnect because an OTP is single-use and expires in 120 s. */
+export type UrlProvider = () => Promise<string>
 
 export class DerivWS {
   private ws: WebSocket | null = null
@@ -27,6 +38,12 @@ export class DerivWS {
   private reconnectAttempts = 0
   private connectPromise: Promise<void> | null = null
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private lastMessageAt = Date.now()
+  private consecutiveTimeouts = 0
+  private urlProvider?: UrlProvider
+  private envListenersAttached = false
+  private hasConnectedBefore = false
 
   /*
    * Deriv's API only allows one active `ticks` subscription per symbol,
@@ -44,8 +61,9 @@ export class DerivWS {
   private subIdToKey = new Map<string, string>()
   private subIdRefCount = new Map<string, number>()
 
-  constructor(url: string) {
+  constructor(url: string, urlProvider?: UrlProvider) {
     this.url = url
+    this.urlProvider = urlProvider
   }
 
   onStatusChange(cb: (status: string) => void): () => void {
@@ -56,79 +74,166 @@ export class DerivWS {
   }
 
   private setStatus(status: string): void {
-    this.listeners.forEach((l) => l(status))
+    this.listeners.forEach((l) => {
+      try { l(status) } catch { /* a bad listener must never break the socket */ }
+    })
   }
 
   connect(): Promise<void> {
     this.shouldReconnect = true
+    this.attachEnvListeners()
     if (this.connectPromise) return this.connectPromise
-    this.connectPromise = this.doConnect()
+    this.connectPromise = this.doConnect(!this.hasConnectedBefore)
     return this.connectPromise
   }
 
-  private doConnect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+  /*
+   * `first` = the very first connect: use the URL we were handed (its OTP
+   * was issued a moment ago). Every later connect asks the provider for a
+   * brand-new URL, because reusing a spent OTP gives an unauthenticated
+   * socket: ticks still flow, but buy/proposal fail forever while the
+   * bot keeps saying "running".
+   */
+  private async doConnect(first = false): Promise<void> {
+    this.setStatus(first ? 'connecting' : 'reconnecting')
+
+    let url = this.url
+    if (!first && this.urlProvider) {
+      url = await this.urlProvider() // throws -> caller schedules another retry
+      this.url = url
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let ws: WebSocket
       try {
-        this.ws = new WebSocket(this.url)
+        ws = new WebSocket(url)
       } catch (err) {
-        this.connectPromise = null
         reject(err)
         return
       }
-      this.setStatus('connecting')
+      this.ws = ws
+      let settled = false
 
-      this.ws.onopen = () => {
+      const openTimer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        try { ws.close() } catch { /* ignore */ }
+        this.handleClosed(ws)
+        reject(new Error('WebSocket connection timed out'))
+      }, 12000)
+
+      ws.onopen = () => {
+        if (this.ws !== ws) return
+        clearTimeout(openTimer)
+        settled = true
+        this.hasConnectedBefore = true
         this.reconnectAttempts = 0
-        this.setStatus('connected')
+        this.consecutiveTimeouts = 0
+        this.lastMessageAt = Date.now()
         this.connectPromise = null
         this.startHeartbeat()
+        this.setStatus('connected')
         resolve()
       }
 
-      this.ws.onerror = () => {
+      ws.onerror = () => {
         this.setStatus('error')
-        if (this.reconnectAttempts === 0) {
-          this.connectPromise = null
+      }
+
+      ws.onclose = () => {
+        clearTimeout(openTimer)
+        this.handleClosed(ws)
+        if (!settled) {
+          settled = true
           reject(new Error('WebSocket connection failed'))
         }
       }
 
-      this.ws.onclose = () => {
-        this.stopHeartbeat()
-        this.setStatus('disconnected')
-        this.failAllPending(new Error('Connection closed'))
-        this.connectPromise = null
-        this.ws = null
-        if (this.shouldReconnect) {
-          this.scheduleReconnect()
-        }
-      }
-
-      this.ws.onmessage = (event: MessageEvent) => {
+      ws.onmessage = (event: MessageEvent) => {
+        if (this.ws !== ws) return
+        this.lastMessageAt = Date.now()
         this.handleMessage(event)
       }
     })
   }
 
-  private scheduleReconnect(): void {
+  /** Single place that reacts to a socket going away (real close OR forced). */
+  private handleClosed(closed: WebSocket): void {
+    if (this.ws !== closed) return // stale socket we already replaced
+    this.ws = null
+    this.stopHeartbeat()
+    this.connectPromise = null
+    this.setStatus('disconnected')
+    this.failAllPending(new Error('Connection closed'))
+    if (this.shouldReconnect) this.scheduleReconnect()
+  }
+
+  /** Throw away a socket that is silently dead and reconnect right now. */
+  forceReconnect(reason = 'forced'): void {
+    const dead = this.ws
+    if (!dead) {
+      if (this.shouldReconnect && !this.reconnectTimer && !this.connectPromise) this.scheduleReconnect(0)
+      return
+    }
+    console.warn('[DerivWS] forcing reconnect:', reason)
+    dead.onclose = null
+    dead.onerror = null
+    dead.onmessage = null
+    try { dead.close() } catch { /* ignore */ }
+    this.handleClosed(dead)
+  }
+
+  private scheduleReconnect(overrideDelay?: number): void {
+    if (this.reconnectTimer) return // already scheduled
     this.reconnectAttempts++
-    this.setStatus('reconnecting')
 
-    // Exponential backoff capped at MAX_RECONNECT_DELAY_MS.
-    // The connection should always retry — never give up, so the
-    // bot and market data stay alive 24/7 even through extended
-    // network outages.
-    const delay = Math.min(
-      RECONNECT_DELAY_MS * Math.pow(1.5, this.reconnectAttempts - 1),
-      MAX_RECONNECT_DELAY_MS,
-    )
+    // Exponential backoff, never give up: the bot must survive long outages.
+    const delay =
+      overrideDelay ??
+      Math.min(
+        RECONNECT_DELAY_MS * Math.pow(1.5, this.reconnectAttempts - 1),
+        MAX_RECONNECT_DELAY_MS,
+      )
 
-    setTimeout(() => {
-      if (!this.shouldReconnect) return
-      this.doConnect().catch(() => {
-        // doConnect already handles re-scheduling on close
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      if (!this.shouldReconnect || this.ws) return
+      this.connectPromise = this.doConnect(false)
+      this.connectPromise.catch(() => {
+        this.connectPromise = null
+        // doConnect only reaches handleClosed (which reschedules) if a socket
+        // was created; if the URL provider failed we must reschedule here.
+        if (this.shouldReconnect && !this.ws) this.scheduleReconnect()
       })
     }, delay)
+  }
+
+  /** Reconnect immediately when the network or tab comes back. */
+  private attachEnvListeners(): void {
+    if (this.envListenersAttached || typeof window === 'undefined') return
+    this.envListenersAttached = true
+    window.addEventListener('online', this.onEnvWake)
+    document.addEventListener('visibilitychange', this.onEnvWake)
+  }
+
+  private detachEnvListeners(): void {
+    if (!this.envListenersAttached || typeof window === 'undefined') return
+    this.envListenersAttached = false
+    window.removeEventListener('online', this.onEnvWake)
+    document.removeEventListener('visibilitychange', this.onEnvWake)
+  }
+
+  private onEnvWake = (): void => {
+    if (!this.shouldReconnect) return
+    if (document.visibilityState === 'hidden') return
+    if (!this.ws) {
+      // Skip the backoff wait — the network is back.
+      if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
+      if (!this.connectPromise) this.scheduleReconnect(0)
+      return
+    }
+    // Socket claims to be open: verify it with an immediate ping.
+    if (Date.now() - this.lastMessageAt > HEARTBEAT_INTERVAL_MS) this.pingNow()
   }
 
   private failAllPending(error: Error): void {
@@ -175,6 +280,7 @@ export class DerivWS {
       return
     }
     const reqId = data.req_id
+    if (reqId) this.consecutiveTimeouts = 0
 
     if (reqId && this.pending.has(reqId)) {
       const req = this.pending.get(reqId)!
@@ -238,14 +344,36 @@ export class DerivWS {
       try {
         await this.connectPromise
       } catch {
-        // connectPromise rejected — fall through to reconnect
+        // fall through to the wait below
       }
       if (this.ws && this.ws.readyState === WebSocket.OPEN) return
     }
-    if (!this.shouldReconnect) {
-      this.shouldReconnect = true
+    if (!this.shouldReconnect) this.shouldReconnect = true
+    if (!this.hasConnectedBefore) {
+      await this.connect()
+      return
     }
-    await this.connect()
+    // A reconnect is already scheduled/in progress (with a FRESH OTP).
+    // Wait for it instead of opening a second socket with a stale URL.
+    if (!this.reconnectTimer && !this.connectPromise) this.scheduleReconnect(0)
+    await this.waitUntilOpen(20000)
+  }
+
+  private waitUntilOpen(timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) return resolve()
+      const timer = setTimeout(() => {
+        off()
+        reject(new Error('WebSocket not connected'))
+      }, timeoutMs)
+      const off = this.onStatusChange((status) => {
+        if (status === 'connected') {
+          clearTimeout(timer)
+          off()
+          resolve()
+        }
+      })
+    })
   }
 
   async send(request: Record<string, unknown>): Promise<any> {
@@ -258,10 +386,21 @@ export class DerivWS {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
+        this.consecutiveTimeouts++
+        if (this.consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+          this.consecutiveTimeouts = 0
+          this.forceReconnect('consecutive request timeouts')
+        }
         reject(new Error('Request timed out'))
       }, REQUEST_TIMEOUT_MS)
       this.pending.set(id, { resolve, reject, timer })
-      this.ws!.send(msg)
+      try {
+        this.ws!.send(msg)
+      } catch (err) {
+        clearTimeout(timer)
+        this.pending.delete(id)
+        reject(err)
+      }
     })
   }
 
@@ -456,19 +595,26 @@ export class DerivWS {
     }
   }
 
+  private pingNow(): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ ping: 1 }))
+      } catch {
+        this.forceReconnect('ping send failed')
+      }
+    }
+  }
+
   private startHeartbeat(): void {
     this.stopHeartbeat()
-    // Send a ping every 30 seconds to keep the connection alive
-    // through idle periods and detect dead connections faster.
     this.heartbeatTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        try {
-          this.ws.send(JSON.stringify({ ping: 1 }))
-        } catch {
-          // If sending fails, the onclose handler will trigger reconnect
-        }
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+      if (Date.now() - this.lastMessageAt > DEAD_CONNECTION_MS) {
+        this.forceReconnect('no data from server for ' + DEAD_CONNECTION_MS + 'ms')
+        return
       }
-    }, 30000)
+      this.pingNow()
+    }, HEARTBEAT_INTERVAL_MS)
   }
 
   private stopHeartbeat(): void {
@@ -481,8 +627,16 @@ export class DerivWS {
   disconnect(): void {
     this.shouldReconnect = false
     this.stopHeartbeat()
-    this.ws?.close()
+    this.detachEnvListeners()
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
+    const old = this.ws
     this.ws = null
+    if (old) {
+      old.onclose = null
+      old.onerror = null
+      old.onmessage = null
+      try { old.close() } catch { /* ignore */ }
+    }
     this.failAllPending(new Error('Connection closed'))
     this.connectPromise = null
     this.setStatus('disconnected')

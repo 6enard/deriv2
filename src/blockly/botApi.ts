@@ -172,6 +172,13 @@ export interface BotApi {
 
   shouldStop(): boolean
 
+  /*
+   * Hard stop: marks the bot as stopped AND wakes every pending
+   * sleep / tick wait / purchase retry immediately, so pressing
+   * Stop never has to wait for an in-flight network call.
+   */
+  abort(): void
+
   notify(
     type: NotificationType,
     message: string,
@@ -402,11 +409,35 @@ export function createBotApi(
 
   let disposed = false
 
-  const shouldStop =
-    options.shouldStop ||
-    function (): boolean {
-      return false
-    }
+  let aborted = false
+  const abortWaiters = new Set<() => void>()
+
+  const shouldStop = function (): boolean {
+    return aborted || (options.shouldStop ? options.shouldStop() : false)
+  }
+
+  function abort(): void {
+    aborted = true
+    stopTickWatchdog()
+    abortWaiters.forEach((wake) => wake())
+    abortWaiters.clear()
+  }
+
+  /* Normalises Deriv API errors ({code,message} plain objects) and Errors. */
+  function errInfo(e: unknown): { code: string; message: string } {
+    const o = e as any
+    const code = String(o?.code ?? o?.error?.code ?? '')
+    const message = String(
+      e instanceof Error ? e.message : (o?.message ?? o?.error?.message ?? (typeof e === 'string' ? e : JSON.stringify(e))),
+    )
+    return { code, message }
+  }
+
+  let lastTickAt = Date.now()
+  let tickRecoveryAttempts = 0
+  let tickWatchdog: ReturnType<typeof setInterval> | null = null
+  let recoveringTicks = false
+  const knownContractIds = new Set<number>()
 
   /*
    * When the WebSocket drops, all server-side subscriptions are
@@ -427,6 +458,8 @@ export function createBotApi(
       liveProposalKey = null
       liveProposalData = null
     } else if (status === 'connected' && !disposed) {
+      lastTickAt = Date.now()
+      tickRecoveryAttempts = 0
       void startTickStream().catch(() => {})
       if (openContractId !== null) {
         void reSubscribeContract(openContractId).catch(() => {})
@@ -591,6 +624,9 @@ export function createBotApi(
               ) {
                 return
               }
+
+              lastTickAt = Date.now()
+              tickRecoveryAttempts = 0
 
               tickHistory.push(
                 quote,
@@ -1840,22 +1876,89 @@ export function createBotApi(
   PURCHASE
   ======================================================= */
 
+  /*
+   * Runs once a contract id is known: records it, tells the UI, waits for
+   * settlement, then invalidates the consumed proposal.
+   */
+  async function trackContract(
+    contractId: number,
+    ct: string,
+    stake: number,
+    buyPrice: number,
+    payout: number,
+  ): Promise<number> {
+    knownContractIds.add(contractId)
+    openContractId = contractId
+    lastBuyPrice = buyPrice
+    lastPayout = payout
+
+    notify('success', 'Contract purchased: ' + contractId, {
+      event: 'purchase',
+      contractId,
+      stake,
+      payout: lastPayout,
+      contractType: ct,
+    })
+
+    if (options.onTrade) {
+      options.onTrade(contractId)
+    }
+
+    await waitForContractSettlement(contractId)
+
+    // The proposal id was consumed by the buy — never reuse it.
+    liveProposalData = null
+    liveProposalKey = null
+    if (liveProposalSubId) {
+      void forgetSubscription(liveProposalSubId)
+      liveProposalSubId = null
+    }
+
+    return contractId
+  }
+
+  /*
+   * A buy request that timed out or lost its connection may STILL have
+   * been executed by Deriv. Retrying blindly would open a second,
+   * untracked trade (double stake). Before retrying we look for a contract
+   * bought after `sinceEpoch` that we have not seen yet and adopt it.
+   */
+  async function findUntrackedContract(
+    ct: string,
+    sinceEpoch: number,
+  ): Promise<{ contractId: number; buyPrice: number; payout: number } | null> {
+    try {
+      const res = await ws.send({ portfolio: 1 })
+      const list: any[] = res?.portfolio?.contracts || []
+      const hit = list.find((c) => {
+        const id = Number(c?.contract_id)
+        if (!id || knownContractIds.has(id)) return false
+        const bought = Number(c?.purchase_time ?? 0)
+        if (bought && bought < sinceEpoch - 2) return false
+        const type = String(c?.contract_type || '').toUpperCase()
+        return !type || type === ct.toUpperCase()
+      })
+      if (!hit) return null
+      return {
+        contractId: Number(hit.contract_id),
+        buyPrice: number(hit.buy_price, lastAskPrice),
+        payout: number(hit.payout, lastPayout),
+      }
+    } catch {
+      return null
+    }
+  }
+
   async function purchase(
     contractType?: string,
   ): Promise<number> {
-    if (
-      shouldStop()
-    ) {
-      throw new Error(
-        'Bot stop requested.',
-      )
+    if (shouldStop()) {
+      throw new Error('Bot stop requested.')
     }
 
-    /*
-     * Make sure tick stream exists before
-     * the first purchase.
-     */
-    await startTickStream()
+    // Make sure a tick stream exists before the first purchase.
+    // (A failure here must not block trading; the watchdog repairs it.)
+    try { await startTickStream() } catch { /* non-fatal */ }
 
     const ct =
       resolveContractType(
@@ -1869,32 +1972,15 @@ export function createBotApi(
       )
 
     if (!ct) {
-      throw new Error(
-        'No contract type was provided.',
-      )
+      throw new Error('No contract type was provided.')
     }
 
-    currentContractType =
-      ct
+    currentContractType = ct
 
-    const stake =
-      number(
-        currentStake,
-        0,
-      )
+    const stake = number(currentStake, 0)
 
-    if (
-      !Number.isFinite(
-        stake,
-      ) ||
-      stake <= 0
-    ) {
-      throw new Error(
-        'Invalid stake amount: ' +
-          String(
-            currentStake,
-          ),
-      )
+    if (!Number.isFinite(stake) || stake <= 0) {
+      throw new Error('Invalid stake amount: ' + String(currentStake))
     }
 
     const proposalRequest:
@@ -1947,263 +2033,170 @@ export function createBotApi(
         )
     }
 
-    let lastError:
-      unknown = null
-
     let attempt = 0
+    let sameErrorCount = 0
+    let lastErrorKey = ''
+    let buyMayHaveExecuted = false
+    let buyAttemptEpoch = 0
 
-    // Retry indefinitely on connection errors — the bot should
-    // never stop on its own. Only stop if the user requested a stop
-    // or if the error is a non-retryable API rejection.
+    // Keeps retrying recoverable problems (network drops, expired
+    // proposals, rate limits, closed markets) until the user stops the bot.
+    // Unrecoverable problems (bad token, no balance...) END the run with a
+    // clear message instead of retrying silently forever.
     while (true) {
       attempt += 1
       try {
-        if (
-          shouldStop()
-        ) {
-          throw new Error(
-            'Bot stop requested.',
-          )
+        if (shouldStop()) {
+          throw new Error('Bot stop requested.')
         }
 
-        const proposalResponse =
-          await getLiveProposal(
-            proposalRequest,
-          )
-
-        if (
-          proposalResponse
-            ?.error
-        ) {
-          throw new Error(
-            proposalResponse
-              .error
-              .message ||
-              'Proposal request failed.',
-          )
+        if (buyMayHaveExecuted) {
+          buyMayHaveExecuted = false
+          const found = await findUntrackedContract(ct, buyAttemptEpoch)
+          if (found) {
+            notify('warn', 'Recovered a purchase that was confirmed late (contract ' + found.contractId + ') — tracking it instead of buying again.', { event: 'info' })
+            return await trackContract(found.contractId, ct, stake, found.buyPrice, found.payout)
+          }
         }
 
-        const proposal =
-          proposalResponse
-            ?.proposal
+        const proposalResponse = await getLiveProposal(proposalRequest)
+
+        if (proposalResponse?.error) {
+          throw proposalResponse.error
+        }
+
+        const proposal = proposalResponse?.proposal
 
         if (!proposal) {
-          throw new Error(
-            'Deriv returned no proposal.',
-          )
+          throw new Error('Deriv returned no proposal.')
         }
 
-        const proposalId =
-          String(
-            proposal.id ||
-              '',
-          )
+        const proposalId = String(proposal.id || '')
 
         if (!proposalId) {
-          throw new Error(
-            'Deriv proposal has no id.',
-          )
+          throw new Error('Deriv proposal has no id.')
         }
 
-        lastAskPrice =
-          number(
-            proposal.ask_price,
-            stake,
-          )
+        lastAskPrice = number(proposal.ask_price, stake)
+        lastPayout = number(proposal.payout, 0)
 
-        lastPayout =
-          number(
-            proposal.payout,
-            0,
-          )
+        buyAttemptEpoch = Math.floor(Date.now() / 1000)
+        buyMayHaveExecuted = true // cleared below once we know the outcome
 
-        /*
-         * Buy the proposal.
-         */
-        const buyResponse =
-          await ws.send({
-            buy:
-              proposalId,
-            price:
-              lastAskPrice,
-          })
+        const buyResponse = await ws.send({
+          buy: proposalId,
+          price: lastAskPrice,
+        })
 
-        if (
-          buyResponse
-            ?.error
-        ) {
-          throw new Error(
-            buyResponse
-              .error
-              .message ||
-              'Buy request failed.',
-          )
+        if (buyResponse?.error) {
+          buyMayHaveExecuted = false
+          throw buyResponse.error
         }
 
-        const buy =
-          buyResponse?.buy
+        const buy = buyResponse?.buy
 
         if (!buy) {
-          throw new Error(
-            'Deriv returned no buy response.',
-          )
+          throw new Error('Deriv returned no buy response.')
         }
 
-        const contractId =
-          number(
-            buy.contract_id,
-            0,
-          )
+        const contractId = number(buy.contract_id, 0)
 
         if (!contractId) {
-          throw new Error(
-            'Deriv returned no contract id.',
-          )
+          throw new Error('Deriv returned no contract id.')
         }
 
-        openContractId =
-          contractId
+        buyMayHaveExecuted = false
+        sameErrorCount = 0
 
-        lastBuyPrice =
-          number(
-            buy.buy_price,
-            lastAskPrice,
-          )
-
-        if (
-          buy.payout !==
-          undefined
-        ) {
-          lastPayout =
-            number(
-              buy.payout,
-              lastPayout,
-            )
-        }
-
-        notify(
-          'success',
-          'Contract purchased: ' +
-            contractId,
-          {
-            event:
-              'purchase',
-            contractId,
-            stake,
-            payout:
-              lastPayout,
-            contractType:
-              ct,
-          },
-        )
-
-        if (
-          options.onTrade
-        ) {
-          options.onTrade(
-            contractId,
-          )
-        }
-
-        /*
-         * Wait until the contract actually
-         * settles before returning from
-         * Bot.purchase().
-         */
-        await waitForContractSettlement(
+        return await trackContract(
           contractId,
+          ct,
+          stake,
+          number(buy.buy_price, lastAskPrice),
+          buy.payout !== undefined ? number(buy.payout, lastPayout) : lastPayout,
         )
-
-        /*
-         * Invalidate the cached proposal — the proposal ID was
-         * consumed by the buy and can't be reused. Forget the
-         * subscription so the next getLiveProposal() opens a fresh
-         * one instead of waiting for an update that will never
-         * arrive on a consumed proposal subscription.
-         */
-        liveProposalData = null
-        liveProposalKey = null
-        if (liveProposalSubId) {
-          void forgetSubscription(liveProposalSubId)
-          liveProposalSubId = null
+      } catch (error) {
+        if (shouldStop()) {
+          throw new Error('Bot stop requested.')
         }
 
-        return contractId
-      } catch (
-        error
-      ) {
-        lastError =
-          error
+        const { code, message } = errInfo(error)
 
-        writeConsole(
-          'error',
-          error,
-        )
+        // An explicit API rejection means the buy definitely did NOT happen.
+        if (code) buyMayHaveExecuted = false
 
-        if (
-          shouldStop()
-        ) {
-          throw new Error(
-            'Bot stop requested.',
-          )
+        const key = code + '|' + message
+        sameErrorCount = key === lastErrorKey ? sameErrorCount + 1 : 1
+        lastErrorKey = key
+
+        writeConsole('error', (code ? '[' + code + '] ' : '') + message)
+
+        const isNetwork = /timed out|connection closed|not connected|socket|network/i.test(message) && !code
+        const isAuth = /AuthorizationRequired|InvalidToken|authoriz|log ?in/i.test(code + ' ' + message)
+        const isRate = /RateLimit|rate.?limit|too many/i.test(code + ' ' + message)
+        const isMarketClosed = /MarketIsClosed|market is closed|market.*closed/i.test(code + ' ' + message)
+        const isStaleProposal = /expired|Invalid proposal|proposal.*not.*valid|No proposal|AlreadySubscribed|PriceMoved|price.*moved|ContractBuyValidationError/i.test(code + ' ' + message)
+        const isFatal =
+          /InsufficientBalance|insufficient balance|not enough balance|AccountDisabled|PermissionDenied|InvalidStake|Invalid stake|No contract type|Invalid contract type|ContractCreationFailure/i.test(code + ' ' + message)
+
+        if (isFatal) {
+          throw new Error('Trading cannot continue: ' + message)
         }
 
-        const errMsg =
-          error instanceof Error
-            ? error.message
-            : String(error)
-
-        // Proposal expired / stale cache / AlreadySubscribed —
-        // invalidate the subscription and retry immediately with a
-        // fresh proposal instead of dying.
-        if (/expired|Invalid proposal|proposal.*not.*valid|No proposal|AlreadySubscribed/i.test(errMsg)) {
+        // Stale/expired proposal: drop it and ask for a fresh one right away.
+        if (isStaleProposal && sameErrorCount < 6) {
           liveProposalKey = null
           liveProposalData = null
           if (liveProposalSubId) {
             void forgetSubscription(liveProposalSubId)
             liveProposalSubId = null
           }
-          // Also clear any orphaned server-side proposal subscriptions
           try { await ws.forgetAll('proposal') } catch { /* best effort */ }
-          notify('warn', 'Proposal expired — requesting a fresh one.', { event: 'info' })
+          notify('warn', 'Proposal no longer valid — requesting a fresh one.', { event: 'info' })
+          await sleep(300)
           continue
         }
 
-        // Non-retryable: invalid contract parameters, invalid
-        // stake, etc. These will never succeed on retry.
-        const nonRetryable =
-          /not available|No contract type|Invalid stake|Invalid contract type/i.test(
-            errMsg,
-          )
-
-        if (nonRetryable) {
-          throw (
-            lastError instanceof
-            Error
-              ? lastError
-              : new Error(
-                  'Unable to purchase contract.',
-                )
-          )
+        // Authentication lost (e.g. the socket was re-opened without a valid
+        // OTP): recycle the connection to get a fresh authenticated one.
+        if (isAuth) {
+          if (sameErrorCount >= 4) {
+            throw new Error('Your Deriv session is no longer authorised — please log in again. (' + message + ')')
+          }
+          notify('warn', 'Connection lost authorisation — reconnecting securely…', { event: 'info' })
+          ws.forceReconnect('authorization error during purchase')
+          await sleep(2000)
+          continue
         }
 
-        // Retryable (connection drop, timeout, AlreadySubscribed,
-        // etc.) — wait briefly and try again. The bot should never
-        // die on its own. Cap the delay at 5s to avoid hammering
-        // the API while still being responsive.
-        const delay = Math.min(Math.max(attempt, 1), 5)
-        notify(
-          'warn',
-          'Purchase attempt ' +
-            attempt +
-            ' failed (' +
-            errMsg +
-            '). Retrying in ' +
-            delay +
-            's...',
-          { event: 'info' },
-        )
+        if (isNetwork) {
+          // Half-open sockets show up as repeated timeouts; DerivWS recycles
+          // them. Give it a moment, then loop (the buy-recovery check above
+          // prevents duplicate trades).
+          await sleep(1500)
+          continue
+        }
 
+        if (isRate) {
+          notify('warn', 'Rate limit reached — pausing 10s.', { event: 'info' })
+          await sleep(10000)
+          continue
+        }
+
+        if (isMarketClosed) {
+          notify('warn', 'Market is closed for ' + params.symbol + ' — checking again in 30s.', { event: 'info' })
+          await sleep(30000)
+          continue
+        }
+
+        // Unknown error. Retry a few times with backoff, but do NOT loop
+        // silently forever: surface it so the run ends visibly.
+        if (sameErrorCount >= 8) {
+          throw new Error('Purchase keeps failing: ' + message)
+        }
+
+        const delay = Math.min(Math.max(attempt, 1), 5)
+        notify('warn', 'Purchase attempt ' + attempt + ' failed (' + message + '). Retrying in ' + delay + 's...', { event: 'info' })
         await sleep(delay * 1000)
       }
     }
@@ -2504,14 +2497,69 @@ export function createBotApi(
         number(ms, 0),
       )
 
+    if (aborted) return Promise.resolve()
+
     return new Promise(
       (resolve) => {
-        setTimeout(
-          resolve,
-          delay,
-        )
+        const wake = () => {
+          clearTimeout(timer)
+          abortWaiters.delete(wake)
+          resolve()
+        }
+        const timer = setTimeout(wake, delay)
+        abortWaiters.add(wake)
       },
     )
+  }
+
+  /*
+   * Tick-stream watchdog. If the stream silently stops (server dropped
+   * the subscription, another part of the app ran forget_all, half-open
+   * socket...) nothing throws — Bot.tickDelay() would just wait forever
+   * and the UI would say "running" while no trades happen. Every 5 s we
+   * check for staleness, re-subscribe, and escalate to a full reconnect
+   * (which fetches a fresh OTP) if that does not help.
+   */
+  const TICK_STALE_MS = 20000
+
+  function startTickWatchdog(): void {
+    if (tickWatchdog) return
+    tickWatchdog = setInterval(() => {
+      if (disposed || aborted || recoveringTicks) return
+      if (!ws.isConnected) return // reconnect logic owns this case
+      if (Date.now() - lastTickAt < TICK_STALE_MS) return
+      void recoverTickStream()
+    }, 5000)
+  }
+
+  function stopTickWatchdog(): void {
+    if (tickWatchdog) {
+      clearInterval(tickWatchdog)
+      tickWatchdog = null
+    }
+  }
+
+  async function recoverTickStream(): Promise<void> {
+    if (recoveringTicks || disposed || aborted) return
+    recoveringTicks = true
+    tickRecoveryAttempts += 1
+    try {
+      notify('warn', 'No ticks received for ' + Math.round((Date.now() - lastTickAt) / 1000) + 's — recovering tick stream (attempt ' + tickRecoveryAttempts + ').', { event: 'info' })
+      const oldId = tickSubscriptionId
+      tickSubscriptionId = null
+      if (oldId) await forgetSubscription(oldId)
+      if (tickRecoveryAttempts >= 2) {
+        // Re-subscribing did not help: the socket itself is probably dead.
+        ws.forceReconnect('tick stream stalled')
+      } else {
+        await startTickStream()
+      }
+      lastTickAt = Date.now() // give the new stream a full window
+    } catch {
+      // next watchdog cycle will try again
+    } finally {
+      recoveringTicks = false
+    }
   }
 
   async function tickDelay(
@@ -2557,6 +2605,8 @@ export function createBotApi(
   /* =======================================================
   START STREAM
   ======================================================= */
+
+  startTickWatchdog()
 
   void startTickStream().catch(
     () => {
@@ -2624,6 +2674,7 @@ export function createBotApi(
     getBarrier,
 
     shouldStop,
+    abort,
 
     notify,
     console:
@@ -2641,6 +2692,7 @@ export function createBotApi(
         disposed =
           true
 
+        abort()
         statusUnsubscribe()
         await cleanupSubscriptions()
       },

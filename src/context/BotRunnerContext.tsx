@@ -140,6 +140,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   })
 
   const stopRef = useRef(false)
+  const stopSignalRef = useRef<(() => void) | null>(null)
   const settledContractIds = useRef<Set<number>>(new Set())
   const botApiRef = useRef<BotApi | null>(null)
   const [currentParams, setCurrentParams] = useState<TradeParams | null>(null)
@@ -229,6 +230,183 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     return restoreParams()
   }, [])
 
+  /*
+   * Single place that actually runs a bot (used by both a fresh Run and an
+   * auto-resume after page reload, which previously were two copy-pasted
+   * 100-line blocks).
+   */
+  const launchBot = useCallback(async (
+    code: string,
+    params: TradeParams,
+    opts: { fresh: boolean },
+  ) => {
+    if (!ws || !account) return
+
+    const botApi: BotApi = createBotApi(ws, account, params, {
+      onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
+        setJournal((prev) => [...prev, { time: new Date(), type, message }])
+
+        if (!data?.contractId) return
+        if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
+        if (settledContractIds.current.has(data.contractId)) return
+        settledContractIds.current.add(data.contractId)
+
+        const profit = data.profit ?? 0
+        const isWin = profit > 0
+        const isLoss = profit < 0
+
+        if (isWin) {
+          playSound('win')
+        } else if (isLoss) {
+          playSound('loss')
+        } else {
+          playSound('sold')
+        }
+
+        setRunStats((prev) => ({
+          totalRuns: prev.totalRuns + 1,
+          wins: prev.wins + (isWin ? 1 : 0),
+          losses: prev.losses + (isLoss ? 1 : 0),
+          totalProfit: prev.totalProfit + profit,
+          totalStake: prev.totalStake + (data.stake ?? 0),
+          totalPayout: prev.totalPayout + (data.payout ?? 0),
+        }))
+
+        setTrades((prev) => {
+          const idx = prev.findIndex((t) => t.contract_id === data.contractId)
+          if (idx < 0) return prev
+          const next = [...prev]
+          next[idx] = {
+            ...next[idx],
+            profit,
+            is_sold: true,
+            is_expired: true,
+            status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
+            entry_spot: data.entrySpot != null ? data.entrySpot : next[idx].entry_spot,
+            exit_spot: data.exitSpot != null ? data.exitSpot : next[idx].exit_spot,
+          }
+          return next
+        })
+      },
+      onTrade: (contractId: number) => {
+        const p = currentParamsRef.current
+        if (p) {
+          setTrades((prev) => {
+            if (prev.some((t) => t.contract_id === contractId)) return prev
+            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
+          })
+        }
+        subscribeToContract(contractId)
+        ws.subscribe(
+          { proposal_open_contract: 1, contract_id: contractId },
+          (data: any) => {
+            if (data.proposal_open_contract) {
+              const contract = mapOpenContract(data.proposal_open_contract)
+              setTrades((prev) => {
+                const idx = prev.findIndex((t) => t.contract_id === contract.contract_id)
+                if (idx >= 0) {
+                  const next = [...prev]
+                  next[idx] = contract
+                  return next
+                }
+                return [contract, ...prev]
+              })
+            }
+          },
+        ).catch(() => {})
+      },
+      shouldStop: () => stopRef.current,
+    })
+
+    botApiRef.current = botApi
+
+    // `stopped` resolves the instant the user presses Stop, so the run
+    // can never be held hostage by an in-flight network call.
+    const stopped = new Promise<'stopped'>((resolve) => {
+      stopSignalRef.current = () => resolve('stopped')
+    })
+
+    const isFatalBotError = (msg: string) =>
+      /^Trading cannot continue|no longer authorised|Purchase keeps failing/i.test(msg)
+
+    try {
+      setIsRunning(true)
+      setHasRunOnce(true)
+      if (opts.fresh) playSound('start')
+      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+      const fn = new AsyncFunction('Bot', code)
+
+      // Auto-restart loop. Recoverable errors are already retried inside
+      // Bot.purchase(); this is the last line of defence for anything
+      // else. Backoff grows, and a run of failures with no trade
+      // in between ends visibly instead of spinning silently.
+      let failuresSinceTrade = 0
+      let settledAtLastFailure = settledContractIds.current.size
+      let endedWithError = false
+
+      while (!stopRef.current) {
+        const run: Promise<void> = fn(botApi)
+        run.catch(() => { /* handled via race below */ })
+        try {
+          const outcome = await Promise.race([run.then(() => 'done' as const), stopped])
+          if (outcome === 'stopped') break
+          break // 'done': the bot finished by itself (target reached / bot logic ended)
+        } catch (err: unknown) {
+          if (stopRef.current) break
+          const msg = errorMessage(err, 'Bot execution failed.')
+
+          if (isFatalBotError(msg)) {
+            showToast('error', msg)
+            playSound('error')
+            endedWithError = true
+            break
+          }
+
+          if (settledContractIds.current.size !== settledAtLastFailure) {
+            failuresSinceTrade = 0 // progress was made, so this is a fresh problem
+          }
+          failuresSinceTrade += 1
+          settledAtLastFailure = settledContractIds.current.size
+
+          if (failuresSinceTrade > 10) {
+            showToast('error', `Bot stopped after repeated errors: ${msg}`)
+            playSound('error')
+            endedWithError = true
+            break
+          }
+
+          const waitMs = Math.min(2000 * failuresSinceTrade, 15000)
+          showToast('error', `${msg} — restarting in ${Math.round(waitMs / 1000)}s...`)
+          playSound('error')
+          await Promise.race([new Promise<void>((resolve) => setTimeout(resolve, waitMs)), stopped])
+        }
+      }
+
+      if (stopRef.current) {
+        showToast('info', 'Bot stopped. Any contract already open will still settle on Deriv.')
+        playSound('done')
+      } else if (!endedWithError) {
+        showToast('success', 'Bot finished running.')
+        playSound('done')
+      }
+      refreshBalance()
+    } finally {
+      stopSignalRef.current = null
+      // Never let slow cleanup keep the UI stuck in "running".
+      setIsRunning(false)
+      await Promise.race([
+        botApi.cleanup().catch(() => {}),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+      ])
+      botApiRef.current = null
+      if (!opts.fresh) {
+        setCurrentParams(null)
+        currentParamsRef.current = null
+      }
+      clearAllPersist()
+    }
+  }, [ws, account, subscribeToContract, showToast, refreshBalance])
+
   const handleRun = useCallback(async (
     workspaceRef: React.RefObject<Blockly.WorkspaceSvg | null>,
     marketsLoaded: boolean,
@@ -240,6 +418,11 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     }
     if (!marketsLoaded) {
       showToast('error', 'Markets are still loading. Please wait.')
+      return
+    }
+
+    if (botApiRef.current) {
+      showToast('info', 'A bot is already running. Stop it first.')
       return
     }
 
@@ -287,129 +470,16 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       // ignore serialization errors
     }
 
-    const botApi: BotApi = createBotApi(ws, account, params, {
-      onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
-        setJournal((prev) => [...prev, { time: new Date(), type, message }])
-
-        if (!data?.contractId) return
-        if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
-        if (settledContractIds.current.has(data.contractId)) return
-        settledContractIds.current.add(data.contractId)
-
-        const profit = data.profit ?? 0
-        const isWin = profit > 0
-        const isLoss = profit < 0
-
-        if (isWin) {
-          playSound('win')
-        } else if (isLoss) {
-          playSound('loss')
-        } else {
-          playSound('sold')
-        }
-
-        setRunStats((prev) => ({
-          totalRuns: prev.totalRuns + 1,
-          wins: prev.wins + (isWin ? 1 : 0),
-          losses: prev.losses + (isLoss ? 1 : 0),
-          totalProfit: prev.totalProfit + profit,
-          totalStake: prev.totalStake + (data.stake ?? 0),
-          totalPayout: prev.totalPayout + (data.payout ?? 0),
-        }))
-
-        setTrades((prev) => {
-          const idx = prev.findIndex((t) => t.contract_id === data.contractId)
-          if (idx < 0) return prev
-          const next = [...prev]
-          next[idx] = {
-            ...next[idx],
-            profit,
-            is_sold: true,
-            is_expired: true,
-            status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
-            entry_spot: data.entrySpot != null ? data.entrySpot : next[idx].entry_spot,
-            exit_spot: data.exitSpot != null ? data.exitSpot : next[idx].exit_spot,
-          }
-          return next
-        })
-      },
-      onTrade: (contractId: number) => {
-        const p = currentParamsRef.current
-        if (p) {
-          setTrades((prev) => {
-            if (prev.some((t) => t.contract_id === contractId)) return prev
-            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
-          })
-        }
-        subscribeToContract(contractId)
-        ws.subscribe(
-          { proposal_open_contract: 1, contract_id: contractId },
-          (data: any) => {
-            if (data.proposal_open_contract) {
-              const contract = mapOpenContract(data.proposal_open_contract)
-              setTrades((prev) => {
-                const idx = prev.findIndex((t) => t.contract_id === contract.contract_id)
-                if (idx >= 0) {
-                  const next = [...prev]
-                  next[idx] = contract
-                  return next
-                }
-                return [contract, ...prev]
-              })
-            }
-          },
-        ).catch(() => {})
-      },
-      shouldStop: () => stopRef.current,
-    })
-
-    botApiRef.current = botApi
-
-    try {
-      setIsRunning(true)
-      setHasRunOnce(true)
-      playSound('start')
-      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-      const fn = new AsyncFunction('Bot', code)
-
-      // Auto-restart loop: if the generated bot code throws for
-      // any reason other than a user-requested stop, wait a few
-      // seconds and restart it. The bot should run until the user
-      // stops it or stop-loss/take-profit is reached.
-      while (!stopRef.current) {
-        try {
-          await fn(botApi)
-          break
-        } catch (err: unknown) {
-          if (stopRef.current) break
-          const msg = errorMessage(err, 'Bot execution failed.')
-          showToast('error', `${msg} — restarting in 2s...`)
-          playSound('error')
-          await new Promise<void>((resolve) => setTimeout(resolve, 2000))
-        }
-      }
-
-      if (!stopRef.current) {
-        showToast('success', 'Bot finished running.')
-        playSound('done')
-      } else {
-        showToast('info', 'Bot stopped.')
-        playSound('done')
-      }
-      refreshBalance()
-    } finally {
-      await botApi.cleanup().catch(() => {})
-      botApiRef.current = null
-      setIsRunning(false)
-      clearAllPersist()
-    }
-  }, [ws, account, subscribeToContract, showToast, refreshBalance])
+    await launchBot(code, params, { fresh: true })
+  }, [ws, account, showToast, launchBot])
 
   const resumeRun = useCallback(async (code: string, params: TradeParams) => {
     if (!ws || !account) {
       showToast('error', 'Connect your Deriv account before running a bot.')
       return
     }
+
+    if (botApiRef.current) return
 
     stopRef.current = false
     currentParamsRef.current = params
@@ -423,120 +493,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       // ignore
     }
 
-    const botApi: BotApi = createBotApi(ws, account, params, {
-      onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
-        setJournal((prev) => [...prev, { time: new Date(), type, message }])
-
-        if (!data?.contractId) return
-        if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
-        if (settledContractIds.current.has(data.contractId)) return
-        settledContractIds.current.add(data.contractId)
-
-        const profit = data.profit ?? 0
-        const isWin = profit > 0
-        const isLoss = profit < 0
-
-        if (isWin) {
-          playSound('win')
-        } else if (isLoss) {
-          playSound('loss')
-        } else {
-          playSound('sold')
-        }
-
-        setRunStats((prev) => ({
-          totalRuns: prev.totalRuns + 1,
-          wins: prev.wins + (isWin ? 1 : 0),
-          losses: prev.losses + (isLoss ? 1 : 0),
-          totalProfit: prev.totalProfit + profit,
-          totalStake: prev.totalStake + (data.stake ?? 0),
-          totalPayout: prev.totalPayout + (data.payout ?? 0),
-        }))
-
-        setTrades((prev) => {
-          const idx = prev.findIndex((t) => t.contract_id === data.contractId)
-          if (idx < 0) return prev
-          const next = [...prev]
-          next[idx] = {
-            ...next[idx],
-            profit,
-            is_sold: true,
-            is_expired: true,
-            status: isWin ? 'won' : isLoss ? 'lost' : 'sold',
-            entry_spot: data.entrySpot != null ? data.entrySpot : next[idx].entry_spot,
-            exit_spot: data.exitSpot != null ? data.exitSpot : next[idx].exit_spot,
-          }
-          return next
-        })
-      },
-      onTrade: (contractId: number) => {
-        const p = currentParamsRef.current
-        if (p) {
-          setTrades((prev) => {
-            if (prev.some((t) => t.contract_id === contractId)) return prev
-            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
-          })
-        }
-        subscribeToContract(contractId)
-        ws.subscribe(
-          { proposal_open_contract: 1, contract_id: contractId },
-          (data: any) => {
-            if (data.proposal_open_contract) {
-              const contract = mapOpenContract(data.proposal_open_contract)
-              setTrades((prev) => {
-                const idx = prev.findIndex((t) => t.contract_id === contract.contract_id)
-                if (idx >= 0) {
-                  const next = [...prev]
-                  next[idx] = contract
-                  return next
-                }
-                return [contract, ...prev]
-              })
-            }
-          },
-        ).catch(() => {})
-      },
-      shouldStop: () => stopRef.current,
-    })
-
-    botApiRef.current = botApi
-
-    try {
-      setIsRunning(true)
-      setHasRunOnce(true)
-      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-      const fn = new AsyncFunction('Bot', code)
-
-      while (!stopRef.current) {
-        try {
-          await fn(botApi)
-          break
-        } catch (err: unknown) {
-          if (stopRef.current) break
-          const msg = errorMessage(err, 'Bot execution failed.')
-          showToast('error', `${msg} — restarting in 2s...`)
-          playSound('error')
-          await new Promise<void>((resolve) => setTimeout(resolve, 2000))
-        }
-      }
-
-      if (!stopRef.current) {
-        showToast('success', 'Bot finished running.')
-        playSound('done')
-      } else {
-        showToast('info', 'Bot stopped.')
-        playSound('done')
-      }
-      refreshBalance()
-    } finally {
-      await botApi.cleanup().catch(() => {})
-      botApiRef.current = null
-      setIsRunning(false)
-      setCurrentParams(null)
-      currentParamsRef.current = null
-      clearAllPersist()
-    }
-  }, [ws, account, subscribeToContract, showToast, refreshBalance])
+    await launchBot(code, params, { fresh: false })
+  }, [ws, account, showToast, launchBot])
 
   // Auto-resume the bot after a page reload, regardless of which page
   // the user lands on. This fires once when ws becomes available and
@@ -561,7 +519,10 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
 
   const handleStop = useCallback(() => {
     stopRef.current = true
-    showToast('info', 'Stopping bot after current trade...')
+    // Hard stop: wake every pending wait inside the bot, and release the runner.
+    botApiRef.current?.abort()
+    stopSignalRef.current?.()
+    showToast('info', 'Stopping bot...')
   }, [showToast])
 
   const handleResetStats = useCallback(() => {

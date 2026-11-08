@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { DerivWS } from '../lib/deriv-ws'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { DerivWS, type UrlProvider } from '../lib/deriv-ws'
 import { buildAuthUrl, clearOAuthState, getStoredCodeVerifier, getStoredOAuthState } from '../lib/oauth'
 import { DERIV_CLIENT_ID, DERIV_REDIRECT_URI, OPTIONS_API_BASE, ADMIN_ACCOUNT_IDS, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config'
 import type { DerivSessionAccount } from '../lib/types'
@@ -193,8 +193,14 @@ function toSessionAccount(acct: OptionsAccount, tokens: OAuthTokenResponse): Der
   }
 }
 
-async function connectViaOtp(url: string): Promise<DerivWS> {
-  const ws = new DerivWS(url)
+/*
+ * `refreshUrl` is called by DerivWS on EVERY reconnect to get a brand-new
+ * OTP URL. An OTP is single-use (120 s), so re-dialling the old URL after a
+ * network blip produces an unauthenticated socket: ticks keep flowing but
+ * every buy/proposal fails, while the bot still looks like it is running.
+ */
+async function connectViaOtp(url: string, refreshUrl?: UrlProvider): Promise<DerivWS> {
+  const ws = new DerivWS(url, refreshUrl)
   await ws.connect()
   return ws
 }
@@ -215,6 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const account = accounts.find((candidate) => candidate.account_id === selectedAccountId) || accounts[0] || null
+  const accountsRef = useRef(accounts)
+  accountsRef.current = accounts
   const isAdmin = account ? ADMIN_ACCOUNT_IDS.includes(account.account_id) : false
 
   const setRememberMe = useCallback((v: boolean) => {
@@ -292,6 +300,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updated
   }, [])
 
+  /** Builds the "give me a fresh OTP URL" function a socket uses when it reconnects. */
+  const makeOtpRefresher = useCallback((stateAccountId: string, fallback: DerivSessionAccount): UrlProvider => {
+    return async () => {
+      const latest = accountsRef.current.find((a) => a.account_id === stateAccountId) || fallback
+      const valid = await ensureValidToken(latest)
+      return fetchOtpUrl(valid.access_token, originalAccountId(stateAccountId))
+    }
+  }, [ensureValidToken])
+
   const switchAccount = useCallback(async (accountId: string) => {
     const nextAccount = accounts.find((candidate) => candidate.account_id === accountId)
     if (!nextAccount) throw new Error('Account not found.')
@@ -300,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const refreshed = await ensureValidToken(nextAccount)
       const otpUrl = await fetchOtpUrl(refreshed.access_token, originalAccountId(refreshed.account_id))
-      const nextWs = await connectViaOtp(otpUrl)
+      const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(refreshed.account_id, refreshed))
       refreshed.ws_url = otpUrl
       ws?.disconnect()
       getStorage().setItem(SELECTED_ACCOUNT_KEY, nextAccount.account_id)
@@ -313,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [accounts, ws, ensureValidToken])
+  }, [accounts, ws, ensureValidToken, makeOtpRefresher])
 
   const handleCallback = useCallback(async (params: URLSearchParams) => {
     setIsLoading(true)
@@ -341,7 +358,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const demoAccount = sessionAccounts.find((a) => a.account_type === 'demo')
       const firstAccount = demoAccount || sessionAccounts[0]
       const otpUrl = await fetchOtpUrl(tokens.access_token, firstAccount.account_id)
-      const nextWs = await connectViaOtp(otpUrl)
+      const renamedFirstId = renameAccountId(firstAccount.account_id)
+      const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(renamedFirstId, { ...firstAccount, account_id: renamedFirstId }))
       firstAccount.ws_url = otpUrl
       ws?.disconnect()
       const renamedAccounts = sessionAccounts.map((a) => ({ ...a, account_id: renameAccountId(a.account_id) }))
@@ -363,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [ws])
+  }, [ws, makeOtpRefresher])
 
   const selectAccount = useCallback(async (accountId: string) => {
     return switchAccount(accountId)
@@ -458,7 +476,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return fetchOtpUrl(validated.access_token, originalAccountId(validated.account_id))
           .then(async (otpUrl) => {
             if (cancelled) return
-            const nextWs = await connectViaOtp(otpUrl)
+            const nextWs = await connectViaOtp(otpUrl, makeOtpRefresher(validated.account_id, validated))
             if (cancelled) { nextWs.disconnect(); return }
             validated.ws_url = otpUrl
             setAccounts((prev) => prev.map((a) => a.account_id === validated.account_id ? validated : a))
@@ -476,7 +494,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(SESSION_EXPIRED_MESSAGE)
       })
     return () => { cancelled = true }
-  }, [account, ws, ensureValidToken])
+  }, [account, ws, ensureValidToken, makeOtpRefresher])
 
   return (
     <AuthContext.Provider value={{
