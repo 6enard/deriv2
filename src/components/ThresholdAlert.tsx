@@ -1,11 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TrendingDown, TrendingUp, X } from 'lucide-react'
+
+const AUTO_CLOSE_MS = 15000
 
 export interface ThresholdAlertData {
   type: 'stop_loss' | 'take_profit'
   profit: number
   currency: string
 }
+
+const THEMES = {
+  take_profit: {
+    border: 'border-brand-green/40',
+    header: 'bg-gradient-to-b from-brand-green/20 via-brand-green/5 to-transparent',
+    iconTile: 'bg-brand-green shadow-[0_12px_32px_-8px_rgba(34,197,94,0.6)]',
+    eyebrow: 'text-brand-green',
+    button: 'bg-brand-green',
+    bar: 'bg-brand-green',
+  },
+  stop_loss: {
+    border: 'border-brand-red/40',
+    header: 'bg-gradient-to-b from-brand-red/20 via-brand-red/5 to-transparent',
+    iconTile: 'bg-brand-red shadow-[0_12px_32px_-8px_rgba(229,57,53,0.6)]',
+    eyebrow: 'text-brand-red',
+    button: 'bg-brand-red',
+    bar: 'bg-brand-red',
+  },
+} as const
 
 export function ThresholdAlert({
   alert,
@@ -15,35 +36,41 @@ export function ThresholdAlert({
   onDismiss: () => void
 }) {
   const [visible, setVisible] = useState(false)
+  const [progress, setProgress] = useState(100)
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+  const closingRef = useRef(false)
 
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 10)
-    return () => clearTimeout(t)
-  }, [])
-
-  const dismiss = () => {
+  const dismiss = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
     setVisible(false)
-    setTimeout(onDismiss, 300)
-  }
+    window.setTimeout(() => onDismissRef.current(), 300)
+  }, [])
 
   useEffect(() => {
-    const timer = setTimeout(dismiss, 8000)
-    return () => clearTimeout(timer)
-  }, [])
+    const show = window.setTimeout(() => {
+      setVisible(true)
+      setProgress(0)
+    }, 30)
+    const autoClose = window.setTimeout(dismiss, AUTO_CLOSE_MS)
+    return () => {
+      window.clearTimeout(show)
+      window.clearTimeout(autoClose)
+    }
+  }, [dismiss])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dismiss])
 
   const isTakeProfit = alert.type === 'take_profit'
-  const profit = alert.profit
-  const isPositive = profit >= 0
-
-  const accentColor = isTakeProfit ? 'text-brand-green' : 'text-brand-red'
-  const accentBg = isTakeProfit ? 'bg-brand-green' : 'bg-brand-red'
-  const accentBorder = isTakeProfit ? 'border-brand-green/40' : 'border-brand-red/40'
-  const accentGlow = isTakeProfit
-    ? 'shadow-[0_0_40px_rgba(34,197,94,0.25)]'
-    : 'shadow-[0_0_40px_rgba(229,57,53,0.25)]'
-  const accentGradient = isTakeProfit
-    ? 'from-brand-green/20 via-brand-green/5 to-transparent'
-    : 'from-brand-red/20 via-brand-red/5 to-transparent'
+  const theme = THEMES[alert.type]
+  const isPositive = alert.profit >= 0
   const Icon = isTakeProfit ? TrendingUp : TrendingDown
 
   return (
@@ -53,63 +80,66 @@ export function ThresholdAlert({
       }`}
       onClick={dismiss}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div
-        className={`relative w-full max-w-sm rounded-3xl bg-bg-secondary border ${accentBorder} ${accentGlow} overflow-hidden transition-all duration-300 ${
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="threshold-alert-title"
+        className={`relative w-full max-w-md rounded-3xl bg-bg-secondary border ${theme.border} shadow-[0_24px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300 ${
           visible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
         }`}
         onClick={(e) => e.stopPropagation()}
-        style={{ animation: visible ? 'toast-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both' : undefined }}
       >
-        {/* Top accent bar */}
-        <div className={`h-1.5 w-full ${accentBg}`} />
-
-        {/* Ambient glow */}
-        <div className={`absolute -top-12 -right-12 w-40 h-40 rounded-full blur-3xl ${accentBg}/10`} />
-
-        <div className="relative p-6 sm:p-7">
-          {/* Icon */}
-          <div className="flex items-center justify-between mb-5">
-            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${accentGradient} border ${accentBorder} flex items-center justify-center`}>
-              <Icon className={`w-7 h-7 ${accentColor}`} />
-            </div>
-            <button
-              onClick={dismiss}
-              className="w-9 h-9 rounded-xl bg-bg-tertiary flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Title */}
-          <h2 className={`text-xl sm:text-2xl font-bold ${accentColor} mb-1.5`}>
-            {isTakeProfit ? 'Take Profit Reached' : 'Stop Loss Reached'}
-          </h2>
-
-          {/* Subtitle */}
-          <p className="text-sm text-text-secondary mb-5">
-            {isTakeProfit
-              ? 'Your bot has hit its profit target and stopped trading.'
-              : 'Your bot has hit its loss limit and stopped trading.'}
-          </p>
-
-          {/* Profit figure */}
-          <div className={`rounded-2xl bg-gradient-to-br ${accentGradient} border ${accentBorder} p-4 mb-5`}>
-            <div className="text-xs text-text-muted mb-1">Total Profit / Loss</div>
-            <div className={`text-3xl font-bold tabular ${isPositive ? 'text-brand-green' : 'text-brand-red'}`}>
-              {isPositive ? '+' : ''}{profit.toFixed(2)} <span className="text-lg text-text-muted">{alert.currency}</span>
-            </div>
-          </div>
-
-          {/* Dismiss button */}
+        <div className={`relative px-6 pt-7 pb-6 sm:px-8 ${theme.header}`}>
           <button
             onClick={dismiss}
-            className="w-full h-11 rounded-xl bg-bg-tertiary border border-border-light text-text-primary font-semibold text-sm hover:bg-bg-hover transition-colors"
+            className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            aria-label="Dismiss"
           >
-            Dismiss
+            <X className="w-4 h-4" />
           </button>
+
+          <div className={`w-16 h-16 rounded-2xl ${theme.iconTile} flex items-center justify-center`}>
+            <Icon className="w-8 h-8 text-white" strokeWidth={2.5} />
+          </div>
+
+          <p className={`mt-5 text-xs font-semibold uppercase tracking-widest ${theme.eyebrow}`}>
+            {isTakeProfit ? 'Target reached' : 'Loss limit reached'}
+          </p>
+          <h2 id="threshold-alert-title" className="mt-1 text-2xl sm:text-3xl font-bold text-text-primary leading-[1.2]">
+            {isTakeProfit ? 'Take Profit Reached' : 'Stop Loss Reached'}
+          </h2>
+          <p className="mt-2 text-sm text-text-secondary leading-[1.5]">
+            {isTakeProfit
+              ? 'Your bot hit its profit target and has stopped trading.'
+              : 'Your bot hit its loss limit and has stopped trading.'}
+          </p>
+        </div>
+
+        <div className="px-6 sm:px-8 pb-6">
+          <div className="rounded-2xl bg-bg-tertiary border border-border-light p-5">
+            <div className="text-xs font-medium text-text-muted">Session profit / loss</div>
+            <div className={`mt-1 text-3xl font-bold tabular-nums ${isPositive ? 'text-brand-green' : 'text-brand-red'}`}>
+              {isPositive ? '+' : ''}
+              {alert.profit.toFixed(2)}{' '}
+              <span className="text-base font-semibold text-text-muted">{alert.currency}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={dismiss}
+            className={`mt-5 w-full h-12 rounded-xl ${theme.button} text-white font-semibold text-sm hover:brightness-110 active:scale-[0.99] transition-all`}
+          >
+            Got it
+          </button>
+
+          <div className="mt-4 h-1 w-full rounded-full bg-bg-hover overflow-hidden" aria-hidden="true">
+            <div
+              className={`h-full rounded-full ${theme.bar}`}
+              style={{ width: `${progress}%`, transition: `width ${AUTO_CLOSE_MS}ms linear` }}
+            />
+          </div>
         </div>
       </div>
     </div>

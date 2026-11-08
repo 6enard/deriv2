@@ -149,6 +149,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   const [currentParams, setCurrentParams] = useState<TradeParams | null>(null)
   const currentParamsRef = useRef<TradeParams | null>(null)
   const [thresholdAlert, setThresholdAlert] = useState<ThresholdAlertData | null>(null)
+  const sessionProfitRef = useRef(0)
+  const thresholdAlertedRef = useRef(false)
 
   function buildInitialTrade(contractId: number, params: TradeParams, buyPrice: number, payout: number): OpenContract {
     return {
@@ -246,18 +248,29 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   ) => {
     if (!ws || !account) return
 
+    sessionProfitRef.current = 0
+    thresholdAlertedRef.current = false
+
+    const raiseThresholdAlert = (type: 'stop_loss' | 'take_profit', profit: number) => {
+      if (thresholdAlertedRef.current) return
+      thresholdAlertedRef.current = true
+      stopRef.current = true
+      stopSignalRef.current?.()
+      botApiRef.current?.abort()
+      setThresholdAlert({
+        type,
+        profit,
+        currency: currentParamsRef.current?.currency ?? 'USD',
+      })
+      playSound(type === 'take_profit' ? 'win' : 'loss')
+    }
+
     const botApi: BotApi = createBotApi(ws, account, params, {
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
         setJournal((prev) => [...prev, { time: new Date(), type, message }])
 
         if (data?.event === 'stop_loss' || data?.event === 'take_profit') {
-          const p = currentParamsRef.current
-          setThresholdAlert({
-            type: data.event,
-            profit: data.profit ?? 0,
-            currency: p?.currency ?? 'USD',
-          })
-          playSound(data.event === 'take_profit' ? 'win' : 'loss')
+          raiseThresholdAlert(data.event, data.profit ?? 0)
         }
 
         if (!data?.contractId) return
@@ -267,6 +280,15 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
 
         const profit = data.profit ?? 0
         const isWin = profit > 0
+
+        sessionProfitRef.current += profit
+        const thresholdParams = currentParamsRef.current
+        const sessionProfit = sessionProfitRef.current
+        if (thresholdParams?.take_profit !== undefined && sessionProfit >= thresholdParams.take_profit) {
+          raiseThresholdAlert('take_profit', sessionProfit)
+        } else if (thresholdParams?.stop_loss !== undefined && sessionProfit <= -thresholdParams.stop_loss) {
+          raiseThresholdAlert('stop_loss', sessionProfit)
+        }
         const isLoss = profit < 0
 
         if (isWin) {

@@ -1304,6 +1304,8 @@ export interface TradeParams {
   barrier?: string
   second_barrier?: string
   candle_interval?: string | number
+  stop_loss?: number
+  take_profit?: number
 }
 
 export type TradeParamsResult =
@@ -1397,6 +1399,26 @@ function readNumericBlock(
   return undefined
 }
 
+function readProfitThresholds(
+  blocks: Blockly.Block[],
+): { stop_loss?: number; take_profit?: number } {
+  const thresholds: { stop_loss?: number; take_profit?: number } = {}
+
+  for (const block of blocks) {
+    if (block.type !== 'logic_compare') continue
+    if (block.getInputTargetBlock('A')?.type !== 'total_profit') continue
+
+    const value = readNumericBlock(block.getInputTargetBlock('B'))
+    if (value === undefined) continue
+
+    const op = String(block.getFieldValue('OP') || '')
+    if (op === 'GTE') thresholds.take_profit = Math.abs(value)
+    else if (op === 'LTE') thresholds.stop_loss = Math.abs(value)
+  }
+
+  return thresholds
+}
+
 export function extractTradeParams(
   workspace: Blockly.WorkspaceSvg,
 ): TradeParamsResult {
@@ -1471,6 +1493,7 @@ export function extractTradeParams(
   if (prediction !== undefined) result.prediction = prediction
   if (barrier !== undefined) result.barrier = String(barrier)
   if (secondBarrier !== undefined) result.second_barrier = String(secondBarrier)
+  Object.assign(result, readProfitThresholds(blocks))
 
   return {
     ok: true,

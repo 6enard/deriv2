@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import RequireAdmin from './components/RequireAdmin'
 import FloatingScannerButton from './components/FloatingScannerButton'
 import FloatingBotStatus from './components/FloatingBotStatus'
+import ThresholdAlertHost from './components/ThresholdAlertHost'
 import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import CallbackPage from './pages/CallbackPage'
@@ -77,6 +78,7 @@ export default function App() {
         <ScrollToTop />
         <FloatingScannerButton />
         <FloatingBotStatus />
+        <ThresholdAlertHost />
       </BrowserRouter>
         </BotRunnerProvider>
         </OpenContractsProvider>
