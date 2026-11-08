@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { ChartBar as BarChart3, List, ScrollText, Trash2, RotateCcw, TrendingUp, TrendingDown, Download, X, Circle, Pause, Activity, CircleCheck as CheckCircle2, Loader as Loader2, Bot as BotIcon, ArrowUpRight, ArrowDownRight, Wallet, Target, Trophy, Zap } from 'lucide-react'
 import { resolveDisplayName, type OpenContract } from '../lib/types'
 import type { RunStats, JournalEntry } from '../context/BotRunnerContext'
@@ -56,7 +56,7 @@ export function RunResultsPanel({
 
   const hasPurchased = trades.length > 0 || journal.some((entry) => entry.message.startsWith('Contract purchased:'))
   const hasOpenContract = trades.some((t) => !t.is_sold)
-  const latest = trades[0]
+  const latest = trades.length > 0 ? trades[trades.length - 1] : undefined
   const phase = derivePhase(hasPurchased, hasOpenContract, latest)
   const winRate = runStats.wins + runStats.losses > 0 ? (runStats.wins / (runStats.wins + runStats.losses)) * 100 : 0
 
@@ -390,10 +390,18 @@ function MetricCard({ label, value, valueClass = 'text-text-primary', icon: Icon
 /* ===================== TRANSACTIONS ===================== */
 
 function TransactionsView({ trades, currency, onDetails, onReset, onDownload }: { trades: OpenContract[]; currency: string; onDetails: (contract: OpenContract) => void; onReset: () => void; onDownload: () => void }) {
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [trades.length])
+
   if (trades.length === 0) return <EmptyState icon={List} title="No transactions yet" description="Run your bot to see contracts and trade results here." />
 
   return (
-    <div>
+    <div ref={scrollRef} className="h-full overflow-y-auto">
       <div className="grid grid-cols-[0.8fr_1.2fr_1fr] gap-3 px-4 sm:px-6 py-3 border-b border-border-default text-[11px] sm:text-xs font-bold uppercase tracking-wider text-text-muted">
         <span>Type</span><span>Entry / Exit</span><span className="text-right">Price & P/L</span>
       </div>

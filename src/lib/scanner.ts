@@ -478,28 +478,70 @@ export function buildBotXmlFromSignal(
           </block>`
       : ''
 
-    let conditionXml: string
-
-    if (stopLoss > 0 && takeProfit > 0) {
-      conditionXml = `<block type="logic_negate">
-        <value name="BOOL">
-          <block type="logic_operation">
+    const thresholdConditionXml =
+      stopLoss > 0 && takeProfit > 0
+        ? `<block type="logic_operation">
             <field name="OP">OR</field>
             <value name="A">${stopLossXml}</value>
             <value name="B">${takeProfitXml}</value>
-          </block>
-        </value>
-      </block>`
-    } else {
-      const inner = stopLoss > 0 ? stopLossXml : takeProfitXml
-      conditionXml = `<block type="logic_negate">
-        <value name="BOOL">${inner}</value>
-      </block>`
-    }
+          </block>`
+        : stopLoss > 0
+          ? stopLossXml
+          : takeProfitXml
+
+    // First: if a threshold is reached, notify and DON'T trade_again
+    // (the bot falls through to the trailing break and stops).
+    const notifyStopLossXml = stopLoss > 0
+      ? `<block type="controls_if">
+            <value name="IF0">${stopLossXml}</value>
+            <statement name="DO0">
+              <block type="notify">
+                <field name="NOTIFICATION_TYPE">error</field>
+                <field name="NOTIFICATION_SOUND">TRUE</field>
+                <value name="MESSAGE"><shadow type="text"><field name="TEXT">Stop Loss reached</field></shadow></value>
+              </block>
+            </statement>
+          </block>`
+      : ''
+
+    const notifyTakeProfitXml = takeProfit > 0
+      ? `<block type="controls_if">
+            <value name="IF0">${takeProfitXml}</value>
+            <statement name="DO0">
+              <block type="notify">
+                <field name="NOTIFICATION_TYPE">success</field>
+                <field name="NOTIFICATION_SOUND">TRUE</field>
+                <value name="MESSAGE"><shadow type="text"><field name="TEXT">Take Profit reached</field></shadow></value>
+              </block>
+            </statement>
+          </block>`
+      : ''
+
+    const notifyThresholdXml =
+      stopLoss > 0 && takeProfit > 0
+        ? `${notifyStopLossXml}
+        <next>
+          ${notifyTakeProfitXml}
+        </next>`
+        : stopLoss > 0
+          ? notifyStopLossXml
+          : notifyTakeProfitXml
 
     afterBlocks.push(
       `      <block type="controls_if">
-        <value name="IF0">${conditionXml}</value>
+        <value name="IF0">${thresholdConditionXml}</value>
+        <statement name="DO0">
+          ${notifyThresholdXml}
+        </statement>
+      </block>`,
+    )
+
+    // Second: only trade_again if NO threshold was reached.
+    afterBlocks.push(
+      `      <block type="controls_if">
+        <value name="IF0"><block type="logic_negate">
+          <value name="BOOL">${thresholdConditionXml}</value>
+        </block></value>
         <statement name="DO0">
           <block type="trade_again"></block>
         </statement>

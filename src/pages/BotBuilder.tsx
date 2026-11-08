@@ -22,6 +22,7 @@ import { useBotRunnerContext } from '../context/BotRunnerContext'
 import { RunResultsPanel, type ResultsTab } from '../components/RunResultsPanel'
 import { unlockAudio } from '../lib/sounds'
 import { Play, Pause, Square, RotateCcw, Download, Upload, Loader as Loader2, Blocks as BlocksIcon, Activity, X, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, MoveVertical as MoreVertical, CircleCheck as CheckCircle2, CircleAlert, CreditCard as EditIcon, DollarSign, ChevronDown, ChevronUp, TriangleAlert, Lock, Clock as Unlock } from 'lucide-react'
+import { ThresholdAlert } from '../components/ThresholdAlert'
 
 export default function BotBuilder() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -65,6 +66,8 @@ export default function BotBuilder() {
     handleClearJournal,
     wasRunningBeforeReload,
     getSavedBotXml,
+    thresholdAlert,
+    clearThresholdAlert,
   } = useBotRunnerContext()
 
   const isRunning = globalIsRunning
@@ -1056,6 +1059,14 @@ export default function BotBuilder() {
             setShowEditBot(false)
             showToast('success', 'Bot settings updated.')
           }}
+        />
+      )}
+
+      {/* TP/SL threshold alert overlay */}
+      {thresholdAlert && (
+        <ThresholdAlert
+          alert={thresholdAlert}
+          onDismiss={clearThresholdAlert}
         />
       )}
 

@@ -17,6 +17,8 @@ export interface NotifyData {
     | 'proposal'
     | 'error'
     | 'info'
+    | 'stop_loss'
+    | 'take_profit'
 
   contractId?: number
   profit?: number
@@ -217,6 +219,8 @@ export interface BotApiOptions {
 
   onTrade?: (
     contractId: number,
+    buyPrice: number,
+    payout: number,
   ) => void
 
   shouldStop?: () => boolean
@@ -477,10 +481,19 @@ export function createBotApi(
     data?: NotifyData,
   ): void {
     if (options.onNotify) {
+      let enrichedData = data
+      if (!data?.event) {
+        const lowerMsg = message.toLowerCase()
+        if (lowerMsg.includes('stop loss')) {
+          enrichedData = { ...data, event: 'stop_loss', profit: data?.profit ?? totalProfit }
+        } else if (lowerMsg.includes('take profit')) {
+          enrichedData = { ...data, event: 'take_profit', profit: data?.profit ?? totalProfit }
+        }
+      }
       options.onNotify(
         type,
         message,
-        data,
+        enrichedData,
       )
     }
   }
@@ -1901,7 +1914,7 @@ export function createBotApi(
     })
 
     if (options.onTrade) {
-      options.onTrade(contractId)
+      options.onTrade(contractId, buyPrice, payout)
     }
 
     await waitForContractSettlement(contractId)

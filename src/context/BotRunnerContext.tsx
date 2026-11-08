@@ -15,6 +15,7 @@ import { errorMessage } from '../lib/error'
 import { useOpenContracts } from '../hooks/useOpenContracts'
 import { mapOpenContract, resolveDisplayName, type OpenContract } from '../lib/types'
 import { playSound } from '../lib/sounds'
+import type { ThresholdAlertData } from '../components/ThresholdAlert'
 
 export interface RunStats {
   totalRuns: number
@@ -56,6 +57,8 @@ interface BotRunnerContextValue {
   getSavedBotCode: () => string | null
   getSavedBotParams: () => TradeParams | null
   resumeRun: (code: string, params: TradeParams) => Promise<void>
+  thresholdAlert: ThresholdAlertData | null
+  clearThresholdAlert: () => void
 }
 
 const BotRunnerContext = createContext<BotRunnerContextValue | null>(null)
@@ -145,6 +148,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
   const botApiRef = useRef<BotApi | null>(null)
   const [currentParams, setCurrentParams] = useState<TradeParams | null>(null)
   const currentParamsRef = useRef<TradeParams | null>(null)
+  const [thresholdAlert, setThresholdAlert] = useState<ThresholdAlertData | null>(null)
 
   function buildInitialTrade(contractId: number, params: TradeParams, buyPrice: number, payout: number): OpenContract {
     return {
@@ -246,6 +250,16 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       onNotify: (type: NotificationType, message: string, data?: NotifyData) => {
         setJournal((prev) => [...prev, { time: new Date(), type, message }])
 
+        if (data?.event === 'stop_loss' || data?.event === 'take_profit') {
+          const p = currentParamsRef.current
+          setThresholdAlert({
+            type: data.event,
+            profit: data.profit ?? 0,
+            currency: p?.currency ?? 'USD',
+          })
+          playSound(data.event === 'take_profit' ? 'win' : 'loss')
+        }
+
         if (!data?.contractId) return
         if (data.event !== 'trade_won' && data.event !== 'trade_lost' && data.event !== 'trade_sold') return
         if (settledContractIds.current.has(data.contractId)) return
@@ -288,12 +302,13 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
           return next
         })
       },
-      onTrade: (contractId: number) => {
+      onTrade: (contractId: number, buyPrice: number, payout: number) => {
         const p = currentParamsRef.current
         if (p) {
+          const effectiveBuyPrice = buyPrice > 0 ? buyPrice : p.amount
           setTrades((prev) => {
             if (prev.some((t) => t.contract_id === contractId)) return prev
-            return [buildInitialTrade(contractId, p, 0, 0), ...prev]
+            return [...prev, buildInitialTrade(contractId, p, effectiveBuyPrice, payout)]
           })
         }
         subscribeToContract(contractId)
@@ -309,7 +324,7 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
                   next[idx] = contract
                   return next
                 }
-                return [contract, ...prev]
+                return [...prev, contract]
               })
             }
           },
@@ -538,6 +553,10 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
     setJournal([])
   }, [])
 
+  const clearThresholdAlert = useCallback(() => {
+    setThresholdAlert(null)
+  }, [])
+
   return (
     <BotRunnerContext.Provider value={{
       isRunning,
@@ -556,6 +575,8 @@ export function BotRunnerProvider({ children }: { children: ReactNode }) {
       getSavedBotXml,
       getSavedBotCode,
       getSavedBotParams,
+      thresholdAlert,
+      clearThresholdAlert,
     }}>
       {children}
     </BotRunnerContext.Provider>
