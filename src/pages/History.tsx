@@ -362,7 +362,7 @@ export default function History() {
                     </tr>
                   </thead>
                   <tbody>
-                    {closedTrades.map((trade) => (
+                    {[...closedTrades].reverse().map((trade) => (
                       <tr key={trade.contract_id} className="border-b border-border-default/50 hover:bg-bg-tertiary/50 transition-colors">
                         <td className="py-3 pr-4 font-medium max-w-xs truncate">{trade.display_name}</td>
                         <td className="py-3 pr-4">
@@ -422,7 +422,7 @@ export default function History() {
                     </tr>
                   </thead>
                   <tbody>
-                    {statement.map((entry) => (
+                    {[...statement].reverse().map((entry) => (
                       <tr key={entry.id} className="border-b border-border-default/50 hover:bg-bg-tertiary/50 transition-colors">
                         <td className="py-3 pr-4 text-text-muted text-xs whitespace-nowrap">{new Date(entry.transaction_time * 1000).toLocaleString()}</td>
                         <td className="py-3 pr-4">

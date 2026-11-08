@@ -199,7 +199,7 @@ export default function Portfolio() {
                 </tr>
               </thead>
               <tbody>
-                {tradeHistory.map((trade) => (
+                {[...tradeHistory].reverse().map((trade) => (
                   <tr key={trade.contract_id} className="border-b border-border-default/50 hover:bg-bg-tertiary/50 transition-colors">
                     <td className="py-3 pr-4 font-medium max-w-xs truncate">{trade.display_name}</td>
                     <td className="py-3 pr-4">
