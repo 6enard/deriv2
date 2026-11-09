@@ -7,6 +7,7 @@ import { buildBotXmlFromSignal, type ScanResult, type DigitSignal, type BotConfi
 import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy, X, Settings as SettingsIcon, Play } from 'lucide-react'
 
 const TICK_OPTIONS = [100, 200, 300, 500]
+const DEMO_SCANNER_ACCESS_ID = 'DOT92362057'
 
 interface PendingBot {
   result: ScanResult
@@ -20,8 +21,8 @@ export default function Scanner() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const autoScanTriggered = useRef(false)
   const [pendingBot, setPendingBot] = useState<PendingBot | null>(null)
-  const { accountType } = useAuth()
-  const isDemo = accountType === 'demo'
+  const { accountType, account } = useAuth()
+  const isDemo = accountType === 'demo' && account?.account_id !== DEMO_SCANNER_ACCESS_ID
   const [demoPopupOpen, setDemoPopupOpen] = useState(false)
 
   useEffect(() => {
