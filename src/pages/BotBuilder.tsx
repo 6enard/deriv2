@@ -896,26 +896,33 @@ export default function BotBuilder() {
         }}
       >
         {/* Drag handle + collapsed header */}
-        <button
-          onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
-          className="w-full flex flex-col items-center pt-2 pb-1 shrink-0 cursor-pointer touch-none"
-        >
-          <div className="w-10 h-1 rounded-full bg-border-light mb-1.5" />
-          <div className="w-full px-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-text-secondary" />
-              <span className="text-sm font-bold text-text-primary">
-                Results
-              </span>
-              {isRunning && (
-                <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow" />
+        <div className="w-full flex flex-col items-center pt-2 pb-1 shrink-0">
+          <button
+            onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
+            aria-label={mobilePanelExpanded ? 'Collapse results' : 'Expand results'}
+            className="w-full flex flex-col items-center cursor-pointer touch-none"
+          >
+            <div className="w-10 h-1 rounded-full bg-border-light mb-1.5" />
+          </button>
+          <div className="w-full px-4 flex items-center justify-between gap-2">
+            <button
+              onClick={() => setMobilePanelExpanded(!mobilePanelExpanded)}
+              className="flex items-center gap-2 min-w-0 cursor-pointer"
+            >
+              <Activity className="w-4 h-4 text-text-secondary shrink-0" />
+              <span className="text-sm font-bold text-text-primary">Results</span>
+              {isRunning && <span className="w-2 h-2 rounded-full bg-brand-red pulse-glow shrink-0" />}
+              {mobilePanelExpanded ? (
+                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-text-muted shrink-0" />
               )}
-            </div>
+            </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               {hasResults && (
                 <span
-                  className={`text-xs font-bold tabular px-2 py-0.5 rounded-lg ${
+                  className={`text-xs font-bold tabular px-2 py-0.5 rounded-lg whitespace-nowrap truncate ${
                     totalProfit >= 0
                       ? 'bg-brand-green/10 text-brand-green'
                       : 'bg-brand-red/10 text-brand-red'
@@ -928,11 +935,8 @@ export default function BotBuilder() {
               {isRunning ? (
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleStop()
-                  }}
-                  className="h-7 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors"
+                  onClick={handleStop}
+                  className="h-8 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors shrink-0"
                 >
                   <Pause className="w-3 h-3 fill-current" />
                   Stop
@@ -940,25 +944,17 @@ export default function BotBuilder() {
               ) : (
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleRun()
-                  }}
+                  onClick={handleRun}
                   disabled={marketsLoading || !marketsLoaded}
-                  className="h-7 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="h-8 px-3 rounded-lg bg-brand-red text-white flex items-center gap-1.5 font-bold text-xs hover:bg-brand-red-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                 >
                   {marketsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3 fill-current" />}
                   Run
                 </button>
               )}
-              {mobilePanelExpanded ? (
-                <ChevronDown className="w-4 h-4 text-text-muted" />
-              ) : (
-                <ChevronUp className="w-4 h-4 text-text-muted" />
-              )}
             </div>
           </div>
-        </button>
+        </div>
 
         {mobilePanelExpanded && (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">

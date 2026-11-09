@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useScanner } from '../hooks/useScanner'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
 import { buildBotXmlFromSignal, type ScanResult, type DigitSignal, type BotConfig } from '../lib/scanner'
 import { Radar, Loader as Loader2, RefreshCw, TrendingUp, Hash, Bot, Activity, Target, CircleAlert as AlertCircle, Sparkles, ChevronDown, ChevronUp, Brain, Zap, Trophy, X, Settings as SettingsIcon, Play } from 'lucide-react'
@@ -19,12 +20,27 @@ export default function Scanner() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const autoScanTriggered = useRef(false)
   const [pendingBot, setPendingBot] = useState<PendingBot | null>(null)
+  const { accountType } = useAuth()
+  const isDemo = accountType === 'demo'
+  const [demoPopupOpen, setDemoPopupOpen] = useState(false)
 
   useEffect(() => {
     if (autoScanTriggered.current) return
+    if (isDemo) {
+      setDemoPopupOpen(true)
+      return
+    }
     autoScanTriggered.current = true
     runScan()
-  }, [runScan])
+  }, [runScan, isDemo])
+
+  const requestScan = () => {
+    if (isDemo) {
+      setDemoPopupOpen(true)
+      return
+    }
+    runScan()
+  }
 
   useEffect(() => {
     if (results.length > 0 && !expandedId) {
@@ -97,7 +113,7 @@ export default function Scanner() {
             <span className="px-1.5 text-[10px] text-text-muted font-medium">ticks</span>
           </div>
           <button
-            onClick={() => runScan()}
+            onClick={requestScan}
             disabled={scanning}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-red text-white font-semibold text-sm hover:bg-brand-red-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -113,7 +129,7 @@ export default function Scanner() {
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
             <span>{error}</span>
-            <button onClick={() => runScan()} className="block mt-2 text-xs font-bold underline hover:no-underline">
+            <button onClick={requestScan} className="block mt-2 text-xs font-bold underline hover:no-underline">
               Retry Scan
             </button>
           </div>
@@ -164,7 +180,7 @@ export default function Scanner() {
         <div className="flex flex-col items-center justify-center py-20">
           <AlertCircle className="w-12 h-12 text-text-muted mb-4" />
           <p className="text-sm text-text-secondary">Unable to fetch market data this time. Please try again.</p>
-          <button onClick={() => runScan()} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-red text-white text-sm font-medium hover:bg-brand-red-dim transition-colors">
+          <button onClick={requestScan} className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-red text-white text-sm font-medium hover:bg-brand-red-dim transition-colors">
             <RefreshCw className="w-4 h-4" />
             Retry Scan
           </button>
@@ -389,6 +405,35 @@ export default function Scanner() {
           Scanner results are based on historical tick data and statistical analysis. Past performance does not guarantee future results.
           Trade recommendations are for educational purposes and should not be considered financial advice. Always trade responsibly.
         </p>
+      )}
+
+      {/* Demo account notice */}
+      {demoPopupOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setDemoPopupOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-bg-secondary border border-border-light shadow-2xl overflow-hidden slide-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="w-11 h-11 rounded-2xl bg-brand-amber/15 border border-brand-amber/20 flex items-center justify-center mb-4">
+                <Brain className="w-5 h-5 text-brand-amber" />
+              </div>
+              <h2 className="font-bold text-lg text-text-primary">AI Scanner is for real accounts</h2>
+              <p className="text-sm text-text-secondary mt-2 leading-relaxed">
+                The AI Scanner can only be used with a real account. Top up your funds on your real account, then try again.
+              </p>
+              <button
+                onClick={() => setDemoPopupOpen(false)}
+                className="mt-6 w-full h-11 rounded-xl bg-brand-red text-white font-bold text-sm hover:bg-brand-red-dim transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bot configuration modal */}
